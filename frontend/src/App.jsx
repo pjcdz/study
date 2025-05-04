@@ -4,15 +4,32 @@ import MarkdownPane from "./features/summary/components/MarkdownPane";
 import FlashcardPane from "./features/flashcards/components/FlashcardPane";
 import "./App.css";
 import './mobile-fixes.css';
+import 'react-toastify/dist/ReactToastify.css';
+import { ToastContainer } from 'react-toastify';
+import { AnimatePresence, motion } from 'framer-motion';
 
 function App() {
-  const [currentStep, setCurrentStep] = useState(1);
-  const [notionMarkdown, setNotionMarkdown] = useState(null);
-  const [flashcardsTSV, setFlashcardsTSV] = useState(null);
+  // Load persisted state or defaults
+  const [currentStep, setCurrentStep] = useState(() => Number(localStorage.getItem('currentStep')) || 1);
+  const [notionMarkdown, setNotionMarkdown] = useState(() => localStorage.getItem('notionMarkdown'));
+  const [flashcardsTSV, setFlashcardsTSV] = useState(() => localStorage.getItem('flashcardsTSV'));
   const [isLoading, setIsLoading] = useState(false);
   const [apiStatus, setApiStatus] = useState(null);
   const [processingTime, setProcessingTime] = useState(0);
   const processingTimerRef = useRef(null);
+
+  // Persist notionMarkdown
+  useEffect(() => {
+    if (notionMarkdown) localStorage.setItem('notionMarkdown', notionMarkdown);
+  }, [notionMarkdown]);
+  // Persist flashcardsTSV
+  useEffect(() => {
+    if (flashcardsTSV) localStorage.setItem('flashcardsTSV', flashcardsTSV);
+  }, [flashcardsTSV]);
+  // Persist currentStep
+  useEffect(() => {
+    localStorage.setItem('currentStep', currentStep);
+  }, [currentStep]);
 
   // Effect to update processing time when loading
   useEffect(() => {
@@ -89,6 +106,9 @@ function App() {
     setNotionMarkdown(null);
     setFlashcardsTSV(null);
     setCurrentStep(1);
+    localStorage.removeItem('notionMarkdown');
+    localStorage.removeItem('flashcardsTSV');
+    localStorage.removeItem('currentStep');
   };
 
   return (
@@ -100,21 +120,30 @@ function App() {
           
           {/* Progress indicators */}
           <div className="flex items-center space-x-4">
-            <div className={`flex items-center ${currentStep >= 1 ? 'text-blue-400' : 'text-gray-500'}`}>
+            <div
+              className={`flex items-center cursor-pointer ${currentStep === 1 ? 'font-bold' : 'opacity-50'}`}
+              onClick={() => setCurrentStep(1)}
+            >
               <span className="w-6 h-6 rounded-full flex items-center justify-center border border-current mr-2">
                 1
               </span>
               <span className="hidden sm:inline">Upload</span>
             </div>
             <div className="h-px w-4 sm:w-8 bg-gray-700"></div>
-            <div className={`flex items-center ${currentStep >= 2 ? 'text-blue-400' : 'text-gray-500'}`}>
+            <div
+              className={`flex items-center cursor-pointer ${currentStep === 2 ? 'font-bold' : 'opacity-50'}`}
+              onClick={() => setCurrentStep(2)}
+            >
               <span className="w-6 h-6 rounded-full flex items-center justify-center border border-current mr-2">
                 2
               </span>
               <span className="hidden sm:inline">Markdown</span>
             </div>
             <div className="h-px w-4 sm:w-8 bg-gray-700"></div>
-            <div className={`flex items-center ${currentStep >= 3 ? 'text-blue-400' : 'text-gray-500'}`}>
+            <div
+              className={`flex items-center cursor-pointer ${currentStep === 3 ? 'font-bold' : 'opacity-50'}`}
+              onClick={() => setCurrentStep(3)}
+            >
               <span className="w-6 h-6 rounded-full flex items-center justify-center border border-current mr-2">
                 3
               </span>
@@ -160,39 +189,64 @@ function App() {
           </div>
         )}
 
-        {/* Step 1: Upload */}
-        {currentStep === 1 && (
-          <div className="h-[calc(100vh-8rem)]">
-            <UploadPane 
-              onSummaryGenerated={handleSummaryGenerated} 
-              setIsLoading={setIsLoading} 
-            />
-          </div>
-        )}
+        <AnimatePresence exitBeforeEnter>
+          {/* Step 1: Upload */}
+          {currentStep === 1 && (
+            <motion.div
+              key="upload"
+              className="h-[calc(100vh-8rem)]"
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -50 }}
+              transition={{ duration: 0.3 }}
+            >
+              <UploadPane 
+                onSummaryGenerated={handleSummaryGenerated} 
+                setIsLoading={setIsLoading} 
+              />
+            </motion.div>
+          )}
 
-        {/* Step 2: Markdown */}
-        {currentStep === 2 && (
-          <div className="h-[calc(100vh-8rem)]">
-            <MarkdownPane 
-              notionMarkdown={notionMarkdown} 
-              onFlashcardsGenerated={handleFlashcardsGenerated}
-              setIsLoading={setIsLoading} 
-            />
-          </div>
-        )}
+          {/* Step 2: Markdown */}
+          {currentStep === 2 && (
+            <motion.div
+              key="markdown"
+              className="h-[calc(100vh-8rem)]"
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -50 }}
+              transition={{ duration: 0.3 }}
+            >
+              <MarkdownPane 
+                notionMarkdown={notionMarkdown} 
+                onFlashcardsGenerated={handleFlashcardsGenerated}
+                setIsLoading={setIsLoading} 
+              />
+            </motion.div>
+          )}
 
-        {/* Step 3: Flashcards */}
-        {currentStep === 3 && (
-          <div className="h-[calc(100vh-8rem)]">
-            <FlashcardPane flashcardsTSV={flashcardsTSV} />
-          </div>
-        )}
+          {/* Step 3: Flashcards */}
+          {currentStep === 3 && (
+            <motion.div
+              key="flashcards"
+              className="h-[calc(100vh-8rem)]"
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -50 }}
+              transition={{ duration: 0.3 }}
+            >
+              <FlashcardPane flashcardsTSV={flashcardsTSV} />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
 
       {/* Footer */}
       <footer className="bg-gray-800 text-center p-4 text-gray-400 text-sm">
         <p>Powered by Google Gemini AI | &copy; {new Date().getFullYear()} Study Tool</p>
       </footer>
+      {/* Toast notifications */}
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
     </div>
   );
 }

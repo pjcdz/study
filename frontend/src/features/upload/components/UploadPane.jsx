@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { toast } from 'react-toastify';
 import apiClient from '../../../shared/services/apiClient';
 import { THEME_COLORS } from '../../../shared/utils/themeUtils';
 
@@ -130,7 +131,9 @@ const UploadPane = ({ onSummaryGenerated, setIsLoading }) => {
   // Handle summary generation
   const handleGenerateSummary = async () => {
     if (!inputText.trim() && files.length === 0) {
-      setError('Please enter some text or upload files first');
+      const msg = 'Please enter text or upload files first';
+      setError(msg);
+      toast.error(msg);
       return;
     }
     
@@ -170,13 +173,18 @@ const UploadPane = ({ onSummaryGenerated, setIsLoading }) => {
         
         // Enviar el markdown generado
         onSummaryGenerated(response.notionMarkdown);
+        toast.success('Summary generated successfully');
       } catch (apiError) {
         console.error("API Error details:", apiError);
-        setError(`${apiError.message}`);
+        const msg = apiError.message;
+        setError(msg);
+        toast.error(msg);
       }
     } catch (err) {
       console.error('Error in handleGenerateSummary:', err);
-      setError(`Error processing content: ${err.message}`);
+      const msg = `Error processing content: ${err.message}`;
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsLoading(false);
       setIsGenerating(false);
