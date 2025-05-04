@@ -3,6 +3,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    image: study-frontend:local
     ports:
       - "5173:5173"
     volumes:
@@ -19,6 +20,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    image: study-backend:local
     ports:
       - "4000:4000"
     volumes:

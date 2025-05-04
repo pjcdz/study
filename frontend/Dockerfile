@@ -1,5 +1,5 @@
 # Usar una imagen de Node oficial
-FROM node:18-alpine
+FROM node:20-alpine
 
 # Establecer el directorio de trabajo en el contenedor
 WORKDIR /app
@@ -7,10 +7,8 @@ WORKDIR /app
 # Copiar package.json y package-lock.json
 COPY package.json package-lock.json ./
 
-# Instalar las dependencias
+# Instalar las dependencias con caché y omitir dev
 RUN npm install
-# Instalar explícitamente pdfjs-dist
-RUN npm install pdfjs-dist@4.0.269
 
 # Copiar el resto del código fuente
 COPY . .
