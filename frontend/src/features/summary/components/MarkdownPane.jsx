@@ -44,35 +44,19 @@ const MarkdownPane = ({ notionMarkdown, onFlashcardsGenerated, setIsLoading }) =
   };
 
   return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', height: '100%', padding: '1rem',
-      backgroundColor: 'var(--color-background-darker)', color: 'var(--color-text)'
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-        <h2 style={{ fontSize: 'var(--font-size-h2)', fontWeight: 600 }}>Notion Markdown</h2>
-        <button
-          onClick={handleGenerateFlashcards}
-          style={{
-            border: 'none', background: 'none', color: 'var(--color-secondary)',
-            cursor: 'pointer', fontSize: 'var(--font-size-body)'
-          }}
-        >Generate Flashcards</button>
+    <div>
+      <h2>Notion Markdown</h2>
+      <div className="field">
+        <textarea
+          id="markdownContent"
+          readOnly
+          value={notionMarkdown}
+        />
+        <label htmlFor="markdownContent">Content</label>
       </div>
-      <div style={{ flex: 1, overflow: 'auto', fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
-        {notionMarkdown}
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
-        <button
-          onClick={() => {
-            navigator.clipboard.writeText(notionMarkdown);
-            toast.success('Markdown copied!');
-          }}
-          style={{
-            border: 'none', background: 'none', color: 'var(--color-secondary)',
-            cursor: 'pointer', fontSize: 'var(--font-size-body)'
-          }}
-        >Copy</button>
-      </div>
+      <button className="btn btn-primary" onClick={handleGenerateFlashcards}>
+        Generate Flashcards
+      </button>
     </div>
   );
 };
