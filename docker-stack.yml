@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  frontend:
+    image: ${REGISTRY:-ghcr.io}/${GITHUB_USERNAME:-pjcdz}/study_frontend:${TAG:-latest}
+    ports:
+      - "5173"
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    depends_on:
+      - backend
+    networks:
+      - study-network
+      - traefik_traefik-public
+    deploy:
+      replicas: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.study-frontend.rule=Host(`study.cardozo.com.ar`)"  
+        - "traefik.http.routers.study-frontend.entrypoints=websecure"
+        - "traefik.http.routers.study-frontend.tls=true"
+        - "traefik.http.routers.study-frontend.tls.certresolver=myresolver"
+        - "traefik.http.services.study-frontend.loadbalancer.server.port=5173"
+        - "traefik.docker.network=traefik_traefik-public"
+
+  backend:
+    image: ${REGISTRY:-ghcr.io}/${GITHUB_USERNAME:-pjcdz}/study_backend:${TAG:-latest}
+    ports:
+      - "4000"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    networks:
+      - study-network
+      - traefik_traefik-public
+    secrets:
+      - gemini_api_key
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.study-backend.rule=Host(`study.cardozo.com.ar`) && PathPrefix(`/api`)"
+        - "traefik.http.routers.study-backend.entrypoints=websecure"
+        - "traefik.http.routers.study-backend.tls=true"
+        - "traefik.http.routers.study-backend.tls.certresolver=myresolver"
+        - "traefik.http.services.study-backend.loadbalancer.server.port=4000"
+        - "traefik.docker.network=traefik_traefik-public"
+        - "traefik.http.middlewares.study-backend-stripprefix.stripprefix.prefixes=/api"
+        - "traefik.http.routers.study-backend.middlewares=study-backend-stripprefix"
+
+networks:
+  study-network:
+    driver: overlay
+  traefik_traefik-public:
+    external: true
+
+secrets:
+  gemini_api_key:
+    external: true
