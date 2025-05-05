@@ -192,34 +192,171 @@ const UploadPane = ({ onSummaryGenerated, setIsLoading }) => {
   };
   
   return (
-    <div>
-      <h2>Upload Documents</h2>
-      <div>
-        <input id="fileInput" type="file" ref={fileInputRef} hidden multiple onChange={handleFileChange} />
-        <button className="btn btn-secondary" onClick={handleOpenFileDialog}>Upload Files</button>
+    <div className="flex flex-col w-full h-full p-4 bg-gray-900">
+      <h2 className="text-xl font-semibold mb-4" style={{ color: THEME_COLORS.primary }}>
+        Upload Documents
+      </h2>
+      
+      {/* File upload area */}
+      <div 
+        className="mb-4 p-4 border-2 border-dashed rounded-lg cursor-pointer transition-colors duration-200 flex flex-col items-center justify-center"
+        style={{ 
+          borderColor: THEME_COLORS.border,
+          backgroundColor: THEME_COLORS.backgroundDarker,
+          minHeight: '100px' 
+        }}
+        onClick={handleOpenFileDialog}
+      >
+        <input
+          type="file"
+          ref={fileInputRef}
+          className="hidden"
+          onChange={handleFileChange}
+          multiple
+          accept="image/*, application/pdf, text/*, application/json"
+        />
+        
+        <div className="text-center">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke={THEME_COLORS.primary} strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+          </svg>
+          <p className="text-base" style={{ color: THEME_COLORS.textDimmed }}>Drag & drop files here, or click to select files</p>
+          <p className="text-sm mt-1" style={{ color: THEME_COLORS.text }}>Supported formats: PDFs, Images, Text files</p>
+        </div>
       </div>
+      
+      {/* File list */}
       {files.length > 0 && (
-        <ul>
-          {files.map((file, i) => <li key={i}>{file.name}</li>)}
-        </ul>
+        <div className="mb-4">
+          <h3 className="text-md font-medium mb-2" style={{ color: THEME_COLORS.accent }}>
+            {files.length} file(s) selected
+          </h3>
+          
+          <div className="max-h-40 overflow-y-auto" style={{ backgroundColor: THEME_COLORS.backgroundDarker }}>
+            {files.map((file, index) => (
+              <div 
+                key={`${file.name}-${index}`}
+                className="p-2 flex items-center justify-between border-b"
+                style={{ borderColor: THEME_COLORS.border }}
+              >
+                <div className="flex items-center">
+                  {file.type.includes('image/') ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke={THEME_COLORS.accent} strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  ) : file.type === 'application/pdf' ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke={THEME_COLORS.error} strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke={THEME_COLORS.primary} strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  )}
+                  <span className="text-sm" style={{ color: THEME_COLORS.text }}>{file.name}</span>
+                </div>
+                
+                <button
+                  className="text-sm px-2 py-1 rounded"
+                  style={{ color: THEME_COLORS.error }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRemoveFile(index);
+                  }}
+                >
+                  &times;
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
-      <div className="field">
+      
+      {/* Processing progress bar */}
+      {isProcessing && (
+        <div className="mb-4">
+          <div className="w-full bg-gray-700 rounded-full h-2.5">
+            <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${processingProgress}%` }}></div>
+          </div>
+          <p className="text-sm text-gray-400 mt-1 text-center">
+            Processing files: {processingProgress}%
+          </p>
+        </div>
+      )}
+      
+      {/* Generación en progreso */}
+      {isGenerating && !isProcessing && (
+        <div className="mb-4 p-3 rounded-md flex items-center justify-between" style={{ backgroundColor: `${THEME_COLORS.primary}20` }}>
+          <div className="flex items-center">
+            <svg className="animate-spin mr-3 h-5 w-5" style={{ color: THEME_COLORS.primary }} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span style={{ color: THEME_COLORS.text }}>Generando resumen...</span>
+          </div>
+          <div className="font-mono" style={{ color: THEME_COLORS.primary }}>
+            {formatTime(generationTime)}
+          </div>
+        </div>
+      )}
+      
+      <div className="flex-1 mb-4">
+        <div className="text-sm font-medium mb-1" style={{ color: THEME_COLORS.text }}>
+          {files.length > 0 ? "Additional context (optional):" : "Paste text content:"}
+        </div>
         <textarea
-          id="textInput"
-          placeholder={files.length>0?"Additional context": "Paste document text"}
+          className="w-full h-full p-3 rounded-md border resize-none"
+          style={{ 
+            backgroundColor: THEME_COLORS.backgroundDarker, 
+            color: THEME_COLORS.text,
+            borderColor: THEME_COLORS.border
+          }}
+          placeholder={files.length > 0 
+            ? "Add any context or specific instructions about the uploaded files..." 
+            : "Paste your document content here..."}
           value={inputText}
           onChange={handleTextChange}
         />
-        <label htmlFor="textInput">Content</label>
       </div>
-      {error && <p>{error}</p>}
-      <button
-        className="btn btn-primary"
-        onClick={handleGenerateSummary}
-        disabled={isProcessing || isGenerating}
-      >
-        {isProcessing || isGenerating ? 'Processing...' : 'Generate Summary'}
-      </button>
+      
+      {/* Error message */}
+      {error && (
+        <div className="mb-4 p-3 rounded-md" style={{ backgroundColor: `${THEME_COLORS.error}20`, color: THEME_COLORS.error }}>
+          {error}
+        </div>
+      )}
+      
+      <div className="flex justify-end">
+        <button
+          onClick={handleGenerateSummary}
+          disabled={isProcessing || isGenerating}
+          className="px-6 py-2 text-white font-medium rounded-md transition-colors duration-200 flex items-center"
+          style={{ 
+            backgroundColor: isProcessing || isGenerating ? THEME_COLORS.border : THEME_COLORS.button.primary,
+            opacity: isProcessing || isGenerating ? 0.7 : 1
+          }}
+        >
+          {isProcessing ? (
+            <>
+              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Processing...
+            </>
+          ) : isGenerating ? (
+            <>
+              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Generating...
+            </>
+          ) : (
+            'Generate Summary'
+          )}
+        </button>
+      </div>
     </div>
   );
 };
