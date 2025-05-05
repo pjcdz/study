@@ -1,20 +1,14 @@
-# Usar una imagen de Node oficial
-FROM node:20-alpine
+FROM node:18-alpine
 
-# Establecer el directorio de trabajo en el contenedor
 WORKDIR /app
 
-# Copiar package.json y package-lock.json
-COPY package.json package-lock.json ./
+COPY package*.json ./
 
-# Instalar las dependencias con caché y omitir dev
-RUN npm install
+# Cambiamos npm ci --production por npm install --omit=dev
+RUN npm install --omit=dev
 
-# Copiar el resto del código fuente
 COPY . .
 
-# Exponer el puerto 4000
 EXPOSE 4000
 
-# Comando para iniciar la aplicación
 CMD ["node", "src/app.js"]
