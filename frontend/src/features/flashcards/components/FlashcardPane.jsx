@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import { useAccessibility } from '../../../shared/components/accessibility/AccessibilityContext';
 
 const FlashcardPane = ({ flashcardsTSV }) => {
-  const { t } = useAccessibility(); // Hook para acceder a traducciones
+  const { t, theme } = useAccessibility(); // Hook para acceder a traducciones y tema
   const [isCopied, setIsCopied] = useState(false);
   const [cleanTSV, setCleanTSV] = useState('');
 
@@ -80,7 +80,7 @@ const FlashcardPane = ({ flashcardsTSV }) => {
       {/* TSV view */}
       <div className="tsv-container mb-4">
         <div className="mb-2">
-          <label htmlFor="tsvContent" className="text-sm font-medium text-neutral-700 block mb-1">
+          <label htmlFor="tsvContent" className="text-sm font-medium block mb-1">
             {t('flashcardsContent')}
           </label>
           <textarea
@@ -89,16 +89,30 @@ const FlashcardPane = ({ flashcardsTSV }) => {
             readOnly
             value={cleanTSV || ''}
             aria-label={t('flashcardsContentForExport')}
-            style={{ minHeight: '250px', maxHeight: '40vh', resize: 'vertical' }}
+            style={{ 
+              minHeight: '250px', 
+              maxHeight: '40vh', 
+              resize: 'vertical',
+              backgroundColor: 'var(--card-bg)',
+              color: 'var(--text-color)',
+              borderColor: 'var(--form-border-color)'
+            }}
           />
         </div>
-        <p className="text-sm text-neutral-600">
+        <p className="text-sm" style={{ color: 'var(--text-light)' }}>
           ✓ {t('readyToImport')}
         </p>
       </div>
       
       {/* Export instructions */}
-      <div className="export-instructions p-4 bg-neutral-100 rounded-lg mb-4">
+      <div 
+        className="export-instructions p-4 rounded-lg mb-4"
+        style={{
+          backgroundColor: 'var(--instructions-bg)',
+          color: 'var(--instructions-text)',
+          border: '1px solid var(--border-color)'
+        }}
+      >
         <h3 className="text-md font-medium mb-3">{t('importQuizlet')}:</h3>
         <ol className="list-decimal pl-5 text-sm space-y-2">
           <li>{t('importStep1')}</li>

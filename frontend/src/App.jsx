@@ -9,7 +9,6 @@ import { ToastContainer, toast } from 'react-toastify';
 // Import icons for navigation
 import { FiUpload, FiFileText, FiLayers, FiRefreshCw } from 'react-icons/fi';
 import "./App.css";
-import './mobile-fixes.css';
 
 function AppContent() {
   const { t, theme, language } = useAccessibility(); // Hook para acceder a traducciones y tema
@@ -340,19 +339,9 @@ function AppContent() {
             <div className="flex items-center justify-between mb-2 progress-indicator-container">
               <span className="text-xs font-medium">{t('step')} {currentStep} {t('of')} 3</span>
               <button 
-                className={`text-xs flex items-center ${(notionMarkdown || flashcardsTSV) ? 'text-white font-medium' : 'text-neutral-600'}`}
+                className={`text-xs flex items-center ${(notionMarkdown || flashcardsTSV) ? 'reset-button' : 'reset-button-inactive'}`}
                 onClick={handleReset}
                 aria-label={t('startOver')}
-                style={{
-                  backgroundColor: (notionMarkdown || flashcardsTSV) ? 'var(--primary-light)' : 'transparent',
-                  color: (notionMarkdown || flashcardsTSV) ? 'white' : 'var(--text-light)',
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  transition: 'all 0.2s ease',
-                  minWidth: '90px', 
-                  textAlign: 'center',
-                  justifyContent: 'center'
-                }}
               >
                 <FiRefreshCw size={14} style={{ marginRight: '6px' }} /> {t('startOver')}
               </button>

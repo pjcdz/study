@@ -109,9 +109,17 @@ const applyTheme = (theme) => {
     root.style.setProperty(property, value);
   });
   
-  // Add theme class to the body
-  document.body.classList.remove('theme-light', 'theme-dark');
-  document.body.classList.add(`theme-${theme}`);
+  // Actualizar el atributo data-theme y las clases del HTML
+  document.documentElement.setAttribute('data-theme', theme);
+  
+  // Actualizar las clases del tema
+  if (theme === 'dark') {
+    document.documentElement.classList.add('theme-dark');
+    document.documentElement.classList.remove('theme-light');
+  } else {
+    document.documentElement.classList.add('theme-light');
+    document.documentElement.classList.remove('theme-dark');
+  }
   
   // Store the user's preference
   try {

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useAccessibility } from './AccessibilityContext';
-import { FiSun, FiMoon, FiGlobe, FiSettings } from 'react-icons/fi';
+import { FiSun, FiMoon, FiGlobe, FiSettings, FiMonitor } from 'react-icons/fi';
 
 const AccessibilityOptions = () => {
-  const { theme, toggleTheme, language, changeLanguage, t } = useAccessibility();
+  const { theme, themePreference, setExplicitThemePreference, language, languagePreference, changeLanguage, t } = useAccessibility();
   const [isOpen, setIsOpen] = useState(false);
 
   const toggleOptions = () => {
@@ -14,7 +14,7 @@ const AccessibilityOptions = () => {
     <div className="accessibility-options">
       {/* Botón para abrir/cerrar el panel */}
       <button 
-        className="accessibility-toggle" 
+        className={`accessibility-toggle ${isOpen ? 'active' : ''}`}
         onClick={toggleOptions}
         aria-label={t('accessibilityOptions')}
         aria-expanded={isOpen}
@@ -31,10 +31,11 @@ const AccessibilityOptions = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          boxShadow: '0 2px 10px rgba(0, 0, 0, 0.2)',
+          boxShadow: '0 2px 10px var(--shadow-color)',
           border: 'none',
           outline: 'none',
-          cursor: 'pointer'
+          cursor: 'pointer',
+          transition: 'transform 0.3s ease, background-color 0.3s'
         }}
       >
         <FiSettings size={20} />
@@ -43,18 +44,20 @@ const AccessibilityOptions = () => {
       {/* Panel de opciones */}
       {isOpen && (
         <div 
-          className="options-panel"
+          className="accessibility-panel"
           style={{
             position: 'fixed',
             bottom: '130px',
             right: '20px',
             zIndex: 50,
-            backgroundColor: 'var(--background-color)',
+            backgroundColor: 'var(--card-bg)',
+            color: 'var(--text-color)',
             borderRadius: '8px',
             padding: '16px',
-            width: '220px',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-            border: '1px solid var(--border-color)'
+            width: '260px',
+            boxShadow: '0 4px 12px var(--shadow-color)',
+            border: '1px solid var(--border-color)',
+            animation: 'fadeIn 0.2s ease'
           }}
         >
           <h3 
@@ -71,98 +74,151 @@ const AccessibilityOptions = () => {
           {/* Selector de tema */}
           <div 
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
               marginBottom: '16px'
             }}
           >
-            <label 
-              htmlFor="theme-toggle"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                color: 'var(--text-color)',
-                fontSize: '14px'
-              }}
-            >
-              {theme === 'light' ? <FiSun className="mr-2" /> : <FiMoon className="mr-2" />}
-              {t('theme')}: {theme === 'light' ? t('light') : t('dark')}
-            </label>
-            <button 
-              id="theme-toggle" 
-              onClick={toggleTheme}
-              aria-label={theme === 'light' ? t('switchToDark') : t('switchToLight')}
-              className="theme-toggle-btn"
-              style={{
-                backgroundColor: 'var(--primary-color)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                padding: '6px 12px',
-                fontSize: '12px',
-                cursor: 'pointer'
-              }}
-            >
-              {theme === 'light' ? t('dark') : t('light')}
-            </button>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '8px'
+            }}>
+              <label 
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  color: 'var(--text-color)',
+                  fontSize: '14px'
+                }}
+              >
+                {theme === 'light' ? <FiSun className="mr-2" /> : <FiMoon className="mr-2" />}
+                {t('theme')}: {theme === 'light' ? t('light') : t('dark')}
+              </label>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <button 
+                onClick={() => setExplicitThemePreference('light')}
+                aria-label={t('switchToLight')}
+                className={`btn ${themePreference === 'light' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  minHeight: 'unset',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                <FiSun size={14} />
+                {t('light')}
+              </button>
+              
+              <button 
+                onClick={() => setExplicitThemePreference('dark')}
+                aria-label={t('switchToDark')}
+                className={`btn ${themePreference === 'dark' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  minHeight: 'unset',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                <FiMoon size={14} />
+                {t('dark')}
+              </button>
+              
+              <button 
+                onClick={() => setExplicitThemePreference('system')}
+                aria-label={t('useSystemTheme')}
+                className={`btn ${themePreference === 'system' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  minHeight: 'unset',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                <FiMonitor size={14} />
+                {t('system')}
+              </button>
+            </div>
           </div>
           
           {/* Selector de idioma */}
           <div 
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between'
+              marginBottom: '8px'
             }}
           >
-            <label 
-              htmlFor="language-selector"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                color: 'var(--text-color)',
-                fontSize: '14px'
-              }}
-            >
-              <FiGlobe className="mr-2" />
-              {t('language')}:
-            </label>
-            <div className="language-buttons">
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              marginBottom: '8px'
+            }}>
+              <label 
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  color: 'var(--text-color)',
+                  fontSize: '14px'
+                }}
+              >
+                <FiGlobe className="mr-2" />
+                {t('language')}: {language.toUpperCase()}
+              </label>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <button 
-                className={`lang-btn ${language === 'en' ? 'active' : ''}`}
+                className={`btn ${languagePreference === 'en' ? 'btn-primary' : 'btn-secondary'}`}
                 onClick={() => changeLanguage('en')}
                 aria-label={t('switchToEnglish')}
-                aria-pressed={language === 'en'}
+                aria-pressed={languagePreference === 'en'}
                 style={{
-                  backgroundColor: language === 'en' ? 'var(--primary-color)' : 'var(--button-secondary)',
-                  color: language === 'en' ? 'white' : 'var(--text-color)',
-                  border: 'none',
-                  borderRadius: '4px',
-                  padding: '6px 8px',
-                  marginRight: '4px',
+                  padding: '6px 12px',
                   fontSize: '12px',
-                  cursor: 'pointer'
+                  minHeight: 'unset'
                 }}
               >
                 EN
               </button>
+              
               <button 
-                className={`lang-btn ${language === 'es' ? 'active' : ''}`}
+                className={`btn ${languagePreference === 'es' ? 'btn-primary' : 'btn-secondary'}`}
                 onClick={() => changeLanguage('es')}
                 aria-label={t('switchToSpanish')}
-                aria-pressed={language === 'es'}
+                aria-pressed={languagePreference === 'es'}
                 style={{
-                  backgroundColor: language === 'es' ? 'var(--primary-color)' : 'var(--button-secondary)',
-                  color: language === 'es' ? 'white' : 'var(--text-color)',
-                  border: 'none',
-                  borderRadius: '4px',
-                  padding: '6px 8px',
+                  padding: '6px 12px',
                   fontSize: '12px',
-                  cursor: 'pointer'
+                  minHeight: 'unset'
                 }}
               >
                 ES
+              </button>
+              
+              <button 
+                className={`btn ${languagePreference === 'system' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => changeLanguage('system')}
+                aria-label={t('useSystemLanguage')}
+                aria-pressed={languagePreference === 'system'}
+                style={{
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  minHeight: 'unset',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                <FiMonitor size={14} />
+                {t('system')}
               </button>
             </div>
           </div>
