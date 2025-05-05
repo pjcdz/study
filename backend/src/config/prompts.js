@@ -2,15 +2,15 @@ export const prompts = {
   notionPrompt: `Utilizando el formato establecido en el archivo **"formatoNotion"**, elabora un resumen EXTENSO Y DETALLADO de los documentos que suba junto a este txt. Este resumen debe ser al menos 3 veces más largo que el resumen estándar, incluyendo explicaciones detalladas, ejemplos adicionales, análisis profundo y conexiones entre conceptos. NO omitas ningún detalle importante.
 
 📌 **INSTRUCCIÓN ADICIONAL**:  
+- Utiliza emojis de forma liberada para resaltar secciones, conceptos y ejemplos (por ejemplo: 🔥, ✅, 🎯, 🤔).  
 - Asegúrate de que cada sección y subtítulo incluya al menos un emoji relevante.
-- Divide la respuesta en dos partes separadas: **Parte 1** con la primera mitad del contenido y **Parte 2** con la segunda mitad. Representa claramente cada sección como \`### Parte 1\` y \`### Parte 2\` en la interfaz de usuario.
 
 Aquí un ejemplo del formato que debe seguir cada uno de los temas presentado por tu resumen:
 
 🔹 **Requisitos clave**:  
 - **Formato Cornell Notes** con encabezados jerárquicos para claridad.  
 - **Destaque de conceptos clave** con negritas.  
-- **Citas o definiciones** con formato de cita (\`>\`).  
+- **Citas o definiciones** con formato de cita (`>`).  
 - **Bloques de Callout** para información crítica o resúmenes.  
 - **Listas y viñetas** para mejorar la organización.  
 - **Bloques Toggle** para material complementario.  
@@ -19,6 +19,12 @@ Aquí un ejemplo del formato que debe seguir cada uno de los temas presentado po
 
 📌 **IMPORTANTE**: 
 - Asegúrate de que el contenido mantenga **toda la información relevante** del documento original.
+- EXPANDE cada sección con explicaciones adicionales, ejemplos prácticos y conexiones con otros conceptos.
+- PROFUNDIZA en cada tema incluyendo subtemas que normalmente podrían omitirse.
+- INCLUYE más ejemplos de los que normalmente incluirías.
+- AÑADE secciones de "Análisis profundo" donde sea relevante.
+- Las respuestas deben ser MUY EXTENSAS para garantizar una comprensión completa del tema.
+- NO RESUMAS EXCESIVAMENTE. El objetivo es expandir, no condensar.
 
 💡 **Formato en Notion**:
 
@@ -59,7 +65,24 @@ Las ecuaciones matemáticas se utilizan en la física para describir el movimien
 
 Este prompt asegurará que el resumen sea **claro, visualmente atractivo y optimizado para el aprendizaje**, aprovechando todas las funciones de Notion. RECUERDA: el resumen debe ser al menos 3 veces más extenso de lo normal, con explicaciones detalladas y completas de cada tema.`,
   
-  flashcardPrompt: `Detect the language of the provided Notion markdown content and generate the flashcards in the same language.
- Give the output as a MarkDown ready to copy, not text. Do not include "Front\tBack" as the first line. Using the provided data, generate a set of flashcards in a tab-separated format for importing into Quizlet. Each flashcard should include a front and a back that present clear, coherent, and well-structured concepts—avoid isolated words. Do not use newline characters within a flashcard's content (each newline indicates a new flashcard). Enhance the important terms by denoted by single asterisks at the start and end of the text to be bolded. Flashcards should be short, even if it takes more cards.Reduce the number of flashcards to just the most relevant information that could be on an exam. Data:
+  flashcardPrompt: `Give the output as a MarkDown ready to copy, not text. Do not include "Front	Back" as the first line. Using the provided data, generate a COMPREHENSIVE and EXTENSIVE set of flashcards in a tab-separated format for importing into Quizlet.
+
+IMPORTANT INSTRUCTIONS FOR LENGTH AND DETAIL:
+- Create at least 3 times more flashcards than you normally would
+- Each flashcard should include DETAILED explanations on the back side
+- Include examples, counterexamples, and edge cases where applicable
+- On the back of cards, expand concepts with additional context and related information
+- Create separate cards for subtopics that would typically be grouped together
+- Include cards that explore deeper implications and connections between concepts
+
+// IMPORTANT INSTRUCTIONS FOR EMOJIS:
+- Add emojis to each flashcard front to illustrate the topic (ej. 📝, ❓, 🔍).
+- On the back of each card, usa emojis que acompañen el contenido (por ejemplo: 💡, 🔑, ⚠️).
+
+Each flashcard should include a front and a back that present clear, coherent, and well-structured concepts—avoid isolated words. Do not use newline characters within a flashcard's content (each newline indicates a new flashcard). Enhance the important terms by denoting them with single asterisks at the start and end of the text to be bolded.
+
+Do not focus on brevity - the priority is comprehensive understanding through multiple detailed flashcards.
+
+Data:
 `
 };

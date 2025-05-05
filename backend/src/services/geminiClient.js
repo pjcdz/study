@@ -30,7 +30,7 @@ export async function callGemini(prompt) {
     const body = {
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
-        temperature: 1,         // Increased for more creative and detailed output
+        temperature: 1.2,         // Increased for more creative and detailed output
         maxOutputTokens: 16384,    // Increased token limit to allow longer responses
         topP: 0.95                 // Sample tokens from top 95% probability mass for diversity
       }
