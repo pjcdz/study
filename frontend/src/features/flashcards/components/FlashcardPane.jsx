@@ -90,8 +90,8 @@ const FlashcardPane = ({ flashcardsTSV }) => {
             value={cleanTSV || ''}
             aria-label={t('flashcardsContentForExport')}
             style={{ 
-              minHeight: '250px', 
-              maxHeight: '40vh', 
+              minHeight: '200px', 
+              maxHeight: '35vh', 
               resize: 'vertical',
               backgroundColor: 'var(--card-bg)',
               color: 'var(--text-color)',

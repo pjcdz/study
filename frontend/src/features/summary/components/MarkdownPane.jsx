@@ -145,7 +145,7 @@ const MarkdownPane = ({ notionMarkdown, onFlashcardsGenerated, setIsLoading }) =
             {t('copySummary')}
           </button>
         </div>
-      </div>
+      </div>ππ
       
       <div className="markdown-content-container mb-6">
         {isEditing ? (
@@ -156,12 +156,12 @@ const MarkdownPane = ({ notionMarkdown, onFlashcardsGenerated, setIsLoading }) =
               value={editedMarkdown}
               onChange={handleMarkdownChange}
               aria-label={t('editSummaryMarkdown')}
-              style={{ minHeight: '300px', maxHeight: '50vh', resize: 'vertical' }}
+              style={{ minHeight: '200px', maxHeight: '40vh', resize: 'vertical' }}
             />
           </div>
         ) : (
           <div className="source-markdown">
-            <pre className="bg-neutral-800 text-neutral-100 p-4 rounded-lg overflow-x-auto text-sm font-mono w-full" style={{ minHeight: '300px', maxHeight: '50vh' }}>
+            <pre className="bg-neutral-800 text-neutral-100 p-4 rounded-lg overflow-x-auto text-sm font-mono w-full" style={{ minHeight: '200px', maxHeight: '35vh' }}>
               {notionMarkdown}
             </pre>
           </div>

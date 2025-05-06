@@ -1,4 +1,4 @@
-# Simple Chat App - Documentación Técnica
+# Study Assist - Documentación Técnica
 
 ## Arquitectura de la Aplicación (Application Architecture)
 
@@ -9,13 +9,14 @@ La aplicación implementa una **Screaming Architecture** junto con principios de
 ```
 src/
   features/           # Funcionalidades principales de la aplicación
-    auth/            # Todo lo relacionado con autenticación
-    chat/           # Funcionalidad central de chat
-    terminal/       # Componentes del terminal
+    upload/          # Todo lo relacionado con la carga de documentos
+    summary/         # Generación y visualización de resúmenes
+    flashcards/      # Generación y gestión de tarjetas de estudio
   shared/           # Utilidades y servicios compartidos
     hooks/         # Hooks reutilizables
-    services/      # Servicios globales
-    utils/         # Utilidades generales
+    services/      # Servicios globales (apiClient)
+    utils/         # Utilidades generales (traducciones, temas)
+    components/    # Componentes compartidos (accesibilidad)
 ```
 
 Esta estructura refleja inmediatamente el propósito y las capacidades del sistema, siguiendo los principios de Screaming Architecture donde:
@@ -23,50 +24,52 @@ Esta estructura refleja inmediatamente el propósito y las capacidades del siste
 - Los nombres de directorios comunican su intención
 - La estructura prioriza el dominio sobre los detalles técnicos
 
-### 2. Custom Hooks (Hooks Personalizados)
+### 2. Custom Hooks y Contextos (Hooks Personalizados)
 
-- **useTerminalState.js**: Centraliza la gestión de estado (state management)
-  - Mantiene todos los estados del terminal y referencias DOM
-  - Proporciona un único punto de acceso para variables de estado
-
-- **useMessageHandler.js**: Maneja operaciones de mensajes
-  - Procesa comandos y respuestas 
-  - Implementa la lógica de visualización de mensajes
+- **AccessibilityContext.jsx**: Centraliza la gestión de accesibilidad
+  - Mantiene el estado del tema (claro/oscuro) y el idioma
+  - Proporciona funciones para cambiar preferencias
+  - Implementa detección automática de preferencias del sistema
 
 ### 3. Servicios (Services)
 
-- **CommandProcessor.js**: Interpreta y ejecuta comandos
-  - Simula un sistema de comandos tipo Linux
-  - Retorna respuestas basadas en comandos ingresados
+- **apiClient.js**: Gestiona la comunicación con el backend
+  - Proporciona métodos para generar resúmenes
+  - Envía solicitudes para crear tarjetas de estudio
+  - Maneja errores y transformaciones de datos
 
-- **DemoService.js**: Implementa funcionalidad de demostración
-  - Ejecuta secuencias automáticas de comandos
-  - Simula interacción entre múltiples usuarios
+- **themeUtils.js**: Gestiona temas y estilos
+  - Define colores y variables CSS para temas
+  - Aplica cambios de tema al documento
 
 ### 4. Componentes UI (UI Components)
 
-- **Chat.jsx**: Componente principal que orquesta todos los elementos
-  - Coordina hooks, servicios y componentes de UI
-  - Gestiona efectos secundarios (side effects)
+- **App.jsx**: Componente principal que orquesta todos los elementos
+  - Coordina navegación entre pasos del flujo
+  - Gestiona estado global de la aplicación
+  - Implementa persistencia local de datos
 
-- **TerminalContainer.jsx**: Estructura visual principal
-  - Proporciona el layout base del terminal
-  - Gestiona estilo y disposición de elementos
+- **UploadPane.jsx**: Gestión de carga de documentos
+  - Permite subida y procesamiento de archivos
+  - Ofrece entrada de texto para contenido manual
+  - Envía datos al backend para procesamiento
 
-- **TerminalMessages.jsx**: Visualización de mensajes
-  - Renderiza el historial de mensajes
-  - Aplica estilos según tipo de mensaje
+- **MarkdownPane.jsx**: Visualización y edición de resúmenes
+  - Muestra el resumen generado con formato markdown
+  - Permite edición del contenido
+  - Facilita la generación de tarjetas desde el resumen
 
-- **TerminalInput.jsx**: Entrada de comandos
-  - Captura input del usuario
-  - Maneja eventos de teclado
+- **FlashcardPane.jsx**: Gestión de tarjetas de estudio
+  - Muestra tarjetas generadas en formato TSV
+  - Permite copiarlas al portapapeles
+  - Facilita exportación a plataformas como Quizlet
 
 ## Flujo de Datos (Data Flow)
 
 La aplicación implementa un flujo de datos unidireccional:
 
-1. El estado se mantiene centralizado en los hooks
-2. Los eventos de usuario se capturan en componentes UI
+1. El estado se mantiene centralizado en el componente App.jsx
+2. Los eventos de usuario se capturan en componentes de características (features)
 3. Los handlers procesan estos eventos y actualizan el estado
 4. Los componentes UI se re-renderizan con el nuevo estado
 
@@ -83,8 +86,8 @@ Para añadir nuevas funcionalidades siguiendo la Screaming Architecture:
    - services/
    - types/ (si es necesario)
 3. Para funcionalidad compartida, utilizar la carpeta `shared/`
-4. Nuevos comandos: Modificar `CommandProcessor.js`
-5. Nuevos tipos de mensaje: Actualizar `TerminalMessages.jsx`
+4. Nuevos endpoints API: Modificar `apiClient.js`
+5. Nuevas traducciones: Actualizar `translations.js`
 
 ## Prácticas Recomendadas (Best Practices)
 
@@ -94,5 +97,7 @@ Para añadir nuevas funcionalidades siguiendo la Screaming Architecture:
 - **Memoización**: Uso de useCallback para funciones estables
 - **Referencias**: Uso de useRef para acceder al DOM
 - **Efectos Controlados**: useEffect con dependencias bien definidas
-- **Estado Centralizado**: Hooks personalizados para gestión de estado
+- **Estado Centralizado**: Componentes y hooks para gestión de estado
 - **Componentes Pequeños**: División en componentes con responsabilidad única
+- **Internacionalización**: Soporte multiidioma con traducciones
+- **Accesibilidad**: Soporte para modos de visualización y preferencias de usuario
