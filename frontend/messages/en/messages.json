@@ -1,0 +1,122 @@
+{
+  "app": {
+    "name": "StudyApp",
+    "tagline": "Take your notes into effective study material",
+    "footer": "StudyApp © {year}",
+    "toggleTheme": "Toggle theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "navigation": {
+    "upload": "Upload",
+    "summary": "Summary",
+    "flashcards": "Flashcards",
+    "restart": "Restart",
+    "restartConfirm": "Restart the process?",
+    "restartDescription": "This action will delete all uploaded files, summaries, and generated flashcards.",
+    "cancel": "Cancel",
+    "confirm": "Restart"
+  },
+  "upload": {
+    "title": "Add Study Material",
+    "description": "Upload files or enter text to generate a summary.",
+    "dropzone": {
+      "title": "Drag and drop files here",
+      "or": "or",
+      "button": "Select files"
+    },
+    "fileList": {
+      "title": "Uploaded files ({count})",
+      "remove": "Remove {name}"
+    },
+    "textInput": {
+      "labelWithFiles": "Additional context (Optional)",
+      "labelWithoutFiles": "Or type directly here",
+      "placeholderWithFiles": "Add any additional context or specific instructions...",
+      "placeholderWithoutFiles": "Enter your content to summarize and convert to flashcards...",
+      "helpWithFiles": "This text will be considered along with your files.",
+      "helpWithoutFiles": ""
+    },
+    "validation": {
+      "noContent": "Please enter text or upload files first",
+      "fileTooLarge": "File is too large. Limit: {maxSize}MB",
+      "invalidFileType": "File type not allowed: {type}"
+    },
+    "button": {
+      "generate": "Generate Summary",
+      "generating": "Generating..."
+    },
+    "toast": {
+      "success": "Summary has been successfully generated",
+      "error": "Could not generate summary: {message}"
+    }
+  },
+  "summary": {
+    "title": "Generated Summary",
+    "description": "Review and edit the summary if necessary",
+    "actions": {
+      "edit": "Edit",
+      "save": "Save",
+      "copy": "Copy"
+    },
+    "toast": {
+      "copied": "Summary copied to clipboard",
+      "copyError": "Error copying to clipboard",
+      "success": "Flashcards have been successfully generated",
+      "error": "Could not generate flashcards: {message}"
+    },
+    "button": {
+      "generate": "Generate Flashcards",
+      "generating": "Generating..."
+    },
+    "tabs": {
+      "editor": "Editor",
+      "preview": "Preview"
+    }
+  },
+  "flashcards": {
+    "title": "Generated Flashcards",
+    "description": "Export the flashcards to your favorite platform",
+    "actions": {
+      "copy": "Copy TSV",
+      "openQuizlet": "Open Quizlet"
+    },
+    "content": {
+      "label": "TSV Content",
+      "ready": "✓ Ready to import into Quizlet and other platforms"
+    },
+    "toast": {
+      "copied": "TSV content copied to clipboard",
+      "copyError": "Error copying to clipboard"
+    },
+    "instructions": {
+      "title": "Quizlet Import Instructions",
+      "steps": {
+        "1": "Copy the TSV content above",
+        "2": "Go to Quizlet and create an account if you don't have one",
+        "3": "Click on \"Import from Word, Excel, Google Docs, etc.\"",
+        "4": "Paste the copied content",
+        "5": "Make sure to select \"Tab\" as the separator"
+      },
+      "note": "Note: Flashcards are in the \"Term → Definition\" format"
+    }
+  },
+  "settings": {
+    "language": {
+      "label": "Language",
+      "options": {
+        "es": "Español",
+        "en": "English"
+      }
+    },
+    "theme": {
+      "label": "Theme",
+      "options": {
+        "light": "Light",
+        "dark": "Dark",
+        "system": "System"
+      }
+    }
+  }
+}

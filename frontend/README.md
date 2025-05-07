@@ -1,68 +1,36 @@
-# Study Assist Frontend
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-Este proyecto contiene la interfaz de usuario para Study Assist, una herramienta que transforma documentos y textos en materiales de estudio efectivos mediante inteligencia artificial.
+## Getting Started
 
-## Características
-
-- **Procesamiento de contenido**: Carga de documentos o ingreso manual de texto para ser resumido
-- **Generación de resúmenes**: Utiliza Google Gemini 2.0 para crear resúmenes estructurados en formato markdown
-- **Creación de flashcards**: Genera automáticamente tarjetas de estudio importables a Quizlet
-- **UI/UX moderna**: Interfaz responsiva con soporte para temas claro/oscuro
-- **Accesibilidad**: Opciones de personalización que incluyen cambio de tema e idioma
-- **Multilenguaje**: Soporte completo para español e inglés
-
-## Tecnologías
-
-- React 19 con Vite
-- TailwindCSS para estilos
-- React Icons para iconografía
-- React Markdown para renderizado de contenido
-- React Toastify para notificaciones
-
-## Estructura del proyecto
-
-El proyecto está organizado siguiendo una arquitectura por características (Feature-First):
-
-```
-src/
-  features/         # Funcionalidades principales separadas por dominio
-    upload/        # Componentes para carga de documentos
-    summary/       # Componentes para visualización de resúmenes
-    flashcards/    # Componentes para gestión de tarjetas
-  shared/          # Código compartido entre características
-    components/    # Componentes reutilizables
-    services/      # Servicios (API client)
-    utils/         # Utilidades (traducciones, temas)
-```
-
-Para más detalles sobre la arquitectura técnica, consultar el archivo [src/README.md](./src/README.md).
-
-## Desarrollo
-
-### Requisitos previos
-
-- Node.js 18+
-- npm o yarn
-
-### Instalación
+First, run the development server:
 
 ```bash
-# Instalar dependencias
-npm install
-
-# Iniciar servidor de desarrollo
 npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-La aplicación se ejecutará en modo de desarrollo en [http://localhost:5173](http://localhost:5173)
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-### Comandos disponibles
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-- `npm run dev`: Inicia el servidor de desarrollo
-- `npm run build`: Compila la aplicación para producción
-- `npm run lint`: Ejecuta el linter para verificar el código
-- `npm run preview`: Vista previa de la versión de producción
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## Despliegue
+## Learn More
 
-La aplicación está configurada para ser desplegada como contenedor Docker. Para más información sobre el despliegue, consulta el README principal del proyecto.
+To learn more about Next.js, take a look at the following resources:
+
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
