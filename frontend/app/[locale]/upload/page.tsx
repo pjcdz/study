@@ -147,7 +147,7 @@ export default function UploadPage() {
   }
   
   return (
-    <div className="container max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="container max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24"> {/* Añadido pb-24 para dar espacio al botón fijo */}
       <Card>
         <CardHeader>
           <CardTitle>{t('title')}</CardTitle>
@@ -190,7 +190,11 @@ export default function UploadPage() {
             </Alert>
           )}
         </CardContent>
-        <CardFooter className="flex justify-end">
+      </Card>
+      
+      {/* Botón fijo en la parte inferior */}
+      <div className="fixed bottom-0 left-0 right-0 py-4 bg-background border-t z-10">
+        <div className="container max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-end">
           <Button 
             onClick={handleGenerateSummary}
             disabled={isLoading || (!inputText && files.length === 0)}
@@ -205,8 +209,8 @@ export default function UploadPage() {
               t('button.generate')
             )}
           </Button>
-        </CardFooter>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }

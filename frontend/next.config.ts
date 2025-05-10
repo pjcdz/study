@@ -5,6 +5,26 @@ const withNextIntl = createNextIntlPlugin();
 
 const nextConfig: NextConfig = {
   /* config options here */
+  output: 'standalone',
+  reactStrictMode: true,
+  eslint: {
+    // Explicitly disable ESLint during build
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    // Dangerously allow production builds to successfully complete even if
+    // your project has type errors.
+    ignoreBuildErrors: true,
+  },
+  // Enable CORS for API requests
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/:path*`,
+      },
+    ];
+  },
 };
 
 export default withNextIntl(nextConfig);

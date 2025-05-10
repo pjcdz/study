@@ -2,6 +2,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { notFound } from 'next/navigation';
 import AppContainer from '@/components/app-container';
 import { Toaster } from "@/components/ui/sonner";
+import { ThemeProvider } from "@/components/theme-provider";
 
 // Importamos los mensajes de internacionalización
 import es from '@/messages/es/messages.json';
@@ -11,13 +12,6 @@ import en from '@/messages/en/messages.json';
 const messages = {
   es,
   en,
-};
-
-type LocaleLayoutProps = {
-  children: React.ReactNode;
-  params: {
-    locale: string;
-  };
 };
 
 // Solo permitimos estos locales
@@ -31,14 +25,12 @@ function getSafeLocale(locale: string | undefined): string {
   return locale;
 }
 
-export default function LocaleLayout({ 
-  children, 
-  params 
-}: {
+type Props = {
   children: React.ReactNode;
   params: { locale: string };
-}) {
-  // Get the locale from params directly
+}
+
+export default function LocaleLayout({ children, params }: Props) {
   const locale = getSafeLocale(params.locale);
   
   // Verificar si el locale solicitado está soportado
@@ -59,23 +51,11 @@ export default function LocaleLayout({
   );
 }
 
-// Generar metadatos dinámicamente basados en el locale
-export function generateMetadata({ 
-  params 
-}: {
-  params: { locale: string };
-}) {
-  // Get the locale directly from params
-  const locale = getSafeLocale(params.locale);
-  
-  // Título y descripción localizados
-  return {
-    title: locale === 'es' ? 'StudyApp - Tu asistente de estudio' : 'StudyApp - Your study assistant',
-    description: locale === 'es' 
-      ? 'Sube archivos o texto para generar resúmenes y flashcards automáticamente'
-      : 'Upload files or text to generate summaries and flashcards automatically',
-  };
-}
+// Static metadata
+export const metadata = {
+  title: 'StudyApp',
+  description: 'Upload files or text to generate summaries and flashcards automatically',
+};
 
 // Genera rutas estáticas para los locales soportados
 export function generateStaticParams() {

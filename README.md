@@ -12,21 +12,19 @@ A powerful tool for students that transforms PDF/document content into well-stru
 
 ## Architecture
 
-### Frontend (React + Vite)
+### Frontend (Next.js)
 
 Implements a **Screaming Architecture** where the code structure reflects the business domain:
 
 ```
 frontend/
-  src/
-    features/      # Main functionality modules
-      upload/      # Document upload functionality 
-      summary/     # Notion markdown generation
-      flashcards/  # Quizlet flashcard generation
-    shared/        # Shared utilities and services
-      hooks/       # Custom React hooks
-      services/    # API client
-      utils/       # Utility functions
+  app/            # Next.js app router structure
+    upload/       # Document upload functionality 
+    summary/      # Notion markdown generation
+    flashcards/   # Quizlet flashcard generation
+  components/     # Reusable React components
+  lib/            # Utilities and services
+    api-client.ts # Backend API integration
 ```
 
 ### Backend (Node.js + Express)
@@ -43,9 +41,9 @@ backend/
 ## Technologies
 
 ### Frontend
-- React 18 with Hooks
+- Next.js with React 19
 - Tailwind CSS for styling
-- Vite for fast development
+- ShadCN UI components
 
 ### Backend
 - Node.js with Express
@@ -55,7 +53,7 @@ backend/
 - Docker containers for local development and production
 - Docker Swarm for orchestration
 - GitHub Actions for CI/CD
-- Traefik for reverse proxy and SSL
+- Node.js v22.15.0
 
 ## Setup and Deployment
 
@@ -63,6 +61,7 @@ backend/
 
 - Google Cloud account with access to Gemini API
 - `GEMINI_API_KEY` from Google AI Studio
+- Docker and Docker Compose installed
 
 ### Local Development
 
@@ -71,8 +70,12 @@ backend/
 echo "GEMINI_API_KEY=your_key_here" > .env
 
 # Run the application with Docker Compose
-docker-compose up --build
+docker compose up --build
 ```
+
+The application will be available at:
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:4000
 
 ### Production Deployment
 

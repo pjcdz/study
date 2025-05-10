@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
+    "build:docker": "node build.js",
     "start": "next start",
     "lint": "next lint"
   },
@@ -20,6 +21,7 @@
     "@tailwindcss/typography": "^0.5.16",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "framer-motion": "^12.10.0",
     "lucide-react": "^0.507.0",
     "negotiator": "^1.0.0",
     "next": "15.3.2",
@@ -41,7 +43,7 @@
     "@ljharb/tsconfig": "^0.3.2",
     "@tailwindcss/postcss": "^4",
     "@types/negotiator": "^0.6.3",
-    "@types/node": "^20",
+    "@types/node": "20.17.44",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
