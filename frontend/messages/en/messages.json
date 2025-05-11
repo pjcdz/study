@@ -15,10 +15,14 @@
     "restart": "Restart",
     "restartConfirm": "Restart the process?",
     "restartDescription": "This action will delete all uploaded files, summaries, and generated flashcards.",
-    "cancel": "Cancel",
     "confirm": "Restart"
   },
+  "common": {
+    "cancel": "Cancel"
+  },
   "upload": {
+    "textPlaceholder": "Type or paste your text here...",
+    "process": "Process",
     "title": "Add Study Material",
     "description": "Upload files or enter text to generate a summary.",
     "dropzone": {
@@ -103,6 +107,7 @@
     }
   },
   "settings": {
+    "label": "Settings",
     "language": {
       "label": "Language",
       "options": {

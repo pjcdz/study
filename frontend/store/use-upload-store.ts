@@ -1,16 +1,22 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
+export interface CustomFile {
+  name: string
+  type: string
+  size: number
+  thumbnailUrl: string
+}
+
 interface UploadState {
-  // Estado
-  files: File[]
+  files: CustomFile[]
+  originalFiles: File[]
   inputText: string
   summary: string
   flashcards: string
   currentStep: 'upload' | 'summary' | 'flashcards'
   isLoading: boolean
-  
-  // Acciones
+  // Actions
   addFiles: (newFiles: File[]) => void
   removeFile: (index: number) => void
   setInputText: (text: string) => void
@@ -21,50 +27,57 @@ interface UploadState {
   reset: () => void
 }
 
-// No usamos SerializableFile porque no podemos implementar correctamente la interfaz File
-// y los archivos no se pueden serializar correctamente para localStorage de todos modos
-
 export const useUploadStore = create<UploadState>()(
   persist(
     (set) => ({
       // Estado inicial
       files: [],
+      originalFiles: [],
       inputText: '',
       summary: '',
       flashcards: '',
-      currentStep: 'upload',
+      currentStep: 'upload' as const,
       isLoading: false,
-      
-      // Acciones
-      addFiles: (newFiles) => set((state) => {
-        return { files: [...state.files, ...newFiles] };
-      }),
-      
-      removeFile: (index) => set((state) => ({
-        files: state.files.filter((_, i) => i !== index)
-      })),
-      
-      setInputText: (text) => set({ inputText: text }),
-      
-      setSummary: (text) => set({ summary: text }),
-      
-      setFlashcards: (tsv) => set({ flashcards: tsv }),
-      
-      setCurrentStep: (step) => set({ currentStep: step }),
-      
-      setIsLoading: (loading) => set({ isLoading: loading }),
-      
-      reset: () => set({
-        files: [],
-        inputText: '',
-        summary: '',
-        flashcards: '',
-        currentStep: 'upload',
-        isLoading: false
-      })
+      // Actions
+      addFiles: (newFiles: File[]) =>
+        set((state) => ({
+          files: [
+            ...state.files,
+            ...newFiles.map((file) => ({
+              name: file.name,
+              type: file.type,
+              size: file.size,
+              thumbnailUrl: file.type.includes('image/')
+                ? URL.createObjectURL(file)
+                : '',
+            })),
+          ],
+          originalFiles: [...state.originalFiles, ...newFiles],
+        })),
+      removeFile: (index: number) =>
+        set((state) => ({
+          files: state.files.filter((_, i) => i !== index),
+          originalFiles: state.originalFiles.filter((_, i) => i !== index),
+        })),
+      setInputText: (text: string) => set({ inputText: text }),
+      setSummary: (text: string) => set({ summary: text }),
+      setFlashcards: (tsv: string) => set({ flashcards: tsv }),
+      setCurrentStep: (step: 'upload' | 'summary' | 'flashcards') =>
+        set({ currentStep: step }),
+      setIsLoading: (loading: boolean) => set({ isLoading: loading }),
+      reset: () =>
+        set({
+          files: [],
+          originalFiles: [],
+          inputText: '',
+          summary: '',
+          flashcards: '',
+          currentStep: 'upload',
+          isLoading: false,
+        }),
     }),
     {
-      name: 'study-app-storage', // nombre único para el almacenamiento
+      name: 'upload-store',
       storage: createJSONStorage(() => localStorage),
       // No persistimos archivos (File) ya que no son serializables para JSON
       partialize: (state) => ({
@@ -78,4 +91,4 @@ export const useUploadStore = create<UploadState>()(
       version: 1,
     }
   )
-)
+);

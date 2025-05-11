@@ -1,78 +1,65 @@
 "use client"
 
-import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Card, CardContent } from "@/components/ui/card"
 import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
-import { useUploadStore } from "@/store/use-upload-store"
+import { useUploadStore } from '@/store/use-upload-store'
+import { useTranslations } from 'next-intl'
+import apiClient from "@/lib/api-client"
 import { FileDropzone } from "@/components/upload/file-dropzone"
 import { FileList } from "@/components/upload/file-list"
-import apiClient from "@/lib/api-client"
-import { useTranslations } from "next-intl"
+import { motion } from "framer-motion"
 
-// Configuración para validación de archivos
-const MAX_FILE_SIZE = 10; // 10MB
-const ALLOWED_FILE_TYPES = [
-  'text/plain', 
-  'text/markdown', 
-  'text/csv', 
-  'application/json', 
-  'application/pdf', 
-  'image/jpeg', 
-  'image/png', 
-  'image/webp'
-];
 
 export default function UploadPage() {
-  const t = useTranslations('upload');
-  const { 
-    files, 
-    inputText, 
-    setInputText, 
-    setSummary, 
-    setCurrentStep, 
-    isLoading, 
-    setIsLoading,
-    addFiles: originalAddFiles
-  } = useUploadStore()
-  const [error, setError] = useState<string | null>(null)
+  // Framer Motion variants for animation
+  const containerVariants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { staggerChildren: 0.1 } },
+  }
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0 },
+  }
+
+  const t = useTranslations()
   const router = useRouter()
-  
+  const {
+    files,
+    inputText,
+    summary,
+    isLoading,
+    addFiles,
+    removeFile,
+    setInputText,
+    setSummary,
+    setIsLoading
+  } = useUploadStore()
+
   // Función mejorada de validación de archivos
-  const addFiles = (newFiles: File[]) => {
-    for (const file of newFiles) {
-      // Validar tamaño de archivo (en MB)
-      if (file.size > MAX_FILE_SIZE * 1024 * 1024) {
-        toast.error(t('validation.fileTooLarge', { maxSize: MAX_FILE_SIZE }));
-        continue;
-      }
-      
-      // Validar tipo de archivo
-      if (!ALLOWED_FILE_TYPES.includes(file.type)) {
-        toast.error(t('validation.invalidFileType', { type: file.type }));
-        continue;
-      }
-      
-      // Si pasa las validaciones, añadir el archivo
-      originalAddFiles([file]);
-    }
-  };
   
+
   const processFiles = async () => {
     try {
-      let extractedText = ''
+      setIsLoading(true)
       
-      for (const file of files) {
+      let extractedText = ''
+      const { files, originalFiles } = useUploadStore.getState()
+      
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+        const originalFile = originalFiles[i]
+        
+        // For images, use base64
         if (file.type.includes('image/')) {
-          // Para imágenes, usar base64
-          const base64 = await fileToBase64(file)
+          const base64 = await fileToBase64(originalFile)
           extractedText += `[Image Content: ${file.name}]\n${base64}\n\n`
-        } else if (file.type === 'application/pdf') {
-          // Para PDFs (información básica)
+        }
+        // For PDFs (basic information)
+        else if (file.type === 'application/pdf') {
           extractedText += `[PDF Document: ${file.name}]\n`
           extractedText += `This is a PDF document that contains information about "${file.name.replace('.pdf', '')}". `
           extractedText += `Please analyze the content of the file that is related to this topic. `
@@ -81,48 +68,80 @@ export default function UploadPage() {
           if (inputText) {
             extractedText += `Additional context provided by the user:\n${inputText}\n\n`
           }
-        } else if (file.type.includes('text/') || file.type === 'application/json') {
-          // Para archivos de texto
-          const text = await file.text()
+        }
+        // For text files
+        else if (file.type.includes('text/') || file.type === 'application/json') {
+          const text = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onload = () => {
+              const result = reader.result
+              if (typeof result === 'string') {
+                resolve(result)
+              } else {
+                reject(new Error('Invalid file content'))
+              }
+            }
+            reader.onerror = reject
+            reader.readAsText(originalFile)
+          })
           extractedText += `[Text Content: ${file.name}]\n${text}\n\n`
         }
       }
-      
-      return extractedText
-    } catch (err) {
-      console.error('Error processing files:', err)
-      throw new Error('Error al procesar los archivos')
+
+      // Process the extracted text
+      const response = await fetch('/api/process-files', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: extractedText, inputText }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to process files')
+      }
+
+      const data = await response.json()
+      setSummary(data.summary)
+      setIsLoading(false)
+    } catch (error: unknown) {
+      console.error('Error processing files:', error)
+      toast.error(t('toast.error', { message: 'Error processing files' }) as string)
     }
   }
-  
-  // Helper para convertir archivo a base64
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
+
+  // Helper to convert file to base64
+  const fileToBase64 = async (file: Blob): Promise<string> => {
+    return new Promise<string>((resolve, reject) => {
       const reader = new FileReader()
+      reader.onload = () => {
+        const result = reader.result
+        if (typeof result === 'string') {
+          resolve(result)
+        } else {
+          reject(new Error('Failed to convert file to base64'))
+        }
+      }
+      reader.onerror = reject
       reader.readAsDataURL(file)
-      reader.onload = () => resolve(reader.result as string)
-      reader.onerror = (error) => reject(error)
     })
   }
   
   const handleGenerateSummary = async () => {
     if (!inputText && files.length === 0) {
-      setError(t('validation.noContent'))
+      toast.error(t('validation.noContent'))
       return
     }
     
     try {
       setIsLoading(true)
-      setError(null)
       
       // Procesar archivos subidos
-      let fileContent = ''
       if (files.length > 0) {
-        fileContent = await processFiles()
+        await processFiles(); // Only call for side effects
       }
-      
-      // Combinar contenido de archivos con texto manual
-      const combinedText = files.length > 0 ? fileContent : inputText
+      // Aquí puedes continuar con la lógica para generar el resumen
+      const combinedText = files.length > 0 ? summary : inputText
       
       // Enviar al backend
       const response = await apiClient.postSummary(combinedText)
@@ -134,82 +153,114 @@ export default function UploadPage() {
       toast.success(t('toast.success'))
       
       setSummary(response.notionMarkdown)
-      setCurrentStep('summary')
+      setIsLoading(false)
       router.push('./summary')
       
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error al generar resumen:', err)
-      setError(`${t('toast.error', { message: err.message })}`)
-      toast.error(t('toast.error', { message: err.message }))
+      let message = 'Unknown error';
+      if (typeof err === 'object' && err && 'message' in err && typeof (err as { message?: string }).message === 'string') {
+        message = (err as { message: string }).message;
+      }
+      toast.error(t('toast.error', { message }) )
     } finally {
       setIsLoading(false)
     }
   }
   
   return (
-    <div className="container max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24"> {/* Añadido pb-24 para dar espacio al botón fijo */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('title')}</CardTitle>
-          <CardDescription>
-            {t('description')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <FileDropzone addFiles={addFiles} />
-          <FileList />
-          
-          <div className="space-y-2">
-            <label htmlFor="inputText" className="text-sm font-medium">
-              {files.length > 0 
-                ? t('textInput.labelWithFiles') 
-                : t('textInput.labelWithoutFiles')
-              }
-            </label>
-            <Textarea
-              id="inputText"
-              placeholder={files.length > 0 
-                ? t('textInput.placeholderWithFiles') 
-                : t('textInput.placeholderWithoutFiles')
-              }
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              className="min-h-[150px]"
-            />
-            <p className="text-xs text-muted-foreground">
-              {files.length > 0 
-                ? t('textInput.helpWithFiles') 
-                : t('textInput.helpWithoutFiles')
-              }
-            </p>
-          </div>
-          
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-        </CardContent>
-      </Card>
-      
-      {/* Botón fijo en la parte inferior */}
-      <div className="fixed bottom-0 left-0 right-0 py-4 bg-background border-t z-10">
-        <div className="container max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-end">
-          <Button 
-            onClick={handleGenerateSummary}
-            disabled={isLoading || (!inputText && files.length === 0)}
-            className="min-w-[180px]"
+    <div className="container mx-auto py-8">
+      <div className="max-w-4xl mx-auto">
+        <motion.div 
+          initial="hidden"
+          animate="show"
+          variants={containerVariants}
+          className="space-y-4"
+        >
+          <motion.div 
+            variants={itemVariants}
+            className="text-center"
           >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {t('button.generating')}
-              </>
-            ) : (
-              t('button.generate')
-            )}
-          </Button>
-        </div>
+            <h1 className="text-2xl font-bold mb-2">{t('upload.title')}</h1>
+            <p className="text-muted-foreground">{t('upload.description')}</p>
+          </motion.div>
+
+          <Card className="shadow-lg border-2 border-muted rounded-lg overflow-hidden">
+            <CardContent className="p-6">
+              
+              <motion.div 
+                variants={itemVariants}
+                className="space-y-6"
+              >
+                <div className="grid gap-4">
+                  <motion.div 
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="relative"
+                  >
+                    <FileDropzone 
+                      addFiles={addFiles}
+                      className="border-2 border-dashed border-primary/50 rounded-lg p-8 text-center"
+                    />
+                  </motion.div>
+
+                  {files.length > 0 && (
+                    <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="space-y-2"
+                    >
+                      <FileList 
+                        files={files}
+                        onRemove={removeFile}
+                        className="space-y-2"
+                      />
+                    </motion.div>
+                  )}
+                </div>
+
+                <motion.div 
+                  variants={itemVariants}
+                  className="relative"
+                >
+                  <Textarea
+                    placeholder={t('upload.textPlaceholder')}
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    className="resize-none min-h-[100px]"
+                  />
+                </motion.div>
+
+                <motion.div 
+                  variants={itemVariants}
+                  className="flex justify-end gap-4"
+                >
+                  <Button 
+                    onClick={() => router.push('/')}
+                    variant="outline"
+                    className="transition-all hover:scale-105"
+                  >
+                    {t('common.cancel')}
+                  </Button>
+                  <Button 
+                    onClick={handleGenerateSummary}
+                    disabled={isLoading || (!files.length && !inputText)}
+                    className="transition-all hover:scale-105"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        {t('upload.processing')}
+                      </>
+                    ) : (
+                      t('upload.process')
+                    )}
+                  </Button>
+                </motion.div>
+              </motion.div>
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
     </div>
   )

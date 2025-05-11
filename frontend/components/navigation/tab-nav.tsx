@@ -23,6 +23,7 @@ export function WorkflowTabs() {
   const router = useRouter()
   const pathname = usePathname()
   const t = useTranslations('navigation')
+  const tCommon = useTranslations('common')
   
   const handleTabChange = (value: string) => {
     // Validaciones para evitar navegación a pasos no completados
@@ -79,7 +80,7 @@ export function WorkflowTabs() {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+              <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
               <AlertDialogAction onClick={() => {
                 reset()
                 // Obtener el prefijo de idioma de la ruta actual

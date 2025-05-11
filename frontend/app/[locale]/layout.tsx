@@ -2,7 +2,6 @@ import { NextIntlClientProvider } from 'next-intl';
 import { notFound } from 'next/navigation';
 import AppContainer from '@/components/app-container';
 import { Toaster } from "@/components/ui/sonner";
-import { ThemeProvider } from "@/components/theme-provider";
 
 // Importamos los mensajes de internacionalización
 import es from '@/messages/es/messages.json';

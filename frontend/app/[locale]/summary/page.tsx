@@ -3,14 +3,13 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "sonner"
 import { Loader2, ClipboardCopy, Check, Zap, Edit } from "lucide-react"
 import { useUploadStore } from "@/store/use-upload-store"
 import apiClient from "@/lib/api-client"
-import { MarkdownPreview } from "@/components/markdown/markdown-preview"
 import { useTranslations } from "next-intl"
 
 export default function SummaryPage() {
@@ -89,8 +88,8 @@ export default function SummaryPage() {
         const locale = pathParts[1]; // Get locale from URL ('es' or 'en')
         router.push(`/${locale}/flashcards`);
       }
-    } catch (err: any) {
-      toast.error(t('toast.error', { message: err.message }))
+    } catch (item: unknown) {
+      toast.error(t('toast.error', { message: (item as { message: string }).message }))
     } finally {
       setIsLoading(false)
     }
@@ -149,25 +148,25 @@ export default function SummaryPage() {
               )}
             </div>
           </CardContent>
-          <CardFooter className="flex justify-center">
-            <Button 
-              onClick={handleGenerateFlashcards}
+          <div className="flex justify-center p-4">
+            <Button
+              size="lg"
               disabled={isLoading}
-              className="min-w-[220px]"
+              onClick={handleGenerateFlashcards}
             >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {t('button.generating')}
+                  {t('actions.generating')}
                 </>
               ) : (
                 <>
                   <Zap className="mr-2 h-4 w-4" />
-                  {t('button.generate')}
+                  {t('actions.generateFlashcards')}
                 </>
               )}
             </Button>
-          </CardFooter>
+          </div>
         </Card>
       </div>
     </div>

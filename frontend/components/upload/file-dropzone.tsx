@@ -9,6 +9,7 @@ import { useTranslations } from "next-intl"
 
 type FileDropzoneProps = {
   addFiles?: (files: File[]) => void;
+  className?: string;
 }
 
 export function FileDropzone({ addFiles }: FileDropzoneProps) {
