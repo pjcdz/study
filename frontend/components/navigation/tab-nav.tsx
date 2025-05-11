@@ -41,7 +41,7 @@ export function WorkflowTabs() {
   }
   
   return (
-    <div className="w-full border-b">
+    <div className="w-full">
       <div className="container max-w-7xl px-4 sm:px-6 lg:px-8 mx-auto flex items-center justify-between py-2">
         <div className="w-full flex justify-center">
           <Tabs 

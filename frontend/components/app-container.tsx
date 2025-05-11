@@ -42,7 +42,7 @@ export default function AppContainer({
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="border-b py-4">
+      <header className="py-4">
         <div className="container max-w-7xl px-4 sm:px-6 lg:px-8 mx-auto flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold">{t("name")}</h1>
@@ -55,7 +55,7 @@ export default function AppContainer({
       </header>
       
       {/* Barra de progreso */}
-      <div className="container max-w-7xl px-4 sm:px-6 lg:px-8 mx-auto py-2">
+      <div className="container max-w-7xl px-4 sm:px-6 lg:px-8 mx-auto py-2 border-none">
         <Progress value={getProgress()} className="h-2" />
       </div>
       
@@ -69,7 +69,7 @@ export default function AppContainer({
         </div>
       </main>
       
-      <footer className="border-t py-4 text-center text-sm text-muted-foreground">
+      <footer className="py-4 text-center text-sm text-muted-foreground">
         <div className="container max-w-7xl px-4 sm:px-6 lg:px-8 mx-auto">
           <Link href="https://cardozo.com.ar" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:underline">
             cardozo.com.ar
