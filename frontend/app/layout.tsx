@@ -16,6 +16,23 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "StudyApp - Resúmenes y Flashcards",
   description: "Genera resúmenes y flashcards de tus documentos y textos",
+  icons: {
+    icon: [
+      { url: "/logo.png", type: "image/png" }
+    ],
+    shortcut: [
+      { url: "/logo.png", type: "image/png" }
+    ],
+    apple: [
+      { url: "/logo.png", type: "image/png" }
+    ],
+    other: [
+      {
+        rel: "icon",
+        url: "/logo.png",
+      }
+    ]
+  },
 };
 
 export default function RootLayout({

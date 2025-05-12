@@ -23,6 +23,7 @@
   "upload": {
     "textPlaceholder": "Type or paste your text here...",
     "process": "Process",
+    "processing": "Processing",
     "title": "Add Study Material",
     "description": "Upload files or enter text to generate a summary.",
     "dropzone": {
@@ -53,7 +54,10 @@
     },
     "toast": {
       "success": "Summary has been successfully generated",
-      "error": "Could not generate summary: {message}"
+      "error": "Could not generate summary: {message}",
+      "quotaExceeded": "API usage limit exceeded. Please try again later.",
+      "networkError": "Network connection error. Please check your internet and try again.",
+      "apiKeyError": "API authentication error. Please contact support."
     }
   },
   "summary": {
@@ -62,13 +66,18 @@
     "actions": {
       "edit": "Edit",
       "save": "Save",
-      "copy": "Copy"
+      "copy": "Copy",
+      "generateFlashcards": "Generate Flashcards",
+      "generating": "Generating..."
     },
     "toast": {
       "copied": "Summary copied to clipboard",
       "copyError": "Error copying to clipboard",
       "success": "Flashcards have been successfully generated",
-      "error": "Could not generate flashcards: {message}"
+      "error": "Could not generate flashcards: {message}",
+      "quotaExceeded": "API usage limit exceeded. Please try again later.",
+      "networkError": "Network connection error. Please check your internet and try again.",
+      "apiKeyError": "API authentication error. Please contact support."
     },
     "button": {
       "generate": "Generate Flashcards",
@@ -84,7 +93,9 @@
     "description": "Export the flashcards to your favorite platform",
     "actions": {
       "copy": "Copy TSV",
-      "openQuizlet": "Open Quizlet"
+      "openQuizlet": "Open Quizlet",
+      "needMoreMaterials": "Need to create more study materials?",
+      "startNewProject": "Start New Project"
     },
     "content": {
       "label": "TSV Content",
@@ -92,7 +103,10 @@
     },
     "toast": {
       "copied": "TSV content copied to clipboard",
-      "copyError": "Error copying to clipboard"
+      "copyError": "Error copying to clipboard",
+      "quotaExceeded": "API usage limit exceeded. Please try again later.",
+      "networkError": "Network connection error. Please check your internet and try again.",
+      "apiKeyError": "API authentication error. Please contact support."
     },
     "instructions": {
       "title": "Quizlet Import Instructions",
@@ -109,7 +123,7 @@
   "settings": {
     "label": "Settings",
     "language": {
-      "label": "Language",
+      "label": "Language:",
       "options": {
         "es": "Español",
         "en": "English"
@@ -123,5 +137,12 @@
         "system": "System"
       }
     }
+  },
+  "toast": {
+    "error": "Error: {message}",
+    "success": "Success!",
+    "quotaExceeded": "API usage limit exceeded. Please try again later.",
+    "networkError": "Network connection error. Please check your internet and try again.",
+    "apiKeyError": "API authentication error. Please contact support."
   }
 }

@@ -1,3 +1,25 @@
+// Tipos de errores que se corresponden con los del backend
+export enum ApiErrorType {
+  QUOTA_EXCEEDED = 'QUOTA_EXCEEDED',
+  NETWORK_ERROR = 'NETWORK_ERROR',
+  INVALID_API_KEY = 'INVALID_API_KEY',
+  UNKNOWN_ERROR = 'UNKNOWN_ERROR'
+}
+
+// Error personalizado con tipo
+export class ApiError extends Error {
+  type: ApiErrorType;
+
+  constructor(message: string, type: ApiErrorType = ApiErrorType.UNKNOWN_ERROR) {
+    super(message);
+    this.type = type;
+    this.name = 'ApiError';
+    
+    // Necesario para que instanceof funcione con clases personalizadas
+    Object.setPrototypeOf(this, ApiError.prototype);
+  }
+}
+
 class ApiClient {
   private baseUrl: string
   
@@ -36,14 +58,34 @@ class ApiClient {
       });
       
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: `HTTP Error ${response.status}` }));
-        throw new Error(errorData.message || `Error ${response.status}`);
+        const errorData = await response.json().catch(() => ({ 
+          message: `HTTP Error ${response.status}`,
+          errorType: ApiErrorType.UNKNOWN_ERROR
+        }));
+        
+        // Obtener el tipo de error del backend o asumir UNKNOWN_ERROR
+        const errorType = errorData.errorType || ApiErrorType.UNKNOWN_ERROR;
+        
+        // Crear un error tipificado
+        throw new ApiError(errorData.error || errorData.message || `Error ${response.status}`, errorType as ApiErrorType);
       }
       
       return await response.json();
     } catch (error) {
       console.error('Error in postSummary:', error);
-      throw error;
+      
+      // Si ya es un ApiError, simplemente reenvíalo
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      
+      // Si es un error de red, transformarlo a un ApiError con tipo NETWORK_ERROR
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new ApiError(`Network error connecting to API: ${error.message}`, ApiErrorType.NETWORK_ERROR);
+      }
+      
+      // Cualquier otro error se considera desconocido
+      throw new ApiError((error as Error).message || 'Unknown error in API client');
     }
   }
   
@@ -62,14 +104,34 @@ class ApiClient {
       });
       
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: `HTTP Error ${response.status}` }));
-        throw new Error(errorData.message || `Error ${response.status}`);
+        const errorData = await response.json().catch(() => ({ 
+          message: `HTTP Error ${response.status}`,
+          errorType: ApiErrorType.UNKNOWN_ERROR
+        }));
+        
+        // Obtener el tipo de error del backend o asumir UNKNOWN_ERROR
+        const errorType = errorData.errorType || ApiErrorType.UNKNOWN_ERROR;
+        
+        // Crear un error tipificado
+        throw new ApiError(errorData.error || errorData.message || `Error ${response.status}`, errorType as ApiErrorType);
       }
       
       return await response.json();
     } catch (error) {
       console.error('Error in postFlashcards:', error);
-      throw error;
+      
+      // Si ya es un ApiError, simplemente reenvíalo
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      
+      // Si es un error de red, transformarlo a un ApiError con tipo NETWORK_ERROR
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new ApiError(`Network error connecting to API: ${error.message}`, ApiErrorType.NETWORK_ERROR);
+      }
+      
+      // Cualquier otro error se considera desconocido
+      throw new ApiError((error as Error).message || 'Unknown error in API client');
     }
   }
 }

@@ -18,7 +18,13 @@
     "cancel": "Cancelar",
     "confirm": "Reiniciar"
   },
+  "common": {
+    "cancel": "Cancelar"
+  },
   "upload": {
+    "textPlaceholder": "Escribe o pega tu texto aquí...",
+    "process": "Procesar",
+    "processing": "Procesando",
     "title": "Añadir Material de Estudio",
     "description": "Sube archivos o ingresa texto para generar un resumen.",
     "dropzone": {
@@ -49,7 +55,10 @@
     },
     "toast": {
       "success": "El resumen ha sido generado exitosamente",
-      "error": "No se pudo generar el resumen: {message}"
+      "error": "No se pudo generar el resumen: {message}",
+      "quotaExceeded": "Se ha excedido el límite de uso de la API. Por favor, intente más tarde.",
+      "networkError": "Error de conexión. Por favor, verifique su internet e intente de nuevo.",
+      "apiKeyError": "Error de autenticación de la API. Por favor, contacte con soporte."
     }
   },
   "summary": {
@@ -58,13 +67,18 @@
     "actions": {
       "edit": "Editar",
       "save": "Guardar",
-      "copy": "Copiar"
+      "copy": "Copiar",
+      "generateFlashcards": "Generar Flashcards",
+      "generating": "Generando..."
     },
     "toast": {
       "copied": "Resumen copiado al portapapeles",
       "copyError": "Error al copiar al portapapeles",
       "success": "Las flashcards han sido generadas exitosamente",
-      "error": "No se pudieron generar las flashcards: {message}"
+      "error": "No se pudieron generar las flashcards: {message}",
+      "quotaExceeded": "Se ha excedido el límite de uso de la API. Por favor, intente más tarde.",
+      "networkError": "Error de conexión. Por favor, verifique su internet e intente de nuevo.",
+      "apiKeyError": "Error de autenticación de la API. Por favor, contacte con soporte."
     },
     "button": {
       "generate": "Generar Flashcards",
@@ -80,7 +94,9 @@
     "description": "Exporta las flashcards a tu plataforma favorita",
     "actions": {
       "copy": "Copiar TSV",
-      "openQuizlet": "Abrir Quizlet"
+      "openQuizlet": "Abrir Quizlet",
+      "needMoreMaterials": "¿Necesitas generar otro material de estudio?",
+      "startNewProject": "Comenzar nuevo proyecto"
     },
     "content": {
       "label": "Contenido TSV",
@@ -88,7 +104,10 @@
     },
     "toast": {
       "copied": "Contenido TSV copiado al portapapeles",
-      "copyError": "Error al copiar al portapapeles"
+      "copyError": "Error al copiar al portapapeles",
+      "quotaExceeded": "Se ha excedido el límite de uso de la API. Por favor, intente más tarde.",
+      "networkError": "Error de conexión. Por favor, verifique su internet e intente de nuevo.",
+      "apiKeyError": "Error de autenticación de la API. Por favor, contacte con soporte."
     },
     "instructions": {
       "title": "Instrucciones de importación para Quizlet",
@@ -103,8 +122,9 @@
     }
   },
   "settings": {
+    "label": "Configuración",
     "language": {
-      "label": "Idioma",
+      "label": "Idioma:",
       "options": {
         "es": "Español",
         "en": "English"
@@ -118,5 +138,12 @@
         "system": "Sistema"
       }
     }
+  },
+  "toast": {
+    "error": "Error: {message}",
+    "success": "¡Éxito!",
+    "quotaExceeded": "Se ha excedido el límite de uso de la API. Por favor, intente más tarde.",
+    "networkError": "Error de conexión. Por favor, verifique su internet e intente de nuevo.",
+    "apiKeyError": "Error de autenticación de la API. Por favor, contacte con soporte."
   }
 }

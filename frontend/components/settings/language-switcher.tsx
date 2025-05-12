@@ -27,7 +27,7 @@ export default function LanguageSwitcher() {
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-sm">{t('label')}</span>
+      {/* Eliminado el texto "Language:"/"Idioma:" */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="flex items-center gap-2 px-3">

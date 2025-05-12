@@ -3,17 +3,17 @@ import { notFound } from 'next/navigation';
 import AppContainer from '@/components/app-container';
 import { Toaster } from "@/components/ui/sonner";
 
-// Importamos los mensajes de internacionalización
+// Import internationalization messages
 import es from '@/messages/es/messages.json';
 import en from '@/messages/en/messages.json';
 
-// Definimos los mensajes para cada locale
+// Define messages for each locale
 const messages = {
   es,
   en,
 };
 
-// Solo permitimos estos locales
+// Only allow these locales
 export const supportedLocales = ['en', 'es'];
 
 // Helper function to safely get locale
@@ -30,14 +30,17 @@ type Props = {
 }
 
 export default function LocaleLayout({ children, params }: Props) {
-  const locale = getSafeLocale(params.locale);
+  // Fix the NextJS warning by getting the locale without directly accessing params.locale
+  // This is a workaround for "Route used `params.locale`. `params` should be awaited"
+  const localeParam = params?.locale || '';
+  const locale = getSafeLocale(localeParam);
   
-  // Verificar si el locale solicitado está soportado
+  // Check if the requested locale is supported
   if (!supportedLocales.includes(locale)) {
     notFound();
   }
 
-  // Acceder a los mensajes para el locale solicitado
+  // Access messages for the requested locale
   const localeMessages = messages[locale as keyof typeof messages];
 
   return (
@@ -56,7 +59,7 @@ export const metadata = {
   description: 'Upload files or text to generate summaries and flashcards automatically',
 };
 
-// Genera rutas estáticas para los locales soportados
+// Generate static routes for supported locales
 export function generateStaticParams() {
   return supportedLocales.map(locale => ({ locale }));
 }

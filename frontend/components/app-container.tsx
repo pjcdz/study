@@ -9,6 +9,7 @@ import { useEffect } from "react";
 import LanguageSwitcher from "@/components/settings/language-switcher";
 import ThemeSwitcher from "@/components/settings/theme-switcher";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function AppContainer({
   children,
@@ -44,8 +45,22 @@ export default function AppContainer({
     <div className="flex min-h-screen flex-col">
       <header className="py-4">
         <div className="container max-w-7xl px-4 sm:px-6 lg:px-8 mx-auto flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold">{t("name")}</h1>
+          <div className="flex items-center gap-2">
+            {/* Logo y nombre de la aplicación ahora son clickeables y redirigen a upload */}
+            <Link 
+              href={`/${pathname.split('/')[1]}/upload`}
+              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+            >
+              <Image 
+                src="/logo.png" 
+                alt="Study App Logo" 
+                width={24}
+                height={24}
+                unoptimized
+                className="w-6 h-6"
+              />
+              <h1 className="text-2xl font-bold">{t("name")}</h1>
+            </Link>
           </div>
           <div className="flex items-center space-x-2">
             <ThemeSwitcher />

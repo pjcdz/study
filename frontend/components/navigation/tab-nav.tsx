@@ -51,15 +51,15 @@ export function WorkflowTabs() {
           >
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="upload">
-                <Upload className="h-4 w-4 mr-2" />
+                <Upload className="h-4 w-4 mr-2 hidden sm:inline" />
                 {t('upload')}
               </TabsTrigger>
               <TabsTrigger value="summary" disabled={!summary}>
-                <FileText className="h-4 w-4 mr-2" />
+                <FileText className="h-4 w-4 mr-2 hidden sm:inline" />
                 {t('summary')}
               </TabsTrigger>
               <TabsTrigger value="flashcards" disabled={!flashcards}>
-                <BookOpen className="h-4 w-4 mr-2" />
+                <BookOpen className="h-4 w-4 mr-2 hidden sm:inline" />
                 {t('flashcards')}
               </TabsTrigger>
             </TabsList>

@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -8,11 +9,11 @@ import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { useUploadStore } from '@/store/use-upload-store'
 import { useTranslations } from 'next-intl'
-import apiClient from "@/lib/api-client"
+import apiClient, { ApiError, ApiErrorType } from "@/lib/api-client"
 import { FileDropzone } from "@/components/upload/file-dropzone"
 import { FileList } from "@/components/upload/file-list"
 import { motion } from "framer-motion"
-
+import { useProcessingTimer } from "@/lib/hooks/useProcessingTimer"
 
 export default function UploadPage() {
   // Framer Motion variants for animation
@@ -27,24 +28,24 @@ export default function UploadPage() {
 
   const t = useTranslations()
   const router = useRouter()
+  
+  // Using the shared timer hook
+  const { isLoading, displayTime, startProcessing, stopProcessing } = useProcessingTimer()
+  
   const {
     files,
     inputText,
     summary,
-    isLoading,
     addFiles,
     removeFile,
     setInputText,
     setSummary,
-    setIsLoading
   } = useUploadStore()
 
-  // Función mejorada de validación de archivos
-  
-
+  // Function to process files
   const processFiles = async () => {
     try {
-      setIsLoading(true)
+      // Nota: No llamamos a startProcessing() aquí porque se llama en handleGenerateSummary
       
       let extractedText = ''
       const { files, originalFiles } = useUploadStore.getState()
@@ -103,10 +104,15 @@ export default function UploadPage() {
 
       const data = await response.json()
       setSummary(data.summary)
-      setIsLoading(false)
+      
+      // No llamamos a stopProcessing() aquí para mantener el timer corriendo
+      // El timer solo debe detenerse en la página de summary
     } catch (error: unknown) {
       console.error('Error processing files:', error)
-      toast.error(t('toast.error', { message: 'Error processing files' }) as string)
+      toast.error(t('upload.toast.error', { message: 'Error processing files' }))
+      
+      // No llamamos a stopProcessing() aquí para mantener el timer corriendo incluso en caso de error
+      // Esto permite al usuario ver cuánto tiempo ha pasado y decidir si intentar de nuevo
     }
   }
 
@@ -129,139 +135,198 @@ export default function UploadPage() {
   
   const handleGenerateSummary = async () => {
     if (!inputText && files.length === 0) {
-      toast.error(t('validation.noContent'))
+      toast.error(t('upload.validation.noContent'))
       return
     }
     
     try {
-      setIsLoading(true)
+      // Start processing timer (sets isLoading=true)
+      startProcessing()
       
-      // Procesar archivos subidos
+      // Process uploaded files and ensure they generate content
       if (files.length > 0) {
-        await processFiles(); // Only call for side effects
+        await processFiles(); // Call for side effects
+        // Wait a moment to ensure state has updated
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
-      // Aquí puedes continuar con la lógica para generar el resumen
-      const combinedText = files.length > 0 ? summary : inputText
       
-      // Enviar al backend
+      // Get the current state after files are processed
+      const currentState = useUploadStore.getState();
+      
+      // Use direct input text if no files, otherwise use the processed summary
+      const combinedText = files.length > 0 
+        ? currentState.summary || inputText  // Use summary if available, fall back to input text
+        : inputText;
+      
+      if (!combinedText || combinedText.trim() === '') {
+        throw new Error('No content to process');
+      }
+      
+      console.log('Sending content to backend, length:', combinedText.length);
+      
+      // Send to backend - making sure we have actual content - and WAIT for complete response
+      // This is a long-running operation that may take 1-2 minutes with Gemini
       const response = await apiClient.postSummary(combinedText)
       
-      if (!response || !response.notionMarkdown) {
-        throw new Error('Respuesta del servidor inválida')
+      // Only proceed with redirect when we have a valid notionMarkdown response AND stats
+      // This ensures we got a complete response from Gemini including token usage info
+      if (!response || !response.notionMarkdown || !response.stats) {
+        throw new Error('Invalid or incomplete server response')
       }
       
-      toast.success(t('toast.success'))
+      // Log token usage information
+      console.log('Gemini API response received:');
+      console.log('- Generation time:', response.stats.generationTimeMs, 'ms');
+      if (response.stats.inputTokens) {
+        console.log('- Input tokens:', response.stats.inputTokens);
+        console.log('- Output tokens:', response.stats.outputTokens);
+        console.log('- Total tokens:', response.stats.inputTokens + response.stats.outputTokens);
+      }
       
+      // Save the complete markdown response
       setSummary(response.notionMarkdown)
-      setIsLoading(false)
+      
+      // Now that we have the complete summary with all token information, show success
+      toast.success(t('upload.toast.success'))
+      
+      // Navigate to the summary page - we keep timer running during navigation
       router.push('./summary')
       
+      // NOTE: We do NOT stop the timer here
+      // The timer will continue running until the user reaches the summary page
+      // The summary page component will be responsible for stopping the timer when it loads
+      
     } catch (err: unknown) {
-      console.error('Error al generar resumen:', err)
-      let message = 'Unknown error';
-      if (typeof err === 'object' && err && 'message' in err && typeof (err as { message?: string }).message === 'string') {
-        message = (err as { message: string }).message;
+      console.error('Error generating summary:', err);
+      
+      // Verificar si es un error de API y manejar según su tipo
+      if (err instanceof ApiError) {
+        switch(err.type) {
+          case ApiErrorType.QUOTA_EXCEEDED:
+            toast.error(t('upload.toast.quotaExceeded'));
+            break;
+          case ApiErrorType.NETWORK_ERROR:
+            toast.error(t('upload.toast.networkError'));
+            break;
+          case ApiErrorType.INVALID_API_KEY:
+            toast.error(t('upload.toast.apiKeyError'));
+            break;
+          default:
+            toast.error(t('upload.toast.error', { message: err.message }));
+        }
+      } else {
+        // Para errores genéricos
+        let message = 'Unknown error';
+        if (typeof err === 'object' && err && 'message' in err && typeof (err as { message?: string }).message === 'string') {
+          message = (err as { message: string }).message;
+        }
+        toast.error(t('upload.toast.error', { message }));
       }
-      toast.error(t('toast.error', { message }) )
-    } finally {
-      setIsLoading(false)
+      
+      // We don't stop the timer on error, it will continue running
+      // This ensures the timer continues even if there's an error
+      // The user can cancel or try again without the timer resetting
     }
   }
   
   return (
-    <div className="container mx-auto py-8">
-      <div className="max-w-4xl mx-auto">
-        <motion.div 
-          initial="hidden"
-          animate="show"
-          variants={containerVariants}
-          className="space-y-4"
-        >
-          <motion.div 
-            variants={itemVariants}
-            className="text-center"
-          >
-            <h1 className="text-2xl font-bold mb-2">{t('upload.title')}</h1>
-            <p className="text-muted-foreground">{t('upload.description')}</p>
-          </motion.div>
-
-          <Card className="shadow-lg border-2 border-muted rounded-lg overflow-hidden">
-            <CardContent className="p-6">
-              
+    <div className="flex flex-col min-h-screen">
+      {/* Main content with padding-bottom to ensure content doesn't get hidden under fixed footer */}
+      <div className="flex-grow pb-20">
+        <div className="container mx-auto py-8">
+          <div className="max-w-4xl mx-auto">
+            <motion.div 
+              initial="hidden"
+              animate="show"
+              variants={containerVariants}
+              className="space-y-4"
+            >
               <motion.div 
                 variants={itemVariants}
-                className="space-y-6"
+                className="text-center"
               >
-                <div className="grid gap-4">
-                  <motion.div 
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="relative"
-                  >
-                    <FileDropzone 
-                      addFiles={addFiles}
-                      className="border-2 border-dashed border-primary/50 rounded-lg p-8 text-center"
-                    />
-                  </motion.div>
+                <h1 className="text-2xl font-bold mb-2">{t('upload.title')}</h1>
+                <p className="text-muted-foreground">{t('upload.description')}</p>
+              </motion.div>
 
-                  {files.length > 0 && (
+              <Card className="shadow-sm border-2 border-muted rounded-lg overflow-hidden">
+                <CardContent>
+                  <motion.div 
+                    variants={itemVariants}
+                    className="space-y-6"
+                  >
+                    <div className="grid gap-4">
+                      <motion.div 
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        className="relative"
+                      >
+                        <FileDropzone 
+                          addFiles={addFiles}
+                          className="border-2 border-dashed border-primary/50 rounded-lg p-8 text-center"
+                        />
+                      </motion.div>
+
+                      {files.length > 0 && (
+                        <motion.div 
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="space-y-2"
+                        >
+                          <FileList 
+                            files={files}
+                            onRemove={removeFile}
+                            className="space-y-2"
+                          />
+                        </motion.div>
+                      )}
+                    </div>
+
                     <motion.div 
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="space-y-2"
+                      variants={itemVariants}
+                      className="relative"
                     >
-                      <FileList 
-                        files={files}
-                        onRemove={removeFile}
-                        className="space-y-2"
+                      <Textarea
+                        placeholder={t('upload.textPlaceholder')}
+                        value={inputText}
+                        onChange={(e) => setInputText(e.target.value)}
+                        className="resize-none min-h-[100px]"
                       />
                     </motion.div>
-                  )}
-                </div>
-
-                <motion.div 
-                  variants={itemVariants}
-                  className="relative"
-                >
-                  <Textarea
-                    placeholder={t('upload.textPlaceholder')}
-                    value={inputText}
-                    onChange={(e) => setInputText(e.target.value)}
-                    className="resize-none min-h-[100px]"
-                  />
-                </motion.div>
-
-                <motion.div 
-                  variants={itemVariants}
-                  className="flex justify-end gap-4"
-                >
-                  <Button 
-                    onClick={() => router.push('/')}
-                    variant="outline"
-                    className="transition-all hover:scale-105"
-                  >
-                    {t('common.cancel')}
-                  </Button>
-                  <Button 
-                    onClick={handleGenerateSummary}
-                    disabled={isLoading || (!files.length && !inputText)}
-                    className="transition-all hover:scale-105"
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        {t('upload.processing')}
-                      </>
-                    ) : (
-                      t('upload.process')
-                    )}
-                  </Button>
-                </motion.div>
-              </motion.div>
-            </CardContent>
-          </Card>
-        </motion.div>
+                  </motion.div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </div>
+        </div>
       </div>
+
+      {/* Fixed footer */}
+      <footer className="fixed bottom-0 left-0 right-0 bg-background border-t border-border shadow-md py-4 z-10">
+        <div className="container max-w-4xl mx-auto flex justify-end gap-4">
+          <Button 
+            onClick={() => router.push('/')}
+            variant="outline"
+            className="transition-all hover:scale-105"
+          >
+            {t('common.cancel')}
+          </Button>
+          <Button 
+            onClick={handleGenerateSummary}
+            disabled={isLoading || (!files.length && !inputText)}
+            className="transition-all hover:bg-primary/80"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {t('upload.button.generating')} ({displayTime})
+              </>
+            ) : (
+              t('upload.process')
+            )}
+          </Button>
+        </div>
+      </footer>
     </div>
   )
 }

@@ -25,6 +25,12 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // Configure static assets to work with internationalization
+  images: {
+    unoptimized: true,
+  },
+  // Add basePath for the app if needed
+  // basePath: '',
 };
 
 export default withNextIntl(nextConfig);

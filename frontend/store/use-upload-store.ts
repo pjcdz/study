@@ -16,6 +16,9 @@ interface UploadState {
   flashcards: string
   currentStep: 'upload' | 'summary' | 'flashcards'
   isLoading: boolean
+  // Timer state
+  processingStartTime: number | null
+  elapsedTimeMs: number
   // Actions
   addFiles: (newFiles: File[]) => void
   removeFile: (index: number) => void
@@ -24,13 +27,16 @@ interface UploadState {
   setFlashcards: (tsv: string) => void
   setCurrentStep: (step: 'upload' | 'summary' | 'flashcards') => void
   setIsLoading: (loading: boolean) => void
+  startProcessing: () => void
+  stopProcessing: () => void
+  updateElapsedTime: () => void
   reset: () => void
 }
 
 export const useUploadStore = create<UploadState>()(
   persist(
-    (set) => ({
-      // Estado inicial
+    (set, get) => ({
+      // Initial state
       files: [],
       originalFiles: [],
       inputText: '',
@@ -38,6 +44,9 @@ export const useUploadStore = create<UploadState>()(
       flashcards: '',
       currentStep: 'upload' as const,
       isLoading: false,
+      // Timer state
+      processingStartTime: null,
+      elapsedTimeMs: 0,
       // Actions
       addFiles: (newFiles: File[]) =>
         set((state) => ({
@@ -64,7 +73,35 @@ export const useUploadStore = create<UploadState>()(
       setFlashcards: (tsv: string) => set({ flashcards: tsv }),
       setCurrentStep: (step: 'upload' | 'summary' | 'flashcards') =>
         set({ currentStep: step }),
-      setIsLoading: (loading: boolean) => set({ isLoading: loading }),
+      setIsLoading: (loading: boolean) => set((state) => {
+        // If turning off loading, also reset timer state
+        if (!loading && state.isLoading) {
+          return { 
+            isLoading: false, 
+            processingStartTime: null,
+            elapsedTimeMs: 0 
+          };
+        }
+        return { isLoading: loading };
+      }),
+      startProcessing: () => set({
+        isLoading: true,
+        processingStartTime: Date.now(),
+        elapsedTimeMs: 0
+      }),
+      stopProcessing: () => set({
+        isLoading: false,
+        processingStartTime: null,
+        elapsedTimeMs: 0
+      }),
+      updateElapsedTime: () => set(state => {
+        if (state.isLoading && state.processingStartTime) {
+          return {
+            elapsedTimeMs: Date.now() - state.processingStartTime
+          };
+        }
+        return {};
+      }),
       reset: () =>
         set({
           files: [],
@@ -74,20 +111,25 @@ export const useUploadStore = create<UploadState>()(
           flashcards: '',
           currentStep: 'upload',
           isLoading: false,
+          processingStartTime: null,
+          elapsedTimeMs: 0,
         }),
     }),
     {
       name: 'upload-store',
       storage: createJSONStorage(() => localStorage),
-      // No persistimos archivos (File) ya que no son serializables para JSON
+      // We don't persist File objects since they're not JSON serializable
       partialize: (state) => ({
         inputText: state.inputText,
         summary: state.summary,
         flashcards: state.flashcards,
         currentStep: state.currentStep,
-        // No guardamos los archivos ni el estado de carga
+        // We now persist timer state to keep it across pages
+        processingStartTime: state.processingStartTime,
+        elapsedTimeMs: state.elapsedTimeMs,
+        isLoading: state.isLoading,
       }),
-      // Si cambia la estructura del estado, esto garantiza compatibilidad
+      // Version to ensure backward compatibility
       version: 1,
     }
   )

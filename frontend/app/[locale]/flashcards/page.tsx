@@ -1,21 +1,35 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { toast } from "sonner"
-import { ClipboardCopy, Check, ExternalLink } from "lucide-react"
+import { ClipboardCopy, Check, ExternalLink, RefreshCw } from "lucide-react"
 import { useUploadStore } from "@/store/use-upload-store"
 import { useTranslations } from "next-intl"
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger 
+} from "@/components/ui/alert-dialog"
 
 export default function FlashcardsPage() {
   const t = useTranslations('flashcards');
-  const { flashcards } = useUploadStore()
+  const tNav = useTranslations('navigation');
+  const tCommon = useTranslations('common');
+  const { flashcards, reset } = useUploadStore()
   const [isCopied, setIsCopied] = useState(false)
   const router = useRouter()
+  const pathname = usePathname()
   
   useEffect(() => {
     // Only run on the client side
@@ -31,17 +45,43 @@ export default function FlashcardsPage() {
     return null;
   }
   
-  // Process TSV to clean markdown tags if they exist
+  // Process TSV to clean markdown tags and code blocks if they exist
   const cleanTSV = (() => {
-    let cleaned = flashcards
+    let cleaned = flashcards;
+    
+    // Remover marcas de código al principio y al final (como estaba anteriormente)
     if (cleaned.startsWith('```markdown')) {
-      cleaned = cleaned.substring('```markdown'.length)
+      cleaned = cleaned.substring('```markdown'.length);
+    } else if (cleaned.startsWith('```')) {
+      cleaned = cleaned.substring(3);
     }
+    
     if (cleaned.endsWith('```')) {
-      cleaned = cleaned.substring(0, cleaned.length - 3)
+      cleaned = cleaned.substring(0, cleaned.length - 3);
     }
-    return cleaned.trim()
-  })()
+    
+    // Nueva lógica: remover bloques de código en cualquier parte del texto
+    const lines = cleaned.split('\n');
+    const filteredLines = [];
+    let insideCodeBlock = false;
+    
+    for (const line of lines) {
+      // Detectar inicio o fin de un bloque de código
+      if (line.trim().startsWith('```') || line.trim() === '```') {
+        insideCodeBlock = !insideCodeBlock;
+        // No incluir líneas con ```
+        continue;
+      }
+      
+      // Solo incluir líneas que no estén dentro de un bloque de código
+      if (!insideCodeBlock) {
+        filteredLines.push(line);
+      }
+    }
+    
+    // Asegurar que no hay líneas vacías adicionales
+    return filteredLines.join('\n').trim();
+  })();
   
   const handleCopyToClipboard = () => {
     navigator.clipboard.writeText(cleanTSV)
@@ -127,6 +167,42 @@ export default function FlashcardsPage() {
               </AlertDescription>
             </Alert>
           </CardContent>
+          
+          {/* Botón "Start Over" con texto más descriptivo y usando traducciones */}
+          <CardFooter className="flex flex-col justify-center pt-6 border-t gap-2">
+            <p className="text-sm text-muted-foreground text-center mb-1">
+              {/* Usar traducciones en lugar de texto hardcodeado */}
+              {t('actions.needMoreMaterials', { defaultValue: "¿Necesitas generar otro material de estudio?" })}
+            </p>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="flex items-center gap-2">
+                  <RefreshCw className="h-4 w-4" />
+                  {/* Usar traducciones en lugar de texto hardcodeado */}
+                  {t('actions.startNewProject', { defaultValue: "Comenzar nuevo proyecto" })}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{tNav('restartConfirm')}</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {tNav('restartDescription')}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => {
+                    reset()
+                    // Obtener el prefijo de idioma de la ruta actual
+                    const localePrefix = pathname.split('/')[1];
+                    router.push(`/${localePrefix}/upload`)
+                  }}>
+                    {tNav('confirm')}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </CardFooter>
         </Card>
       </div>
     </div>
