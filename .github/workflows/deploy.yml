@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+  # Enable manual triggering
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
@@ -96,12 +98,15 @@ jobs:
 
             # --- Setup Secrets ---
             echo "🔐 Setting up secrets..."
-            echo "${{ secrets.GEMINI_API_KEY }}" | docker secret create gemini_api_key -
+            echo "${{ secrets.GEMINI_API_KEY }}" | docker secret create gemini_api_key - || true
             # --- End of Setup Secrets ---
 
             STACK_FILE="${{ env.REMOTE_DEPLOY_PATH }}/docker-stack.yml"
 
             echo "🚀 Deploying Docker Stack..."
-            GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" docker stack deploy --with-registry-auth -c ${STACK_FILE} study-tool
+            GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" \
+            GITHUB_USERNAME="${{ github.repository_owner }}" \
+            TAG="$(git rev-parse --short HEAD)" \
+            docker stack deploy --with-registry-auth -c ${STACK_FILE} study-tool
 
             echo "✅ Deployment completed."
