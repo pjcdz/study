@@ -7,16 +7,19 @@ services:
       - "5173"
     environment:
       - CHOKIDAR_USEPOLLING=true
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=https://study.cardozo.com.ar/api
     depends_on:
       - backend
     networks:
       - study-network
       - traefik_traefik-public
     deploy:
-      replicas: 3
+      replicas: 2
       update_config:
         parallelism: 1
         delay: 10s
+        order: start-first
       restart_policy:
         condition: on-failure
       labels:
@@ -25,8 +28,9 @@ services:
         - "traefik.http.routers.study-frontend.entrypoints=websecure"
         - "traefik.http.routers.study-frontend.tls=true"
         - "traefik.http.routers.study-frontend.tls.certresolver=myresolver"
-        - "traefik.http.services.study-frontend.loadbalancer.server.port=5173"
+        - "traefik.http.services.study-frontend.loadbalancer.server.port=3000"
         - "traefik.docker.network=traefik_traefik-public"
+        - "traefik.http.routers.study-frontend.priority=100"
 
   backend:
     image: ${REGISTRY:-ghcr.io}/${GITHUB_USERNAME:-pjcdz}/study_backend:${TAG:-latest}
@@ -34,6 +38,7 @@ services:
       - "4000"
     environment:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - NODE_ENV=production
     networks:
       - study-network
       - traefik_traefik-public
@@ -41,8 +46,13 @@ services:
       - gemini_api_key
     deploy:
       replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
       restart_policy:
         condition: on-failure
+        max_attempts: 3
       labels:
         - "traefik.enable=true"
         - "traefik.http.routers.study-backend.rule=Host(`study.cardozo.com.ar`) && PathPrefix(`/api`)"
@@ -53,6 +63,7 @@ services:
         - "traefik.docker.network=traefik_traefik-public"
         - "traefik.http.middlewares.study-backend-stripprefix.stripprefix.prefixes=/api"
         - "traefik.http.routers.study-backend.middlewares=study-backend-stripprefix"
+        - "traefik.http.routers.study-backend.priority=90"
 
 networks:
   study-network:

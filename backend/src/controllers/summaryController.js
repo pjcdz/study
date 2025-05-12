@@ -1,4 +1,4 @@
-import { callGemini } from '../services/geminiClient.js';
+import { callGemini, ERROR_TYPES } from '../services/geminiClient.js';
 import { prompts } from '../config/prompts.js';
 
 export const summaryController = {
@@ -104,9 +104,13 @@ export const summaryController = {
       } catch (geminiError) {
         console.error('Gemini API error:', geminiError);
         
-        // Return a more detailed error message
+        // Extraer el tipo de error si está disponible, defaults to UNKNOWN_ERROR
+        const errorType = geminiError.type || ERROR_TYPES.UNKNOWN_ERROR;
+        
+        // Return a more detailed error message with type
         return res.status(500).json({ 
           error: `Error from Gemini API: ${geminiError.message}`,
+          errorType: errorType,
           contentType: contentType,
           contentSizeKB: contentSizeKB
         });
@@ -117,6 +121,7 @@ export const summaryController = {
       // Ensure we always return a valid JSON response
       return res.status(500).json({ 
         error: `Internal server error: ${error.message}`,
+        errorType: ERROR_TYPES.UNKNOWN_ERROR,
         stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
       });
     }

@@ -3,7 +3,6 @@ export const prompts = {
 
 📌 **INSTRUCCIÓN ADICIONAL**:  
 - Asegúrate de que cada sección y subtítulo incluya al menos un emoji relevante.
-- Divide la respuesta en dos partes separadas: **Parte 1** con la primera mitad del contenido y **Parte 2** con la segunda mitad. Representa claramente cada sección como \`### Parte 1\` y \`### Parte 2\` en la interfaz de usuario.
 
 Aquí un ejemplo del formato que debe seguir cada uno de los temas presentado por tu resumen:
 

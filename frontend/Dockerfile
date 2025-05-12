@@ -1,20 +1,22 @@
-# Usar una imagen de Node oficial
-FROM node:20-alpine
+# Use the official Node.js image as the base
+FROM node:22.15.0-alpine
 
-# Establecer el directorio de trabajo en el contenedor
+# Set working directory
 WORKDIR /app
 
-# Copiar package.json y package-lock.json
-COPY package.json package-lock.json ./
+# Install dependencies
+COPY package*.json ./
+RUN npm ci
 
-# Instalar las dependencias
-RUN npm install
+# Create environment variables to disable ESLint
+ENV NEXT_DISABLE_ESLINT=true
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# Copiar el resto del código fuente
+# Copy the rest of the application
 COPY . .
 
-# Exponer el puerto 5173 de Vite
-EXPOSE 5173
+# Expose the port that Next.js runs on
+EXPOSE 3000
 
-# Comando para iniciar Vite
-CMD ["npm", "run", "dev", "--", "--host"]
+# Command to start in development mode
+CMD ["npm", "run", "dev"]

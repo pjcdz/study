@@ -4,6 +4,14 @@ import fetch from 'node-fetch';
 const MODEL_NAME = 'gemini-2.5-pro-exp-03-25';
 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent`;
 
+// Error types - used for better frontend handling
+export const ERROR_TYPES = {
+  QUOTA_EXCEEDED: 'QUOTA_EXCEEDED',
+  NETWORK_ERROR: 'NETWORK_ERROR',
+  INVALID_API_KEY: 'INVALID_API_KEY',
+  UNKNOWN_ERROR: 'UNKNOWN_ERROR'
+};
+
 /**
  * Call Gemini API with a prompt
  * @param {string} prompt - The prompt to send to Gemini
@@ -64,11 +72,41 @@ export async function callGemini(prompt) {
         const errorData = JSON.parse(responseText);
         const errorMessage = errorData.error?.message || 'Unknown Gemini API error';
         const errorCode = errorData.error?.code || response.status;
-        throw new Error(`Gemini API error (${errorCode}): ${errorMessage}`);
+        
+        // Detect quota exceeded errors
+        if (
+          (errorCode === 429 && errorMessage.includes('quota')) || 
+          errorMessage.toLowerCase().includes('quota exceeded') ||
+          errorMessage.toLowerCase().includes('resource exhausted') ||
+          errorMessage.toLowerCase().includes('rate limit')
+        ) {
+          const quotaError = new Error(`Gemini API quota exceeded: ${errorMessage}`);
+          quotaError.type = ERROR_TYPES.QUOTA_EXCEEDED;
+          throw quotaError;
+        }
+        
+        // Detect invalid API key
+        if (errorCode === 401 || (errorCode === 400 && errorMessage.toLowerCase().includes('api key'))) {
+          const authError = new Error(`Gemini API authentication error: ${errorMessage}`);
+          authError.type = ERROR_TYPES.INVALID_API_KEY;
+          throw authError;
+        }
+        
+        // General error
+        const generalError = new Error(`Gemini API error (${errorCode}): ${errorMessage}`);
+        generalError.type = ERROR_TYPES.UNKNOWN_ERROR;
+        throw generalError;
       } catch (parseError) {
+        // If parsing failed, but the original error had error type property, preserve it
+        if (parseError.type) {
+          throw parseError;
+        }
+        
         // If we can't parse as JSON, return the response text
         console.error('Error parsing error response:', parseError);
-        throw new Error(`Gemini API error: ${responseText || response.statusText}`);
+        const responseError = new Error(`Gemini API error: ${responseText || response.statusText}`);
+        responseError.type = ERROR_TYPES.UNKNOWN_ERROR;
+        throw responseError;
       }
     }
 
@@ -82,7 +120,9 @@ export async function callGemini(prompt) {
     } catch (parseError) {
       console.error('Error parsing successful response:', parseError);
       console.error('Raw response:', responseText);
-      throw new Error('Failed to parse Gemini API response');
+      const parseResponseError = new Error('Failed to parse Gemini API response');
+      parseResponseError.type = ERROR_TYPES.UNKNOWN_ERROR;
+      throw parseResponseError;
     }
     
     // Extract usage statistics if available
@@ -128,14 +168,27 @@ export async function callGemini(prompt) {
     }
     
     console.error('Unexpected response format:', JSON.stringify(data, null, 2));
-    throw new Error('Unexpected response format from Gemini API');
+    const formatError = new Error('Unexpected response format from Gemini API');
+    formatError.type = ERROR_TYPES.UNKNOWN_ERROR;
+    throw formatError;
   } catch (error) {
     // Log the full error details
     console.error('Error calling Gemini API:', error);
+    
+    // Preserve error type if already set
+    if (error.type) {
+      throw error;
+    }
+    
     // Check if this is a network error
     if (error.name === 'FetchError' || error.code === 'ENOTFOUND') {
-      throw new Error(`Network error connecting to Gemini API: ${error.message}`);
+      const networkError = new Error(`Network error connecting to Gemini API: ${error.message}`);
+      networkError.type = ERROR_TYPES.NETWORK_ERROR;
+      throw networkError;
     }
+    
+    // Default error type
+    error.type = ERROR_TYPES.UNKNOWN_ERROR;
     throw error;
   }
 }
