@@ -9,12 +9,13 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+const HOST = process.env.HOST || '0.0.0.0'; // Bind to all network interfaces
 
 // Middlewares
 app.use(cors({
   // Allow more origins in development mode for Docker networking to work properly
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://study.cardozo.com.ar'] 
+    ? ['https://study.cardozo.com.ar', 'https://study.cardozo.com.ar:4000', 'http://study.cardozo.com.ar', 'http://study.cardozo.com.ar:4000'] 
     : true, // Allow any origin in development
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
@@ -46,7 +47,10 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`Server listening on ${HOST}:${PORT}`);
   console.log(`Gemini API Key configured: ${process.env.GEMINI_API_KEY ? 'Yes' : 'No'}`);
+  console.log(`CORS allowed origins: ${process.env.NODE_ENV === 'production' ? 
+    ['https://study.cardozo.com.ar', 'https://study.cardozo.com.ar:4000', 'http://study.cardozo.com.ar', 'http://study.cardozo.com.ar:4000'].join(', ') : 
+    'All origins (development mode)'}`);
 });

@@ -22,6 +22,7 @@ export class ApiError extends Error {
 
 class ApiClient {
   private baseUrl: string
+  private fallbackUrls: string[] = []
   
   constructor() {
     const isClient = typeof window !== 'undefined';
@@ -41,27 +42,76 @@ class ApiClient {
       // When accessing via browser, ensure we use the same protocol to avoid Mixed Content errors
       this.baseUrl = `${protocol}//${hostname}:4000`;
       
+      // Setup fallback URLs to try if the main one fails
+      // First try without the port (in case there's a reverse proxy)
+      this.fallbackUrls = [
+        `${protocol}//${hostname}/api`,
+        `${protocol}//${hostname}`,
+        // Add additional fallbacks if needed
+      ];
+      
       console.log('API Client initialized with baseUrl:', this.baseUrl);
+      console.log('Fallback URLs:', this.fallbackUrls);
     } else {
       // Server-side context - inside Docker network
       this.baseUrl = 'http://backend:4000';
     }
   }
   
+  private async fetchWithFallbacks(endpoint: string, options: RequestInit) {
+    let lastError: Error | null = null;
+    
+    // Try with the primary URL first
+    try {
+      const url = `${this.baseUrl}${endpoint}`;
+      console.log(`Attempting request to: ${url}`);
+      const response = await fetch(url, options);
+      return response;
+    } catch (error) {
+      console.warn(`Failed to connect to primary URL: ${this.baseUrl}`, error);
+      lastError = error as Error;
+    }
+    
+    // If primary fails and we have fallbacks, try them sequentially
+    if (this.fallbackUrls.length > 0) {
+      for (const fallbackBase of this.fallbackUrls) {
+        try {
+          const url = `${fallbackBase}${endpoint}`;
+          console.log(`Attempting fallback request to: ${url}`);
+          const response = await fetch(url, options);
+          
+          if (response.ok) {
+            console.log(`Successfully connected to fallback: ${fallbackBase}`);
+            // Update the baseUrl to use this working fallback for future requests
+            this.baseUrl = fallbackBase;
+            return response;
+          }
+        } catch (error) {
+          console.warn(`Failed to connect to fallback URL: ${fallbackBase}`, error);
+          lastError = error as Error;
+        }
+      }
+    }
+    
+    // If we get here, all attempts failed
+    throw lastError || new Error('All connection attempts failed');
+  }
+  
   async postSummary(content: string) {
     try {
-      console.log(`Sending POST request to ${this.baseUrl}/summary`);
+      console.log(`Sending POST request for summary, content length: ${content.length}`);
       
-      const response = await fetch(`${this.baseUrl}/summary`, {
+      const options = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        // Change 'content' to 'filesText' to match backend expectation
         body: JSON.stringify({ filesText: content }),
-        mode: 'cors' // Use CORS mode but don't include credentials
-      });
+        mode: 'cors' as RequestMode
+      };
+      
+      const response = await this.fetchWithFallbacks('/summary', options);
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ 
@@ -97,17 +147,19 @@ class ApiClient {
   
   async postFlashcards(markdown: string) {
     try {
-      console.log(`Sending POST request to ${this.baseUrl}/flashcards`);
+      console.log(`Sending POST request for flashcards, markdown length: ${markdown.length}`);
       
-      const response = await fetch(`${this.baseUrl}/flashcards`, {
+      const options = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
         body: JSON.stringify({ notionMarkdown: markdown }),
-        mode: 'cors' // Use CORS mode but don't include credentials
-      });
+        mode: 'cors' as RequestMode
+      };
+      
+      const response = await this.fetchWithFallbacks('/flashcards', options);
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ 
