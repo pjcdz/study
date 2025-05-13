@@ -1,20 +1,23 @@
-# Usar una imagen de Node oficial
+# Use a Node.js official image
 FROM node:20-alpine
 
-# Establecer el directorio de trabajo en el contenedor
+# Set working directory
 WORKDIR /app
 
-# Copiar package.json y package-lock.json
+# Copy package.json and package-lock.json first for better caching
 COPY package.json package-lock.json ./
 
-# Instalar las dependencias con caché y omitir dev
-RUN npm install
+# Install production dependencies only
+RUN npm ci --only=production
 
-# Copiar el resto del código fuente
+# Copy the rest of the source code
 COPY . .
 
-# Exponer el puerto 4000
+# Expose port 4000
 EXPOSE 4000
 
-# Comando para iniciar la aplicación
+# Set NODE_ENV to production
+ENV NODE_ENV=production
+
+# Command to start the application
 CMD ["node", "src/app.js"]
