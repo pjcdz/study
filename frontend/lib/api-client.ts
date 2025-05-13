@@ -26,14 +26,20 @@ class ApiClient {
   constructor() {
     const isClient = typeof window !== 'undefined';
     
+    // First, check if there's an environment variable available
+    if (process.env.NEXT_PUBLIC_API_URL) {
+      this.baseUrl = process.env.NEXT_PUBLIC_API_URL;
+      console.log('API Client initialized with env baseUrl:', this.baseUrl);
+      return;
+    }
+    
     if (isClient) {
-      // In browser context, the API must be accessed through the same host
-      // but on port 4000, which is mapped in docker-compose
+      // In browser context, use the same protocol (HTTP or HTTPS) as the current page
+      const protocol = window.location.protocol; // Will be 'https:' or 'http:'
       const hostname = window.location.hostname;
       
-      // When accessing via browser, we need to use the port that's exposed to the host
-      // not the internal Docker network
-      this.baseUrl = `http://${hostname}:4000`;
+      // When accessing via browser, ensure we use the same protocol to avoid Mixed Content errors
+      this.baseUrl = `${protocol}//${hostname}:4000`;
       
       console.log('API Client initialized with baseUrl:', this.baseUrl);
     } else {
