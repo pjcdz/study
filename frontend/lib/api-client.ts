@@ -21,62 +21,33 @@ export class ApiError extends Error {
 }
 
 class ApiClient {
-  private baseUrl: string
-  private fallbackUrls: string[] = []
-  private maxRetries: number = 3; // Max number of retries per URL
-  private initialRetryDelay: number = 500; // Initial delay in ms (will be increased with each retry)
-  private connectionEstablished: boolean = false; // Track if we've established a working connection
+  private baseUrl: string;
   
   constructor() {
     const isClient = typeof window !== 'undefined';
     
-    // First, check if there's an environment variable available
-    if (process.env.NEXT_PUBLIC_API_URL) {
-      this.baseUrl = process.env.NEXT_PUBLIC_API_URL;
-      console.log('API Client initialized with env baseUrl:', this.baseUrl);
-      return;
-    }
-    
     if (isClient) {
-      // In browser context, use the same protocol (HTTP or HTTPS) as the current page
-      const protocol = window.location.protocol; // Will be 'https:' or 'http:'
-      const hostname = window.location.hostname;
-      
-      // When accessing via browser, ensure we use the same protocol to avoid Mixed Content errors
-      this.baseUrl = `${protocol}//${hostname}:4000`;
-      
-      // Setup fallback URLs to try if the main one fails
-      // First try without the port (in case there's a reverse proxy)
-      this.fallbackUrls = [
-        `${protocol}//${hostname}/api`,
-        `${protocol}//${hostname}`,
-        // Add alternative protocols if needed
-        protocol === 'https:' ? `http://${hostname}:4000` : `https://${hostname}:4000`,
-        // Add additional fallbacks if needed
-      ];
+      // Use the environment variable if set, otherwise construct URL based on current host
+      if (process.env.NEXT_PUBLIC_API_URL) {
+        this.baseUrl = process.env.NEXT_PUBLIC_API_URL; // Should be https://study.cardozo.com.ar/api
+      } else {
+        // Use the current domain with /api path
+        const protocol = window.location.protocol;
+        const hostname = window.location.hostname;
+        this.baseUrl = `${protocol}//${hostname}/api`;
+      }
       
       console.log('API Client initialized with baseUrl:', this.baseUrl);
-      console.log('Fallback URLs:', this.fallbackUrls);
-    } else {
-      // Server-side context - inside Docker network
-      this.baseUrl = 'http://backend:4000';
-    }
-    
-    // Check for localStorage preference from previous successful connections
-    if (isClient && window.localStorage) {
-      const savedBaseUrl = localStorage.getItem('api_baseurl');
-      if (savedBaseUrl) {
-        console.log('Using saved API URL from previous successful connection:', savedBaseUrl);
-        this.baseUrl = savedBaseUrl;
-      }
-    }
-
-    // Automatically try to establish connection on client-side
-    if (isClient) {
-      // Run async - don't block construction
+      
+      // Test connection automatically on startup
       this.testConnection().catch(err => 
         console.warn('Initial connection test failed, will retry on actual requests:', err)
       );
+    } else {
+      // Server-side rendering context
+      // For SSR/SSG, use the environment variable or default to Docker service name
+      this.baseUrl = process.env.BACKEND_URL || 'http://backend:4000';
+      console.log('API Client (server-side) initialized with baseUrl:', this.baseUrl);
     }
   }
   
@@ -85,83 +56,27 @@ class ApiClient {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
   
-  private async fetchWithRetry(url: string, options: RequestInit, retries: number = 0): Promise<Response> {
-    try {
-      return await fetch(url, options);
-    } catch (error) {
-      if (retries < this.maxRetries) {
-        const delayTime = this.initialRetryDelay * Math.pow(2, retries);
-        console.log(`Retry ${retries + 1}/${this.maxRetries} for ${url} after ${delayTime}ms`);
-        await this.delay(delayTime);
-        return this.fetchWithRetry(url, options, retries + 1);
-      }
-      throw error;
-    }
-  }
-  
-  private async fetchWithFallbacks(endpoint: string, options: RequestInit) {
-    let lastError: Error | null = null;
-    
-    // Try with the primary URL first
-    try {
-      const url = `${this.baseUrl}${endpoint}`;
-      console.log(`Attempting request to: ${url}`);
-      const response = await this.fetchWithRetry(url, options);
-      if (response.ok && typeof window !== 'undefined' && window.localStorage) {
-        // Save successful URL for future use
-        localStorage.setItem('api_baseurl', this.baseUrl);
-      }
-      return response;
-    } catch (error) {
-      console.warn(`Failed to connect to primary URL: ${this.baseUrl}`, error);
-      lastError = error as Error;
-    }
-    
-    // If primary fails and we have fallbacks, try them sequentially
-    if (this.fallbackUrls.length > 0) {
-      for (const fallbackBase of this.fallbackUrls) {
-        try {
-          const url = `${fallbackBase}${endpoint}`;
-          console.log(`Attempting fallback request to: ${url}`);
-          const response = await this.fetchWithRetry(url, options);
-          
-          if (response.ok) {
-            console.log(`Successfully connected to fallback: ${fallbackBase}`);
-            // Update the baseUrl to use this working fallback for future requests
-            this.baseUrl = fallbackBase;
-            // Save successful URL for future use
-            if (typeof window !== 'undefined' && window.localStorage) {
-              localStorage.setItem('api_baseurl', fallbackBase);
-            }
-            return response;
-          }
-        } catch (error) {
-          console.warn(`Failed to connect to fallback URL: ${fallbackBase}`, error);
-          lastError = error as Error;
-        }
-      }
-    }
-    
-    // If we get here, all attempts failed
-    throw lastError || new Error('All connection attempts failed');
-  }
-
-  // Test the connection and find the best working endpoint early
+  // Test the connection to make sure our backend is reachable
   public async testConnection(): Promise<boolean> {
-    if (this.connectionEstablished) return true;
-    
     try {
-      await this.fetchWithFallbacks('/health', { 
+      console.log(`Testing connection to ${this.baseUrl}/health`);
+      const response = await fetch(`${this.baseUrl}/health`, { 
         method: 'GET',
         headers: { 'Accept': 'application/json' },
-        mode: 'cors' as RequestMode
+        cache: 'no-store'
       });
       
-      this.connectionEstablished = true;
-      console.log('Connection test successful using:', this.baseUrl);
+      if (!response.ok) {
+        throw new Error(`Health check failed with status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('Health check result:', data);
+      
+      console.log('Connection test successful');
       return true;
     } catch (error) {
-      console.error('All connection attempts failed during test');
+      console.error('Connection test failed:', error);
       return false;
     }
   }
@@ -177,11 +92,10 @@ class ApiClient {
           'Accept': 'application/json'
         },
         body: JSON.stringify({ filesText: content }),
-        mode: 'cors' as RequestMode
       };
       
       console.log(`Sending POST request to ${this.baseUrl}/summary`);
-      const response = await this.fetchWithFallbacks('/summary', options);
+      const response = await fetch(`${this.baseUrl}/summary`, options);
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ 
@@ -226,10 +140,9 @@ class ApiClient {
           'Accept': 'application/json'
         },
         body: JSON.stringify({ notionMarkdown: markdown }),
-        mode: 'cors' as RequestMode
       };
       
-      const response = await this.fetchWithFallbacks('/flashcards', options);
+      const response = await fetch(`${this.baseUrl}/flashcards`, options);
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ 
