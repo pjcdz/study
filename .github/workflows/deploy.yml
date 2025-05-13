@@ -106,7 +106,7 @@ jobs:
             echo "🚀 Deploying Docker Stack..."
             GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" \
             GITHUB_USERNAME="${{ github.repository_owner }}" \
-            TAG="$(git rev-parse --short HEAD)" \
+            TAG="latest" \
             docker stack deploy --with-registry-auth -c ${STACK_FILE} study
 
             echo "✅ Deployment completed."
