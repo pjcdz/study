@@ -23,6 +23,9 @@ export class ApiError extends Error {
 class ApiClient {
   private baseUrl: string
   private fallbackUrls: string[] = []
+  private maxRetries: number = 3; // Max number of retries per URL
+  private initialRetryDelay: number = 500; // Initial delay in ms (will be increased with each retry)
+  private connectionEstablished: boolean = false; // Track if we've established a working connection
   
   constructor() {
     const isClient = typeof window !== 'undefined';
@@ -47,6 +50,8 @@ class ApiClient {
       this.fallbackUrls = [
         `${protocol}//${hostname}/api`,
         `${protocol}//${hostname}`,
+        // Add alternative protocols if needed
+        protocol === 'https:' ? `http://${hostname}:4000` : `https://${hostname}:4000`,
         // Add additional fallbacks if needed
       ];
       
@@ -55,6 +60,42 @@ class ApiClient {
     } else {
       // Server-side context - inside Docker network
       this.baseUrl = 'http://backend:4000';
+    }
+    
+    // Check for localStorage preference from previous successful connections
+    if (isClient && window.localStorage) {
+      const savedBaseUrl = localStorage.getItem('api_baseurl');
+      if (savedBaseUrl) {
+        console.log('Using saved API URL from previous successful connection:', savedBaseUrl);
+        this.baseUrl = savedBaseUrl;
+      }
+    }
+
+    // Automatically try to establish connection on client-side
+    if (isClient) {
+      // Run async - don't block construction
+      this.testConnection().catch(err => 
+        console.warn('Initial connection test failed, will retry on actual requests:', err)
+      );
+    }
+  }
+  
+  // Helper function to add delay
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+  
+  private async fetchWithRetry(url: string, options: RequestInit, retries: number = 0): Promise<Response> {
+    try {
+      return await fetch(url, options);
+    } catch (error) {
+      if (retries < this.maxRetries) {
+        const delayTime = this.initialRetryDelay * Math.pow(2, retries);
+        console.log(`Retry ${retries + 1}/${this.maxRetries} for ${url} after ${delayTime}ms`);
+        await this.delay(delayTime);
+        return this.fetchWithRetry(url, options, retries + 1);
+      }
+      throw error;
     }
   }
   
@@ -65,7 +106,11 @@ class ApiClient {
     try {
       const url = `${this.baseUrl}${endpoint}`;
       console.log(`Attempting request to: ${url}`);
-      const response = await fetch(url, options);
+      const response = await this.fetchWithRetry(url, options);
+      if (response.ok && typeof window !== 'undefined' && window.localStorage) {
+        // Save successful URL for future use
+        localStorage.setItem('api_baseurl', this.baseUrl);
+      }
       return response;
     } catch (error) {
       console.warn(`Failed to connect to primary URL: ${this.baseUrl}`, error);
@@ -78,12 +123,16 @@ class ApiClient {
         try {
           const url = `${fallbackBase}${endpoint}`;
           console.log(`Attempting fallback request to: ${url}`);
-          const response = await fetch(url, options);
+          const response = await this.fetchWithRetry(url, options);
           
           if (response.ok) {
             console.log(`Successfully connected to fallback: ${fallbackBase}`);
             // Update the baseUrl to use this working fallback for future requests
             this.baseUrl = fallbackBase;
+            // Save successful URL for future use
+            if (typeof window !== 'undefined' && window.localStorage) {
+              localStorage.setItem('api_baseurl', fallbackBase);
+            }
             return response;
           }
         } catch (error) {
@@ -96,10 +145,30 @@ class ApiClient {
     // If we get here, all attempts failed
     throw lastError || new Error('All connection attempts failed');
   }
+
+  // Test the connection and find the best working endpoint early
+  public async testConnection(): Promise<boolean> {
+    if (this.connectionEstablished) return true;
+    
+    try {
+      await this.fetchWithFallbacks('/health', { 
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+        mode: 'cors' as RequestMode
+      });
+      
+      this.connectionEstablished = true;
+      console.log('Connection test successful using:', this.baseUrl);
+      return true;
+    } catch (error) {
+      console.error('All connection attempts failed during test');
+      return false;
+    }
+  }
   
   async postSummary(content: string) {
     try {
-      console.log(`Sending POST request for summary, content length: ${content.length}`);
+      console.log(`Sending content to backend, length: ${content.length}`);
       
       const options = {
         method: 'POST',
@@ -111,6 +180,7 @@ class ApiClient {
         mode: 'cors' as RequestMode
       };
       
+      console.log(`Sending POST request to ${this.baseUrl}/summary`);
       const response = await this.fetchWithFallbacks('/summary', options);
       
       if (!response.ok) {
