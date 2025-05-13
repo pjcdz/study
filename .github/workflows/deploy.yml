@@ -11,7 +11,7 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME_FRONTEND: ${{ github.repository_owner }}/study_frontend
   IMAGE_NAME_BACKEND: ${{ github.repository_owner }}/study_backend
-  REMOTE_DEPLOY_PATH: /home/deploy/study-tool
+  REMOTE_DEPLOY_PATH: /home/deploy/study
 
 jobs:
   build-and-push:
@@ -107,6 +107,6 @@ jobs:
             GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" \
             GITHUB_USERNAME="${{ github.repository_owner }}" \
             TAG="$(git rev-parse --short HEAD)" \
-            docker stack deploy --with-registry-auth -c ${STACK_FILE} study-tool
+            docker stack deploy --with-registry-auth -c ${STACK_FILE} study
 
             echo "✅ Deployment completed."
