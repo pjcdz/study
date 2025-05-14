@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -15,7 +15,37 @@ import { FileList } from "@/components/upload/file-list"
 import { motion } from "framer-motion"
 import { useProcessingTimer } from "@/lib/hooks/useProcessingTimer"
 
+// Import PDF.js types
+import type * as PDFJS from 'pdfjs-dist';
+
+// PDF.js needs to be imported dynamically as it's browser-only
+const pdfjs = async (): Promise<typeof PDFJS> => {
+  const PDFJSLib = await import('pdfjs-dist');
+  return PDFJSLib;
+};
+
 export default function UploadPage() {
+  // State to track PDF processing status
+  const [pdfProcessingStatus, setPdfProcessingStatus] = useState<string>("");
+
+  // Initialize PDF.js
+  useEffect(() => {
+    const initPdfJs = async () => {
+      if (typeof window !== 'undefined') {
+        try {
+          const PDFJSLib = await pdfjs();
+          // Set worker path using CDN to avoid bundling issues
+          const workerSrc = `//unpkg.com/pdfjs-dist@${PDFJSLib.version}/build/pdf.worker.min.js`;
+          PDFJSLib.GlobalWorkerOptions.workerSrc = workerSrc;
+        } catch (error) {
+          console.error('Error initializing PDF.js:', error);
+        }
+      }
+    };
+    
+    initPdfJs();
+  }, []);
+
   // Framer Motion variants for animation
   const containerVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -35,20 +65,67 @@ export default function UploadPage() {
   const {
     files,
     inputText,
-    summary,
     addFiles,
     removeFile,
     setInputText,
-    setSummary,
+    addSummary, // Use addSummary instead of setSummary
+    setCurrentStep,
   } = useUploadStore()
+
+  // Function to extract text from PDF
+  const extractPdfText = async (file: File): Promise<string> => {
+    try {
+      setPdfProcessingStatus(`Extracting text from ${file.name}...`);
+      
+      // Convert file to ArrayBuffer
+      const arrayBuffer = await file.arrayBuffer();
+      
+      // Load PDF document
+      const PDFJSLib = await pdfjs();
+      const loadingTask = PDFJSLib.getDocument({ data: arrayBuffer });
+      const pdf = await loadingTask.promise;
+      
+      let extractedText = `[PDF Document: ${file.name}]\n`;
+      extractedText += `# Content extracted from: ${file.name}\n\n`;
+      
+      // Get total pages
+      const totalPages = pdf.numPages;
+      setPdfProcessingStatus(`Extracting text from ${file.name} (0/${totalPages} pages)`);
+      
+      // Extract text from each page
+      for (let i = 1; i <= totalPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items
+          // TypeScript fix: ensure item has the expected structure with str property
+          .map((item: any) => (item.str || ''))
+          .join(' ');
+        
+        extractedText += `## Page ${i}\n${pageText}\n\n`;
+        
+        // Update status every few pages
+        if (i % 5 === 0 || i === totalPages) {
+          setPdfProcessingStatus(`Extracting text from ${file.name} (${i}/${totalPages} pages)`);
+        }
+      }
+      
+      return extractedText;
+    } catch (error) {
+      console.error('Error extracting PDF text:', error);
+      toast.error(`Error extracting text from PDF: ${file.name}`);
+      
+      // Return the original metadata format as fallback
+      return `[PDF Document: ${file.name}]\nThis is a PDF document that contains information about "${file.name.replace('.pdf', '')}". Please analyze the content of the file that is related to this topic. The document has a size of ${Math.round(file.size / 1024)} KB.\n\n`;
+    } finally {
+      setPdfProcessingStatus("");
+    }
+  };
 
   // Function to process files
   const processFiles = async () => {
     try {
-      // Nota: No llamamos a startProcessing() aquí porque se llama en handleGenerateSummary
-      
       let extractedText = ''
-      const { files, originalFiles } = useUploadStore.getState()
+      const { files, originalFiles, inputText } = useUploadStore.getState()
       
       for (let i = 0; i < files.length; i++) {
         const file = files[i]
@@ -59,12 +136,26 @@ export default function UploadPage() {
           const base64 = await fileToBase64(originalFile)
           extractedText += `[Image Content: ${file.name}]\n${base64}\n\n`
         }
-        // For PDFs (basic information)
+        // For PDFs - use the PDF.js extraction
         else if (file.type === 'application/pdf') {
-          extractedText += `[PDF Document: ${file.name}]\n`
-          extractedText += `This is a PDF document that contains information about "${file.name.replace('.pdf', '')}". `
-          extractedText += `Please analyze the content of the file that is related to this topic. `
-          extractedText += `The document has a size of ${Math.round(file.size / 1024)} KB.\n\n`
+          // Send notification that PDF is being processed
+          toast.info(t('upload.toast.processingPdf', { name: file.name }));
+          
+          try {
+            // Get the full text content from the PDF
+            const pdfText = await extractPdfText(originalFile);
+            extractedText += pdfText;
+            
+            // Show success notification
+            toast.success(t('upload.toast.pdfProcessed', { name: file.name }));
+          } catch (pdfError) {
+            console.error('Error processing PDF:', pdfError);
+            toast.error(t('upload.toast.pdfError', { name: file.name }));
+            
+            // Fallback - send base64 encoded PDF
+            const base64 = await fileToBase64(originalFile);
+            extractedText += `[PDF Content (Base64): ${file.name}]\n${base64}\n\n`;
+          }
           
           if (inputText) {
             extractedText += `Additional context provided by the user:\n${inputText}\n\n`
@@ -89,13 +180,19 @@ export default function UploadPage() {
         }
       }
 
+      console.log(`Sending ${extractedText.length} characters of extracted text to API`);
+      
       // Process the extracted text
       const response = await fetch('/api/process-files', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ text: extractedText, inputText }),
+        body: JSON.stringify({ 
+          text: extractedText, 
+          inputText,
+          hasPdfContent: files.some(f => f.type === 'application/pdf')  // Flag to inform backend about PDF content
+        }),
       })
 
       if (!response.ok) {
@@ -103,7 +200,7 @@ export default function UploadPage() {
       }
 
       const data = await response.json()
-      setSummary(data.summary)
+      addSummary(data.summary)
       
       // No llamamos a stopProcessing() aquí para mantener el timer corriendo
       // El timer solo debe detenerse en la página de summary
@@ -155,7 +252,7 @@ export default function UploadPage() {
       
       // Use direct input text if no files, otherwise use the processed summary
       const combinedText = files.length > 0 
-        ? currentState.summary || inputText  // Use summary if available, fall back to input text
+        ? currentState.getCurrentSummary() || inputText  // Use getCurrentSummary instead of summary
         : inputText;
       
       if (!combinedText || combinedText.trim() === '') {
@@ -184,7 +281,8 @@ export default function UploadPage() {
       }
       
       // Save the complete markdown response
-      setSummary(response.notionMarkdown)
+      addSummary(response.notionMarkdown) // Use addSummary instead of setSummary
+      setCurrentStep('summary')
       
       // Now that we have the complete summary with all token information, show success
       toast.success(t('upload.toast.success'))
@@ -199,20 +297,27 @@ export default function UploadPage() {
     } catch (err: unknown) {
       console.error('Error generating summary:', err);
       
+      // Flag to determine if this is a critical error that should stop processing
+      let isCriticalError = false;
+      
       // Verificar si es un error de API y manejar según su tipo
       if (err instanceof ApiError) {
         switch(err.type) {
           case ApiErrorType.QUOTA_EXCEEDED:
             toast.error(t('upload.toast.quotaExceeded'));
+            isCriticalError = true; // Can't continue if quota exceeded
             break;
           case ApiErrorType.NETWORK_ERROR:
             toast.error(t('upload.toast.networkError'));
+            isCriticalError = true; // Can't continue without network
             break;
           case ApiErrorType.INVALID_API_KEY:
             toast.error(t('upload.toast.apiKeyError'));
+            isCriticalError = true; // Can't continue with invalid API key
             break;
           default:
             toast.error(t('upload.toast.error', { message: err.message }));
+            // For other API errors, we could potentially retry
         }
       } else {
         // Para errores genéricos
@@ -221,13 +326,40 @@ export default function UploadPage() {
           message = (err as { message: string }).message;
         }
         toast.error(t('upload.toast.error', { message }));
+        
+        // Network errors or "failed to fetch" indicate connection problems
+        if (message.includes('fetch') || message.includes('network') || message.includes('connection')) {
+          isCriticalError = true;
+        }
       }
       
-      // We don't stop the timer on error, it will continue running
-      // This ensures the timer continues even if there's an error
-      // The user can cancel or try again without the timer resetting
+      // Stop the timer for critical errors where retrying won't help
+      // This prevents the loading state from persisting indefinitely
+      if (isCriticalError) {
+        console.log('Critical error detected, stopping processing timer');
+        stopProcessing();
+        useUploadStore.getState().setIsLoading(false);
+      }
+      // For non-critical errors, we keep the timer running to allow retries
     }
   }
+  
+  const handleCancel = () => {
+    // Detener el procesamiento si está en curso
+    if (isLoading) {
+      stopProcessing();
+    }
+    
+    // Restablecer el estado
+    reset();
+    
+    // Obtener el prefijo de idioma de la ruta actual
+    const pathParts = window.location.pathname.split('/');
+    const locale = pathParts[1]; // Get the locale from URL ('es' or 'en')
+    
+    // Redireccionar a la página inicial
+    router.push(`/${locale}/`);
+  };
   
   return (
     <div className="flex flex-col min-h-screen">
@@ -248,6 +380,13 @@ export default function UploadPage() {
                 <h1 className="text-2xl font-bold mb-2">{t('upload.title')}</h1>
                 <p className="text-muted-foreground">{t('upload.description')}</p>
               </motion.div>
+
+              {pdfProcessingStatus && (
+                <div className="text-center text-sm text-primary flex items-center justify-center mt-2">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {pdfProcessingStatus}
+                </div>
+              )}
 
               <Card className="shadow-sm border-2 border-muted rounded-lg overflow-hidden">
                 <CardContent>
@@ -305,16 +444,16 @@ export default function UploadPage() {
       <footer className="fixed bottom-0 left-0 right-0 bg-background border-t border-border shadow-md py-4 z-10">
         <div className="container max-w-4xl mx-auto flex justify-end gap-4">
           <Button 
-            onClick={() => router.push('/')}
+            onClick={handleCancel}
             variant="outline"
-            className="transition-all hover:scale-105"
+            className="transition-all hover:border-accent hover:border-2 hover:shadow-[0_0_10px_rgba(var(--color-accent)/0.3)]"
           >
             {t('common.cancel')}
           </Button>
           <Button 
             onClick={handleGenerateSummary}
             disabled={isLoading || (!files.length && !inputText)}
-            className="transition-all hover:bg-primary/80"
+            className="transition-all hover:border-primary hover:border-2 hover:shadow-[0_0_15px_rgba(var(--color-primary)/0.5)]"
           >
             {isLoading ? (
               <>

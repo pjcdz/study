@@ -18,7 +18,11 @@ export default function ThemeSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-9 w-9">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-9 w-9 transition-all hover:border-ring hover:shadow-[0_0_8px_rgba(var(--color-ring)/0.4)]"
+        >
           <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
           <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
           <span className="sr-only">{t("toggleTheme")}</span>

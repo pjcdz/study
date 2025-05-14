@@ -38,6 +38,7 @@ app.get('/health', (req, res) => {
 
 // Routes
 app.post('/summary', summaryController.getSummary);
+app.post('/summary/condense', summaryController.condenseExistingSummary);
 app.post('/flashcards', flashcardsController.getFlashcards);
 
 // Error handling middleware

@@ -26,7 +26,7 @@ Aquí un ejemplo del formato que debe seguir cada uno de los temas presentado po
 
 ## Definición y Características  
 
-📌 **Pregunta clave:** ¿Qué distingue a las ciencias formales de las empíricas?  
+**Pregunta clave:** ¿Qué distingue a las ciencias formales de las empíricas?  
 
 Las ciencias formales son aquellas que estudian sistemas abstractos independientes de la realidad física, como la lógica y la matemática.  
 

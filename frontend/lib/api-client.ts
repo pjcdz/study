@@ -6,6 +6,9 @@ export enum ApiErrorType {
   UNKNOWN_ERROR = 'UNKNOWN_ERROR'
 }
 
+// Import mock data for demo mode
+import { mockSummaryResponse, mockFlashcardsResponse, mockCondensedSummaryResponse } from './mock-data';
+
 // Error personalizado con tipo
 export class ApiError extends Error {
   type: ApiErrorType;
@@ -22,27 +25,37 @@ export class ApiError extends Error {
 
 class ApiClient {
   private baseUrl: string;
+  private useDemoContent: boolean;
   
   constructor() {
     const isClient = typeof window !== 'undefined';
     
+    // Check if demo content mode is enabled
+    this.useDemoContent = process.env.USE_DEMO_CONTENT === 'true' || 
+                          (isClient && window.localStorage.getItem('USE_DEMO_CONTENT') === 'true');
+    
+    if (this.useDemoContent) {
+      console.log('🧪 API Client initialized in DEMO mode - using mock data');
+    }
+    
     if (isClient) {
-      // Use the environment variable if set, otherwise construct URL based on current host
-      if (process.env.NEXT_PUBLIC_API_URL) {
-        this.baseUrl = process.env.NEXT_PUBLIC_API_URL; // Should be https://study.cardozo.com.ar/api
-      } else {
-        // Use the current domain with /api path
-        const protocol = window.location.protocol;
-        const hostname = window.location.hostname;
-        this.baseUrl = `${protocol}//${hostname}/api`;
-      }
+      // In browser environment, we need to use API routes instead of direct access
+      // because browser can't resolve Docker service names
+      const protocol = window.location.protocol;
+      const hostname = window.location.hostname;
       
+      // Use local API route which will proxy to the backend
+      this.baseUrl = `${protocol}//${hostname}${window.location.port ? ':' + window.location.port : ''}/api`;
       console.log('API Client initialized with baseUrl:', this.baseUrl);
       
       // Test connection automatically on startup
-      this.testConnection().catch(err => 
-        console.warn('Initial connection test failed, will retry on actual requests:', err)
-      );
+      if (!this.useDemoContent) {
+        setTimeout(() => {
+          this.testConnection().catch(err => 
+            console.warn('Initial connection test failed, will retry on actual requests:', err)
+          );
+        }, 2000);
+      }
     } else {
       // Server-side rendering context
       // For SSR/SSG, use the environment variable or default to Docker service name
@@ -58,6 +71,12 @@ class ApiClient {
   
   // Test the connection to make sure our backend is reachable
   public async testConnection(): Promise<boolean> {
+    // Always return true in demo mode
+    if (this.useDemoContent) {
+      console.log('🧪 Demo mode: Skipping connection test, returning true');
+      return true;
+    }
+    
     try {
       console.log(`Testing connection to ${this.baseUrl}/health`);
       const response = await fetch(`${this.baseUrl}/health`, { 
@@ -82,6 +101,14 @@ class ApiClient {
   }
   
   async postSummary(content: string) {
+    // Return mock data in demo mode with a simulated delay
+    if (this.useDemoContent) {
+      console.log('🧪 Demo mode: Returning mock summary data');
+      // Add a simulated delay to mimic API response time
+      await this.delay(1500);
+      return mockSummaryResponse;
+    }
+    
     try {
       console.log(`Sending content to backend, length: ${content.length}`);
       
@@ -130,6 +157,14 @@ class ApiClient {
   }
   
   async postFlashcards(markdown: string) {
+    // Return mock data in demo mode with a simulated delay
+    if (this.useDemoContent) {
+      console.log('🧪 Demo mode: Returning mock flashcards data');
+      // Add a simulated delay to mimic API response time
+      await this.delay(1200);
+      return mockFlashcardsResponse;
+    }
+    
     try {
       console.log(`Sending POST request for flashcards, markdown length: ${markdown.length}`);
       
@@ -160,6 +195,64 @@ class ApiClient {
       return await response.json();
     } catch (error) {
       console.error('Error in postFlashcards:', error);
+      
+      // Si ya es un ApiError, simplemente reenvíalo
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      
+      // Si es un error de red, transformarlo a un ApiError con tipo NETWORK_ERROR
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new ApiError(`Network error connecting to API: ${error.message}`, ApiErrorType.NETWORK_ERROR);
+      }
+      
+      // Cualquier otro error se considera desconocido
+      throw new ApiError((error as Error).message || 'Unknown error in API client');
+    }
+  }
+
+  async condenseSummary(summaryText: string) {
+    // Return a condensed version of the mock data in demo mode
+    if (this.useDemoContent) {
+      console.log('🧪 Demo mode: Returning mock condensed summary');
+      // Add a simulated delay to mimic API response time
+      await this.delay(1000);
+      
+      // Return the mock condensed summary response
+      return mockCondensedSummaryResponse;
+    }
+    
+    try {
+      console.log(`Sending condensing request, summary length: ${summaryText.length}`);
+      
+      const options = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ summaryText }),
+      };
+      
+      console.log(`Sending POST request to ${this.baseUrl}/summary/condense`);
+      const response = await fetch(`${this.baseUrl}/summary/condense`, options);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ 
+          message: `HTTP Error ${response.status}`,
+          errorType: ApiErrorType.UNKNOWN_ERROR
+        }));
+        
+        // Obtener el tipo de error del backend o asumir UNKNOWN_ERROR
+        const errorType = errorData.errorType || ApiErrorType.UNKNOWN_ERROR;
+        
+        // Crear un error tipificado
+        throw new ApiError(errorData.error || errorData.message || `Error ${response.status}`, errorType as ApiErrorType);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error in condenseSummary:', error);
       
       // Si ya es un ApiError, simplemente reenvíalo
       if (error instanceof ApiError) {

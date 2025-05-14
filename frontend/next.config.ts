@@ -16,6 +16,10 @@ const nextConfig: NextConfig = {
     // your project has type errors.
     ignoreBuildErrors: true,
   },
+  // Pass environment variables to the browser
+  env: {
+    USE_DEMO_CONTENT: process.env.USE_DEMO_CONTENT || 'false',
+  },
   // Enable CORS for API requests
   async rewrites() {
     return [
@@ -29,6 +33,14 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
+  // Optimize fonts but use local fallbacks in development
+  optimizeFonts: true,
+  // Experimental features
+  experimental: {
+    // Add any experimental features here if needed
+  },
+  // Ensure fonts load properly in Docker container
+  assetPrefix: process.env.NODE_ENV === 'development' ? undefined : '',
   // Add basePath for the app if needed
   // basePath: '',
 };

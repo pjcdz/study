@@ -50,15 +50,15 @@ export function WorkflowTabs() {
             className="w-full max-w-lg"
           >
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="upload">
+              <TabsTrigger value="upload" className="transition-all data-[state=active]:border-b-2 data-[state=active]:border-primary hover:border-ring/60 hover:border-2">
                 <Upload className="h-4 w-4 mr-2 hidden sm:inline" />
                 {t('upload')}
               </TabsTrigger>
-              <TabsTrigger value="summary" disabled={!summary}>
+              <TabsTrigger value="summary" disabled={!summary} className="transition-all data-[state=active]:border-b-2 data-[state=active]:border-primary hover:border-ring/60 hover:border-2">
                 <FileText className="h-4 w-4 mr-2 hidden sm:inline" />
                 {t('summary')}
               </TabsTrigger>
-              <TabsTrigger value="flashcards" disabled={!flashcards}>
+              <TabsTrigger value="flashcards" disabled={!flashcards} className="transition-all data-[state=active]:border-b-2 data-[state=active]:border-primary hover:border-ring/60 hover:border-2">
                 <BookOpen className="h-4 w-4 mr-2 hidden sm:inline" />
                 {t('flashcards')}
               </TabsTrigger>
@@ -68,7 +68,12 @@ export function WorkflowTabs() {
         
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button variant="ghost" size="icon" title={t('restart')} className="ml-4">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              title={t('restart')} 
+              className="ml-4 transition-all hover:border-ring hover:border-2 hover:shadow-[0_0_8px_rgba(var(--color-ring)/0.4)]"
+            >
               <RefreshCw className="h-4 w-4" />
             </Button>
           </AlertDialogTrigger>

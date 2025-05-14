@@ -12,7 +12,9 @@ interface UploadState {
   files: CustomFile[]
   originalFiles: File[]
   inputText: string
-  summary: string
+  // Replace single summary with array of summaries
+  summaries: string[]
+  currentSummaryIndex: number
   flashcards: string
   currentStep: 'upload' | 'summary' | 'flashcards'
   isLoading: boolean
@@ -23,7 +25,10 @@ interface UploadState {
   addFiles: (newFiles: File[]) => void
   removeFile: (index: number) => void
   setInputText: (text: string) => void
-  setSummary: (text: string) => void
+  // Updated summary methods
+  addSummary: (text: string) => void
+  setCurrentSummaryIndex: (index: number) => void
+  getCurrentSummary: () => string
   setFlashcards: (tsv: string) => void
   setCurrentStep: (step: 'upload' | 'summary' | 'flashcards') => void
   setIsLoading: (loading: boolean) => void
@@ -40,7 +45,9 @@ export const useUploadStore = create<UploadState>()(
       files: [],
       originalFiles: [],
       inputText: '',
-      summary: '',
+      // Replace single summary with array and index
+      summaries: [],
+      currentSummaryIndex: 0,
       flashcards: '',
       currentStep: 'upload' as const,
       isLoading: false,
@@ -69,7 +76,20 @@ export const useUploadStore = create<UploadState>()(
           originalFiles: state.originalFiles.filter((_, i) => i !== index),
         })),
       setInputText: (text: string) => set({ inputText: text }),
-      setSummary: (text: string) => set({ summary: text }),
+      // New summary methods
+      addSummary: (text: string) => 
+        set((state) => ({
+          summaries: [...state.summaries, text],
+          currentSummaryIndex: state.summaries.length
+        })),
+      setCurrentSummaryIndex: (index: number) => 
+        set((state) => ({
+          currentSummaryIndex: Math.max(0, Math.min(index, state.summaries.length - 1))
+        })),
+      getCurrentSummary: () => {
+        const { summaries, currentSummaryIndex } = get();
+        return summaries[currentSummaryIndex] || '';
+      },
       setFlashcards: (tsv: string) => set({ flashcards: tsv }),
       setCurrentStep: (step: 'upload' | 'summary' | 'flashcards') =>
         set({ currentStep: step }),
@@ -107,7 +127,8 @@ export const useUploadStore = create<UploadState>()(
           files: [],
           originalFiles: [],
           inputText: '',
-          summary: '',
+          summaries: [],
+          currentSummaryIndex: 0,
           flashcards: '',
           currentStep: 'upload',
           isLoading: false,
@@ -121,7 +142,8 @@ export const useUploadStore = create<UploadState>()(
       // We don't persist File objects since they're not JSON serializable
       partialize: (state) => ({
         inputText: state.inputText,
-        summary: state.summary,
+        summaries: state.summaries,
+        currentSummaryIndex: state.currentSummaryIndex,
         flashcards: state.flashcards,
         currentStep: state.currentStep,
         // We now persist timer state to keep it across pages
@@ -130,7 +152,47 @@ export const useUploadStore = create<UploadState>()(
         isLoading: state.isLoading,
       }),
       // Version to ensure backward compatibility
-      version: 1,
+      version: 2, // Increment version due to breaking changes
+      
+      // Handle migration from v1 to v2 (single summary to multiple summaries)
+      onRehydrateStorage: () => {
+        return (rehydratedState, error) => {
+          if (error) {
+            console.error('Error rehydrating upload store state:', error);
+            return;
+          }
+          
+          // Check if we need to migrate from v1 to v2
+          if (rehydratedState) {
+            const oldState = rehydratedState as any;
+            
+            // If the state has a summary property but not summaries array
+            // (which indicates it's coming from v1), migrate it
+            if (oldState.summary && (!oldState.summaries || oldState.summaries.length === 0)) {
+              console.log('Migrating upload store from v1 to v2 (single summary to multiple summaries)');
+              
+              // Use the store's set function properly
+              useUploadStore.setState({
+                summaries: [oldState.summary],
+                currentSummaryIndex: 0
+              });
+            }
+          }
+        }
+      }
     }
   )
 );
+
+// For backward compatibility with existing code
+// This allows us to gradually migrate components that use summary property
+Object.defineProperty(useUploadStore.getState(), 'summary', {
+  get: function() {
+    return useUploadStore.getState().getCurrentSummary();
+  },
+  set: function(value) {
+    if (!value) return;
+    useUploadStore.getState().addSummary(value);
+  },
+  configurable: true
+});

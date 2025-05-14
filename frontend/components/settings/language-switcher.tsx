@@ -30,7 +30,10 @@ export default function LanguageSwitcher() {
       {/* Eliminado el texto "Language:"/"Idioma:" */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="flex items-center gap-2 px-3">
+          <Button 
+            variant="ghost" 
+            className="flex items-center gap-2 px-3 transition-all hover:border-accent hover:shadow-[0_0_8px_rgba(var(--color-accent)/0.4)]"
+          >
             <Globe className="h-5 w-5" />
             <span className="font-medium text-xs">{locale.toUpperCase()}</span>
             <span className="sr-only">{t('label')}</span>

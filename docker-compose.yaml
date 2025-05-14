@@ -2,16 +2,22 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     ports:
       - "3000:3000"
     volumes:
       - ./frontend:/app
       - /app/node_modules
+      - /app/.next
     environment:
       - CHOKIDAR_USEPOLLING=true
-      - NEXT_PUBLIC_API_URL=http://backend:4000
       - NODE_ENV=development
+      - WATCHPACK_POLLING=true
+      - NEXT_TELEMETRY_DISABLED=1
+      # Set the backend URL for server-side API routes
+      - BACKEND_URL=http://backend:4000
+      # Demo mode with fixed content for development/testing
+      - USE_DEMO_CONTENT=true
     depends_on:
       - backend
     networks:
@@ -20,7 +26,7 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     ports:
       - "4000:4000"
     volumes:
@@ -31,6 +37,7 @@ services:
       - NODE_ENV=development
     networks:
       - study-network
+    command: npm run dev
 
 networks:
   study-network:

@@ -18,7 +18,8 @@
     "confirm": "Restart"
   },
   "common": {
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "demoBanner": "Demo Mode: Using fixed content for testing"
   },
   "upload": {
     "textPlaceholder": "Type or paste your text here...",
@@ -57,26 +58,45 @@
       "error": "Could not generate summary: {message}",
       "quotaExceeded": "API usage limit exceeded. Please try again later.",
       "networkError": "Network connection error. Please check your internet and try again.",
-      "apiKeyError": "API authentication error. Please contact support."
+      "apiKeyError": "API authentication error. Please contact support.",
+      "processingPdf": "Processing PDF: {name}",
+      "pdfProcessed": "PDF processed successfully: {name}",
+      "pdfError": "Error processing PDF: {name}"
     }
   },
   "summary": {
     "title": "Generated Summary",
-    "description": "Review and edit the summary if necessary",
+    "description": "Review the generated summary",
     "actions": {
-      "edit": "Edit",
-      "save": "Save",
       "copy": "Copy",
+      "openNotion": "Open in Notion",
       "generateFlashcards": "Generate Flashcards",
-      "generating": "Generating..."
+      "generating": "Generating...",
+      "condense": "Condense More",
+      "condensing": "Condensing..."
+    },
+    "content": {
+      "ready": "✓ Your summary is ready to be copied"
+    },
+    "instructions": {
+      "title": "How to use with Notion",
+      "steps": {
+        "1": "Click the \"Open in Notion\" button to open a new Notion page",
+        "2": "Click \"Copy\" to copy all the summary content",
+        "3": "Paste the content into your Notion page",
+        "4": "The Markdown formatting will be automatically applied",
+        "5": "Save your Notion page and organize it in your workspace"
+      },
+      "note": "Notion supports Markdown natively, so your summary will keep its formatting when pasted."
     },
     "toast": {
       "copied": "Summary copied to clipboard",
       "copyError": "Error copying to clipboard",
-      "success": "Flashcards have been successfully generated",
+      "success": "Flashcards have been generated successfully",
+      "condensed": "Summary condensed successfully",
       "error": "Could not generate flashcards: {message}",
       "quotaExceeded": "API usage limit exceeded. Please try again later.",
-      "networkError": "Network connection error. Please check your internet and try again.",
+      "networkError": "Connection error. Please check your internet and try again.",
       "apiKeyError": "API authentication error. Please contact support."
     },
     "button": {

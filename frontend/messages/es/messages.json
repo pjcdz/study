@@ -19,7 +19,8 @@
     "confirm": "Reiniciar"
   },
   "common": {
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "demoBanner": "Modo Demo: Usando contenido fijo para pruebas"
   },
   "upload": {
     "textPlaceholder": "Escribe o pega tu texto aquí...",
@@ -58,7 +59,10 @@
       "error": "No se pudo generar el resumen: {message}",
       "quotaExceeded": "Se ha excedido el límite de uso de la API. Por favor, intente más tarde.",
       "networkError": "Error de conexión. Por favor, verifique su internet e intente de nuevo.",
-      "apiKeyError": "Error de autenticación de la API. Por favor, contacte con soporte."
+      "apiKeyError": "Error de autenticación de la API. Por favor, contacte con soporte.",
+      "processingPdf": "Procesando PDF: {name}",
+      "pdfProcessed": "PDF procesado con éxito: {name}",
+      "pdfError": "Error al procesar PDF: {name}"
     }
   },
   "summary": {
@@ -69,7 +73,9 @@
       "save": "Guardar",
       "copy": "Copiar",
       "generateFlashcards": "Generar Flashcards",
-      "generating": "Generando..."
+      "generating": "Generando...",
+      "condense": "Resumir más",
+      "condensing": "Resumiendo..."
     },
     "toast": {
       "copied": "Resumen copiado al portapapeles",
@@ -78,11 +84,8 @@
       "error": "No se pudieron generar las flashcards: {message}",
       "quotaExceeded": "Se ha excedido el límite de uso de la API. Por favor, intente más tarde.",
       "networkError": "Error de conexión. Por favor, verifique su internet e intente de nuevo.",
-      "apiKeyError": "Error de autenticación de la API. Por favor, contacte con soporte."
-    },
-    "button": {
-      "generate": "Generar Flashcards",
-      "generating": "Generando..."
+      "apiKeyError": "Error de autenticación de la API. Por favor, contacte con soporte.",
+      "condensed": "Resumen condensado exitosamente"
     },
     "tabs": {
       "editor": "Editor",
