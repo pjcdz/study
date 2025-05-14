@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button"
 import { RefreshCw, Upload, FileText, BookOpen } from "lucide-react"
 
 export function WorkflowTabs() {
-  const { currentStep, summary, flashcards, reset } = useUploadStore()
+  const { currentStep, summaries, flashcards, reset } = useUploadStore()
   const router = useRouter()
   const pathname = usePathname()
   const t = useTranslations('navigation')
@@ -27,7 +27,7 @@ export function WorkflowTabs() {
   
   const handleTabChange = (value: string) => {
     // Validaciones para evitar navegación a pasos no completados
-    if (value === 'summary' && !summary) {
+    if (value === 'summary' && (!summaries || summaries.length === 0)) {
       return // Mantener en upload si no hay resumen
     }
     
@@ -54,7 +54,7 @@ export function WorkflowTabs() {
                 <Upload className="h-4 w-4 mr-2 hidden sm:inline" />
                 {t('upload')}
               </TabsTrigger>
-              <TabsTrigger value="summary" disabled={!summary} className="transition-all data-[state=active]:border-b-2 data-[state=active]:border-primary hover:border-ring/60 hover:border-2">
+              <TabsTrigger value="summary" disabled={!summaries || summaries.length === 0} className="transition-all data-[state=active]:border-b-2 data-[state=active]:border-primary hover:border-ring/60 hover:border-2">
                 <FileText className="h-4 w-4 mr-2 hidden sm:inline" />
                 {t('summary')}
               </TabsTrigger>

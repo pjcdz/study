@@ -70,6 +70,7 @@ export default function UploadPage() {
     setInputText,
     addSummary, // Use addSummary instead of setSummary
     setCurrentStep,
+    reset
   } = useUploadStore()
 
   // Function to extract text from PDF
