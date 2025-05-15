@@ -1,36 +1,331 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Frontend de Study Tool
 
-## Getting Started
+[![Next.js](https://img.shields.io/badge/Next.js-15.3-black)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19-blue)](https://reactjs.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-CSS-38b2ac)](https://tailwindcss.com/)
+[![ShadCN UI](https://img.shields.io/badge/ShadCN-UI-gray)](https://ui.shadcn.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6)](https://www.typescriptlang.org/)
 
-First, run the development server:
+Esta documentación detalla la interfaz de usuario de Study Tool, una aplicación para transformar documentos en notas estructuradas y tarjetas de estudio.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 📝 Índice
+
+- [Visión General](#visión-general)
+- [Arquitectura](#arquitectura)
+- [Estructura del Proyecto](#estructura-del-proyecto)
+- [Flujo de la Aplicación](#flujo-de-la-aplicación)
+- [Componentes Clave](#componentes-clave)
+- [Gestión del Estado](#gestión-del-estado)
+- [Internacionalización](#internacionalización)
+- [Estilos y Diseño](#estilos-y-diseño)
+- [Configuración de Desarrollo](#configuración-de-desarrollo)
+- [Construcción y Despliegue](#construcción-y-despliegue)
+- [Optimizaciones](#optimizaciones)
+- [Pruebas](#pruebas)
+
+## 🔍 Visión General
+
+El frontend de Study Tool es una aplicación moderna basada en Next.js 15.3 y React 19, diseñada para ofrecer una experiencia de usuario fluida e intuitiva para:
+
+1. Subir y procesar documentos de estudio
+2. Transformar el contenido en notas estructuradas para Notion
+3. Generar tarjetas de estudio para Quizlet
+
+La aplicación implementa una **Arquitectura Gritante** (Screaming Architecture) donde cada carpeta representa claramente un dominio de negocio, facilitando así la navegación y mantenimiento del código.
+
+## 🏗️ Arquitectura
+
+### Diagrama de Componentes
+
+```
+┌──────────────────────────────────┐
+│           App Router             │
+└───────────────┬──────────────────┘
+                │
+        ┌───────▼────────┐
+        │    Layouts     │
+        └───────┬────────┘
+                │
+     ┌──────────▼───────────┐
+     │                      │
+┌────▼─────┐  ┌──────▼─────┐  ┌────▼─────┐
+│  Upload   │  │  Summary  │  │ Flashcards│
+└──────┬────┘  └─────┬─────┘  └─────┬─────┘
+       │             │              │
+       └─────────────┼──────────────┘
+                     │
+                ┌────▼───────┐
+                │ API Client │
+                └────┬───────┘
+                     │
+                ┌────▼────┐
+                │ Backend │
+                └─────────┘
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Patrones de Diseño
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Componentes Funcionales**: Uso exclusivo de React Hooks y componentes funcionales
+- **Composición sobre Herencia**: Implementación de componentes pequeños y reutilizables
+- **Custom Hooks**: Encapsulamiento de lógica reutilizable en hooks personalizados
+- **Estado Global**: Gestión de estado centralizada con Zustand para datos de sesión
+- **Renderizado del Lado del Servidor**: Aprovecha las capacidades de SSR y SSG de Next.js
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 📂 Estructura del Proyecto
 
-## Learn More
+```
+frontend/
+  ├── app/                    # Next.js App Router
+  │   ├── [locale]/           # Estructura para internacionalización
+  │   │   ├── upload/         # Página para subir documentos
+  │   │   ├── summary/        # Página para visualizar y editar resúmenes
+  │   │   └── flashcards/     # Página para generar tarjetas de estudio
+  │   ├── api/                # Rutas de API del lado del servidor
+  │   └── page.tsx            # Página principal (redirección)
+  ├── components/             # Componentes React reutilizables
+  │   ├── markdown/           # Componentes para visualización de markdown
+  │   ├── navigation/         # Componentes de navegación
+  │   ├── settings/           # Componentes de configuración
+  │   ├── upload/             # Componentes para subida de archivos
+  │   └── ui/                 # Componentes de interfaz de usuario
+  ├── i18n/                   # Configuración de internacionalización
+  ├── lib/                    # Utilidades y servicios
+  │   ├── api-client.ts       # Cliente para comunicación con backend
+  │   ├── hooks/              # Hooks personalizados
+  │   └── utils.ts            # Funciones utilitarias
+  ├── messages/               # Traducciones para internacionalización
+  ├── public/                 # Activos estáticos
+  ├── store/                  # Estado global con Zustand
+  └── styles/                 # Estilos y animaciones globales
+```
 
-To learn more about Next.js, take a look at the following resources:
+## 🔄 Flujo de la Aplicación
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+La experiencia de usuario sigue un flujo lineal de tres pasos, diseñado para ser intuitivo:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 1. Página de Upload
 
-## Deploy on Vercel
+```
+┌─────────────────────────────┐
+│     Componente Principal    │
+│                             │
+│  ┌─────────────────────┐    │
+│  │  FileDropzone       │    │
+│  │                     │    │
+│  │  Arrastra o pega    │    │
+│  │  texto aquí         │    │
+│  └─────────────────────┘    │
+│                             │
+│  ┌─────────────────────┐    │
+│  │  FileList           │    │
+│  │  (Lista de archivos)│    │
+│  └─────────────────────┘    │
+│                             │
+│  ┌─────────────────────┐    │
+│  │      Botón de       │    │
+│  │    Procesamiento    │──────┐
+│  └─────────────────────┘    │ │
+│                             │ │
+└─────────────────────────────┘ │
+                                │
+               ┌────────────────▼─┐
+               │ API: /process-files │
+               └──────────┬─────────┘
+                          │
+                          ▼
+                    Página de Summary
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 2. Página de Summary
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Visualización y edición del contenido transformado en formato markdown para Notion:
+
+- Vista previa con sintaxis resaltada
+- Opción para condensar o expandir secciones
+- Botón de copia con un solo clic para usar en Notion
+
+### 3. Página de Flashcards
+
+Generación de tarjetas de estudio en formato TSV:
+
+- Vista previa de las tarjetas generadas
+- Opción de edición manual
+- Botón para copiar al portapapeles en formato compatible con Quizlet
+
+## 🧩 Componentes Clave
+
+### Componentes de Navegación
+
+- **TabNav**: Componente de navegación principal que guía al usuario a través del flujo de trabajo
+- **AppContainer**: Estructura principal de la aplicación con estilos y configuración base
+
+### Componentes de Internacionalización
+
+- **LanguageSwitcher**: Permite cambiar entre los idiomas disponibles
+- **i18n Configuration**: Integración con next-intl para múltiples idiomas
+
+### Componentes de Interfaz
+
+- **MarkdownPreview**: Visualizador de markdown con sintaxis resaltada
+- **FileDropzone**: Zona para arrastrar y soltar texto o pegarlo
+- **AnimatedLoader**: Indicador de carga con animaciones fluidas
+- **AnimatedButton**: Botones con efectos de animación para mejor UX
+- **ThemeSwitcher**: Alternador entre modos claro y oscuro
+
+## 📦 Gestión del Estado
+
+### Zustand Store
+
+El estado global se gestiona con Zustand, una biblioteca ligera y eficiente:
+
+```typescript
+// Ejemplo simplificado del store
+export const useUploadStore = create<UploadState>((set) => ({
+  // Estado de documentos subidos
+  filesText: "",
+  isProcessing: false,
+  processingComplete: false,
+  
+  // Estado de resúmenes
+  summaries: [],
+  selectedSummaryIndex: 0,
+  
+  // Estado de tarjetas
+  flashcards: null,
+  
+  // Seguimiento del paso actual
+  currentStep: "upload",
+  
+  // Acciones
+  setFilesText: (filesText) => set({ filesText }),
+  setProcessingStatus: (isProcessing) => set({ isProcessing }),
+  setSummaries: (summaries) => set({ summaries, processingComplete: true }),
+  setFlashcards: (flashcards) => set({ flashcards }),
+  reset: () => set({ 
+    filesText: "",
+    isProcessing: false,
+    processingComplete: false,
+    summaries: [],
+    flashcards: null,
+    currentStep: "upload"
+  })
+}));
+```
+
+### Custom Hooks
+
+Hooks personalizados para encapsular lógica de negocio:
+
+- **useProcessingTimer**: Muestra el tiempo transcurrido durante el procesamiento
+- **useApiClient**: Abstracción para interactuar con el backend
+
+## 🌐 Internacionalización
+
+La aplicación implementa soporte completo para múltiples idiomas utilizando next-intl:
+
+- Estructura basada en rutas con prefijo de idioma (`/es/`, `/en/`)
+- Archivos de mensajes separados por idioma
+- Detección automática del idioma preferido del navegador
+
+## 🎨 Estilos y Diseño
+
+### Tailwind CSS
+
+La aplicación utiliza Tailwind CSS para un diseño consistente y responsive:
+
+- Sistema de diseño basado en utilidades
+- Tema personalizado con variables CSS
+- Integración con ShadCN UI para componentes avanzados
+
+### Modo Oscuro y Claro
+
+Implementación completa de temas claro y oscuro:
+
+- Persistencia de preferencia de tema
+- Transiciones suaves entre temas
+- Detección automática de preferencia del sistema
+
+## ⚙️ Configuración de Desarrollo
+
+### Requisitos Previos
+
+- Node.js v22.15.0 o superior
+- npm o yarn
+
+### Instalación Local
+
+```bash
+# Clonar el repositorio
+git clone https://github.com/tu-usuario/study.git
+cd study/frontend
+
+# Instalar dependencias
+npm install
+# o
+yarn install
+
+# Iniciar en modo desarrollo
+npm run dev
+# o 
+yarn dev
+```
+
+La aplicación estará disponible en http://localhost:3000.
+
+### Desarrollo con Docker
+
+```bash
+# Construir y ejecutar con Docker
+docker build -t study-tool-frontend -f Dockerfile.dev .
+docker run -p 3000:3000 -v $(pwd):/app study-tool-frontend
+```
+
+## 🚀 Construcción y Despliegue
+
+### Construcción para Producción
+
+```bash
+# Construir la aplicación
+npm run build
+# o con Docker
+npm run build:docker
+```
+
+### Despliegue con Docker
+
+```bash
+# Construir imagen de producción
+docker build -t study-tool-frontend:latest .
+
+# Ejecutar en producción
+docker run -d -p 3000:3000 --name study-frontend study-tool-frontend:latest
+```
+
+## ⚡ Optimizaciones
+
+- **Code Splitting**: Carga dinámica de componentes para reducir el tamaño inicial
+- **Image Optimization**: Procesamiento automático de imágenes con Next.js Image
+- **Componentes Lazy**: Carga diferida para componentes pesados
+- **Caching de API**: Implementación de estrategias de caché para llamadas a API
+- **Prefetching**: Precarga de datos para mejorar la experiencia de navegación
+
+## 🧪 Pruebas
+
+El proyecto está preparado para implementar pruebas unitarias y de integración:
+
+```bash
+# Ejecutar pruebas (cuando estén implementadas)
+npm run test
+```
+
+## 🔗 Enlaces y Recursos
+
+- [Documentación de Next.js](https://nextjs.org/docs)
+- [Documentación de Tailwind CSS](https://tailwindcss.com/docs)
+- [Documentación de ShadcnUI](https://ui.shadcn.com/)
+- [Documentación de Zustand](https://github.com/pmndrs/zustand)
+- [Documentación de next-intl](https://next-intl-docs.vercel.app/)
+
+---
+
+Desarrollado con ❤️ para transformar la forma de estudiar y aprender

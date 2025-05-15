@@ -1,8 +1,26 @@
 # Backend de Study Tool
 
+[![Node.js](https://img.shields.io/badge/Node.js-v22.15-green)](https://nodejs.org/)
+[![Express](https://img.shields.io/badge/Express-4.18-lightgrey)](https://expressjs.com/)
+[![Google Gemini](https://img.shields.io/badge/AI-Gemini-orange)](https://ai.google.dev/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-blue)](https://www.docker.com/)
+
 Este documento proporciona una visión detallada del backend de la aplicación Study Tool, incluyendo su arquitectura, componentes principales, flujo de datos y guía de configuración.
 
-## Arquitectura General
+## 📝 Índice
+
+- [Arquitectura General](#arquitectura-general)
+- [Estructura de Directorios](#estructura-de-directorios)
+- [Flujo de Datos](#flujo-de-datos)
+- [Endpoints API](#endpoints-api)
+- [Integración con Google Gemini](#integración-con-google-gemini)
+- [Configuración de Desarrollo](#configuración-de-desarrollo)
+- [Despliegue](#despliegue)
+- [Variables de Entorno](#variables-de-entorno)
+- [Escalabilidad y Rendimiento](#escalabilidad-y-rendimiento)
+- [Seguridad](#seguridad)
+
+## 🏗️ Arquitectura General
 
 El backend de Study Tool está construido utilizando Node.js y Express, siguiendo una arquitectura MVC (Modelo-Vista-Controlador) adaptada, donde:
 
@@ -10,9 +28,28 @@ El backend de Study Tool está construido utilizando Node.js y Express, siguiend
 - **Servicios**: Encapsulan la lógica de integración con APIs externas (Gemini AI)
 - **Configuración**: Almacena prompts y parámetros para las interacciones con la IA
 
+### Diagrama de Componentes
+
+```
+┌────────────────────┐         ┌────────────────────┐
+│                    │         │                    │
+│    Express App     │────────►│    Controllers     │
+│                    │         │                    │
+└────────────────────┘         └─────────┬──────────┘
+                                         │
+                                         ▼
+┌────────────────────┐         ┌────────────────────┐
+│                    │◄────────┤                    │
+│   Gemini Client    │         │     Services       │
+│                    │         │                    │
+└────────────────────┘         └────────────────────┘
+```
+
+## 📂 Estructura de Directorios
+
 ```
 backend/
-  ├── src/                    # Código fuente
+  ├── src/                    # Código fuente principal
   │   ├── app.js              # Punto de entrada - configuración de Express
   │   ├── config/             # Configuraciones y prompts para la IA
   │   │   └── prompts.js      # Instrucciones específicas para Gemini AI
@@ -20,12 +57,15 @@ backend/
   │   │   ├── summaryController.js    # Generación de resúmenes en formato Notion
   │   │   └── flashcardsController.js # Generación de tarjetas de estudio
   │   └── services/
-  │       └── geminiClient.js  # Cliente para la API de Google Gemini
-  ├── Dockerfile              # Configuración para contenerización
+  │       ├── geminiClient.js  # Cliente para la API de Google Gemini
+  │       └── sessionManager.js # Gestión de sesiones para el procesamiento
+  ├── docs/                   # Documentación adicional
+  ├── Dockerfile              # Configuración para contenedores de producción
+  ├── Dockerfile.dev          # Configuración para contenedores de desarrollo
   └── package.json            # Dependencias y scripts
 ```
 
-## Flujo de Datos
+## 🔄 Flujo de Datos
 
 1. El cliente envía solicitudes HTTP POST a uno de los endpoints:
    - `/summary`: Para transformar texto en formato markdown de Notion
@@ -37,7 +77,18 @@ backend/
 
 4. La respuesta de la IA es procesada y devuelta al frontend en formato JSON
 
-## Endpoints API
+### Diagrama de Secuencia
+
+```
+┌──────────┐               ┌──────────┐          ┌───────────┐              ┌──────────┐
+│          │               │          │          │           │              │          │
+│ Frontend │───Request────►│Controller│──Data───►│  Service  │──API Call───►│ Gemini   │
+│          │               │          │          │           │              │    AI    │
+│          │◄──Response────│          │◄─Data────│           │◄──Response───│          │
+└──────────┘               └──────────┘          └───────────┘              └──────────┘
+```
+
+## 🔌 Endpoints API
 
 ### POST /summary
 
@@ -59,6 +110,31 @@ Transforma texto en un resumen estructurado con formato Markdown para Notion.
     "promptTokens": 1520,
     "completionTokens": 2340,
     "totalTokens": 3860
+  }
+}
+```
+
+### POST /summary/condense
+
+Permite condensar o refinar un resumen existente.
+
+**Request:**
+```json
+{
+  "markdownContent": "# Contenido markdown existente",
+  "condensationType": "shorter" // Opciones: "shorter", "clarity", "examples"
+}
+```
+
+**Response:**
+```json
+{
+  "notionMarkdown": "# Resumen condensado\n\n...",
+  "stats": {
+    "generationTimeMs": 2140,
+    "promptTokens": 1820,
+    "completionTokens": 1240,
+    "totalTokens": 3060
   }
 }
 ```
@@ -98,6 +174,149 @@ Endpoint para verificar el estado del servidor.
   "message": "Server is running"
 }
 ```
+
+## 🤖 Integración con Google Gemini
+
+### Configuración del Cliente
+
+El servicio `geminiClient.js` encapsula toda la comunicación con la API de Google Gemini:
+
+```javascript
+// Ejemplo simplificado del cliente de Gemini
+async function generateContent(prompt, systemPrompt) {
+  try {
+    const response = await fetch('https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': process.env.GEMINI_API_KEY
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: prompt }]
+          }
+        ],
+        systemInstruction: { text: systemPrompt },
+        generationConfig: {
+          temperature: 0.2,
+          topP: 0.8,
+          topK: 40
+        }
+      })
+    });
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error calling Gemini API:', error);
+    throw error;
+  }
+}
+```
+
+### Prompts y Configuración
+
+Los prompts para la IA están centralizados en el archivo `prompts.js`:
+
+- Instrucciones detalladas para formatear resúmenes en estilo Notion
+- Plantillas para la creación de tarjetas de estudio eficaces
+- Configuraciones de parámetros como temperatura y top-p para diferentes tareas
+
+## ⚙️ Configuración de Desarrollo
+
+### Requisitos Previos
+
+- Node.js v22.15.0 o superior
+- Clave de API de Google Gemini
+- Docker (opcional)
+
+### Instalación Local
+
+```bash
+# Clonar el repositorio
+git clone https://github.com/tu-usuario/study.git
+cd study/backend
+
+# Instalar dependencias
+npm install
+
+# Configurar variables de entorno
+cp .env.example .env
+# Editar .env con tu API key de Google Gemini
+
+# Iniciar en modo desarrollo
+npm run dev
+```
+
+### Desarrollo con Docker
+
+```bash
+# Construir y ejecutar con Docker
+docker build -t study-tool-backend -f Dockerfile.dev .
+docker run -p 4000:4000 -v $(pwd):/app --env-file .env study-tool-backend
+```
+
+## 🚀 Despliegue
+
+### Con Docker Swarm
+
+```bash
+# Crear secretos necesarios
+echo "tu_gemini_api_key" | docker secret create gemini_api_key -
+
+# Desplegar el stack completo
+docker stack deploy --with-registry-auth -c docker-stack.yml study-tool
+```
+
+### Despliegue Manual
+
+```bash
+# Construir para producción
+docker build -t study-tool-backend:latest .
+
+# Ejecutar en producción
+docker run -d -p 4000:4000 --name study-backend \
+  --env GEMINI_API_KEY=tu_api_key \
+  --env NODE_ENV=production \
+  study-tool-backend:latest
+```
+
+## 🔐 Variables de Entorno
+
+| Variable | Descripción | Valores por Defecto |
+|----------|-------------|---------------------|
+| `PORT` | Puerto en que se ejecutará el servidor | `4000` |
+| `HOST` | Interfaz de red a utilizar | `0.0.0.0` |
+| `NODE_ENV` | Entorno de ejecución | `development` |
+| `GEMINI_API_KEY` | Clave de API para Google Gemini | **Requerida** |
+
+## 📈 Escalabilidad y Rendimiento
+
+- **Contenedores**: La arquitectura basada en Docker permite escalar horizontalmente según la demanda
+- **Caché**: Implementación de estrategias de caché para prompts frecuentes
+- **Rate Limiting**: Control de tasa de solicitudes para proteger contra sobrecarga
+- **Timeout Handling**: Gestión adecuada de tiempos de espera en solicitudes a la API de Gemini
+
+## 🔒 Seguridad
+
+- **Validación de Entrada**: Todos los datos de entrada son validados
+- **CORS Configurado**: Protección contra solicitudes no autorizadas
+- **Sin Almacenamiento**: No se almacenan datos de usuario permanentemente
+- **Límites de Tamaño**: Restricciones en el tamaño máximo de solicitudes (50MB)
+
+---
+
+## 📚 Referencias y Recursos Adicionales
+
+- [Documentación de la API de Gemini](https://ai.google.dev/docs)
+- [Mejores prácticas para prompts de IA](https://ai.google.dev/docs/prompting)
+- [Express.js Best Practices](https://expressjs.com/en/advanced/best-practice-performance.html)
+- [Documentación de Docker Swarm](https://docs.docker.com/engine/swarm/)
+
+---
+
+Desarrollado con ❤️ para potenciar el aprendizaje de los estudiantes
 
 ## Integración con Google Gemini AI
 
