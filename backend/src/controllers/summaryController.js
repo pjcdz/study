@@ -1,136 +1,96 @@
-import { callGemini, ERROR_TYPES } from '../services/geminiClient.js';
+import { generateMultimodalContent, fileToGenerativePart, ERROR_TYPES } from '../services/geminiClient.js';
 import { prompts } from '../config/prompts.js';
 
 export const summaryController = {
   /**
    * Process text and files content to generate a Notion-formatted summary
-   * @param {object} req - Request object with filesText in body
+   * @param {object} req - Request object with textPrompt in body and file in req.file
    * @param {object} res - Response object
    */
   getSummary: async (req, res) => {
     try {
       console.log("Summary controller received request");
       
-      // Extract the text from the request body
-      const { filesText } = req.body;
-      
-      if (!filesText) {
-        return res.status(400).json({ error: 'No content provided' });
+      // Extract the user API Key from headers
+      const userApiKey = req.headers['x-user-api-key'];
+      if (!userApiKey) {
+        return res.status(401).json({ error: "API Key no proporcionada." });
       }
       
-      // Create a context for Gemini to understand the content
-      let processedContent = filesText;
-      let contentType = 'text';
-      let contentSizeKB = Math.round(filesText.length / 1024);
+      // Get text prompt and file from request
+      const { textPrompt } = req.body;
+      const file = req.file;
       
-      console.log(`Received content size: ${contentSizeKB}KB`);
+      // Prepare parts array for multimodal content
+      const parts = [];
       
-      // Check if we are dealing with PDF content
-      if (filesText.includes('[PDF Document:')) {
-        console.log("Detected PDF document metadata");
-        contentType = 'pdf';
+      // Add text prompt to parts if provided
+      if (textPrompt && textPrompt.trim() !== "") {
+        parts.push({ text: textPrompt });
+      }
+      
+      // Add file to parts if provided
+      if (file) {
+        console.log(`Received file: ${file.originalname}, type: ${file.mimetype}, size: ${file.size} bytes`);
+        parts.push(fileToGenerativePart(file.buffer, file.mimetype));
+      }
+      
+      // Validate that either text or file is provided
+      if (parts.length === 0) {
+        return res.status(400).json({ error: "Se requiere un archivo o un texto para procesar" });
+      }
+        // If only a file was uploaded with no text prompt, add a default prompt
+      if (file && (!textPrompt || textPrompt.trim() === "")) {
+        let defaultPrompt;
         
-        // Locate PDF name for more specific instructions to Gemini
-        const pdfNameMatch = filesText.match(/\[PDF Document: ([^\]]+)\]/);
-        const pdfName = pdfNameMatch ? pdfNameMatch[1] : "document";
-        
-        console.log(`Processing PDF document with content for: ${pdfName}`);
-        
-        // Check if the PDF content was properly extracted
-        const hasExtractedContent = filesText.includes('# Content extracted from:') || 
-                                    filesText.includes('## Page');
-        
-        if (hasExtractedContent) {
-          console.log('PDF content was successfully extracted, using actual content');
-          
-          // Add instruction header - but keep the extracted text
-          processedContent = `# SOLICITUD DE RESUMEN PARA PDF: ${pdfName}\n\n` + 
-                            `El siguiente texto fue extraído de un documento PDF. Por favor analiza este contenido real y genera un resumen detallado en formato Notion Markdown.\n\n` + 
-                            `---\n\n` +
-                            filesText;
+        if (file.mimetype === 'application/pdf') {
+          defaultPrompt = `Este es un documento PDF llamado "${file.originalname}". Por favor analiza su contenido completo y genera un resumen detallado en formato Notion Markdown siguiendo todas las instrucciones establecidas. El resumen debe ser extenso, completo y bien estructurado.`;
         } else {
-          // This is the fallback when only metadata is available (original behavior)
-          console.log('No PDF content extracted, using metadata only');
-          
-          // Extract any additional context provided by the user
-          const contextMatch = filesText.match(/Additional context provided by the user:\s*([\s\S]+?)(?:\n\n|\s*$)/i) || 
-                              filesText.match(/Contexto adicional proporcionado por el usuario:\s*([\s\S]+?)(?:\n\n|\s*$)/i);
-          const userContext = contextMatch ? contextMatch[1].trim() : "";
-          
-          // Build content with clearer instructions for Gemini
-          processedContent = `# SOLICITUD DE RESUMEN PARA: ${pdfName}\n\n`;
-          processedContent += `El usuario ha subido un documento PDF llamado "${pdfName}" y necesita un resumen completo en formato Notion Markdown.\n\n`;
-          
-          if (userContext) {
-            processedContent += `## Contexto adicional proporcionado por el usuario:\n${userContext}\n\n`;
-            processedContent += `Por favor, incorpora este contexto al generar el resumen.\n\n`;
-          }
-          
-          processedContent += `## Instrucciones específicas:\n`;
-          processedContent += `- Genera un resumen completo y detallado basado en el nombre del documento y el contexto proporcionado.\n`;
-          processedContent += `- El documento se refiere a "${pdfName.replace('.pdf', '')}", utiliza este tema como guía.\n`;
-          processedContent += `- Organiza el contenido en secciones claras con encabezados.\n`;
-          processedContent += `- Incluye todos los conceptos clave que normalmente se encontrarían en un documento con este nombre.\n`;
-          processedContent += `- Formatea el contenido utilizando Markdown para Notion, con énfasis en la legibilidad.\n\n`;
+          defaultPrompt = `Esta es una imagen llamada "${file.originalname}". Por favor analiza su contenido visual y genera un resumen detallado en formato Notion Markdown siguiendo todas las instrucciones establecidas. El resumen debe incluir todos los elementos visuales importantes y el texto visible en la imagen.`;
         }
         
-        console.log("Prepared specialized prompt for PDF document");
+        // Add default prompt as first item in parts
+        parts.unshift({ text: defaultPrompt });
+        console.log(`Added default prompt for ${file.mimetype} file`);
       }
       
-      // Ensure the content isn't too large for the API
-      const maxContentLength = 100000;
-      if (processedContent.length > maxContentLength) {
-        console.log(`Content too large (${Math.round(processedContent.length / 1024)}KB), truncating...`);
-        processedContent = processedContent.substring(0, maxContentLength) + "\n\n[Content truncated due to size limitations]";
-      }
-      
-      // Combine the prompt template with the processed content
-      console.log('Preparing prompt with template and content...');
-      
-      let prompt;
-      
-      // Use specific template based on content type
-      if (contentType === 'pdf') {
-        prompt = `${prompts.notionPrompt}\n\n${processedContent}`;
-      } else {
-        prompt = `${prompts.notionPrompt}\n\n${processedContent}`;
-      }
+      // Get the system instruction from prompts
+      const systemInstruction = prompts.notionPrompt;
       
       try {
-        // Call Gemini API with the complete prompt
-        console.log('Calling Gemini API...');
+        // Call Gemini API with multimodal content using user's API key
+        console.log('Calling Gemini API with multimodal content...');
         const startTime = Date.now();
         
-        // La función ahora devuelve un objeto con el texto y las métricas de uso
-        const geminiResponse = await callGemini(prompt);
+        // Use the new multimodal function
+        const geminiResponse = await generateMultimodalContent(userApiKey, parts, systemInstruction);
         const generationTime = Date.now() - startTime;
         
         console.log('Successfully received response from Gemini API');
         console.log(`Total generation time including network: ${generationTime}ms`);
         
-        // Extraer el markdown generado y las métricas
-        const { text: notionMarkdown, usageMetrics } = geminiResponse;
+        // Extract the markdown generated and the metrics
+        const { generatedText: notionMarkdown, stats } = geminiResponse;
         
         // Return the generated markdown and include usage metrics
         return res.json({ 
           notionMarkdown,
           stats: {
             generationTimeMs: generationTime,
-            ...usageMetrics
+            ...stats
           }
         });
       } catch (geminiError) {
         console.error('Gemini API error:', geminiError);
         
-        // Extraer el tipo de error si está disponible, defaults to UNKNOWN_ERROR
+        // Extract the error type and status code
         const errorType = geminiError.type || ERROR_TYPES.UNKNOWN_ERROR;
+        const statusCode = geminiError.status || 500;
         
         // Return a more detailed error message with type
-        return res.status(500).json({ 
-          error: `Error from Gemini API: ${geminiError.message}`,
-          errorType: errorType,
-          contentType: contentType,
-          contentSizeKB: contentSizeKB
+        return res.status(statusCode).json({ 
+          error: geminiError.message || 'Error al comunicarse con la API de Gemini',
+          errorType: errorType
         });
       }
     } catch (error) {
@@ -149,32 +109,42 @@ export const summaryController = {
    * Further condense an existing summary in Markdown format
    * @param {object} req - Request object with summaryText in body
    * @param {object} res - Response object
-   */
-  condenseExistingSummary: async (req, res) => {
+   */  condenseExistingSummary: async (req, res) => {
     try {
       console.log("Condense summary controller received request");
       
-      // Extract the summary text from the request body
-      const { summaryText } = req.body;
+      // Extract the user API Key from headers
+      const userApiKey = req.headers['x-user-api-key'];
+      if (!userApiKey) {
+        return res.status(401).json({ error: "API Key no proporcionada." });
+      }
       
-      if (!summaryText) {
+      // Extract the summary text from the request body
+      const { markdownContent, condensationType = 'shorter' } = req.body;
+      
+      if (!markdownContent) {
         return res.status(400).json({ error: 'No summary content provided' });
       }
       
-      console.log(`Received summary content size: ${Math.round(summaryText.length / 1024)}KB`);
+      console.log(`Received summary content size: ${Math.round(markdownContent.length / 1024)}KB`);
       
       // Ensure the content isn't too large for the API
       const maxContentLength = 100000;
-      if (summaryText.length > maxContentLength) {
-        console.log(`Content too large (${Math.round(summaryText.length / 1024)}KB), truncating...`);
-        const truncatedContent = summaryText.substring(0, maxContentLength) + "\n\n[Content truncated due to size limitations]";
-        return res.status(400).json({ error: 'Summary content too large' });
+      if (markdownContent.length > maxContentLength) {
+        console.log(`Content too large (${Math.round(markdownContent.length / 1024)}KB), truncating...`);
+        return res.status(400).json({ error: 'Summary content too large. Please reduce the size of your content.' });
       }
       
       // Create a prompt for condensing the summary
-      const condenseSummaryPrompt = `
+      let condenseSummaryPrompt = `
 # INSTRUCCIONES PARA CONDENSAR RESUMEN
 
+`;
+
+      // Adapt instructions based on condensationType
+      switch(condensationType) {
+        case 'shorter':
+          condenseSummaryPrompt += `
 Necesito una versión más concisa del siguiente resumen. Por favor:
 
 1. Mantén solo la información más importante y relevante
@@ -184,32 +154,74 @@ Necesito una versión más concisa del siguiente resumen. Por favor:
 5. Elimina detalles secundarios o ejemplos redundantes
 6. Mantén la calidad académica y profesional del contenido
 7. Organiza el contenido en secciones claras y concisas
+`;
+          break;
+        case 'clarity':
+          condenseSummaryPrompt += `
+Necesito una versión más clara y mejor organizada del siguiente resumen. Por favor:
 
-Aquí está el resumen original a condensar:
+1. Mejora la claridad conceptual sin necesariamente reducir la longitud
+2. Reorganiza el contenido para una mejor progresión lógica
+3. Refina la estructura de encabezados para mayor coherencia
+4. Aclara explicaciones confusas o ambiguas
+5. Refuerza las conexiones entre conceptos relacionados
+6. Mejora la precisión terminológica
+7. Añade breves aclaraciones donde sea necesario
+`;
+          break;
+        case 'examples':
+          condenseSummaryPrompt += `
+Necesito una versión mejorada del siguiente resumen con ejemplos prácticos. Por favor:
 
-${summaryText}
+1. Mantén la estructura general y la información clave
+2. Añade ejemplos concretos y prácticos para los conceptos principales
+3. Refuerza la comprensión con analogías o casos de estudio breves
+4. Incluye aplicaciones prácticas de los conceptos teóricos
+5. Asegura que los ejemplos sean claros y relevantes para el tema
+6. Mantén el formato Markdown compatible con Notion
+7. No aumentes excesivamente la longitud del resumen
+`;
+          break;
+        default:
+          condenseSummaryPrompt += `
+Necesito una versión revisada del siguiente resumen. Por favor:
+
+1. Mantén solo la información más importante y relevante
+2. Optimiza la estructura para mayor claridad
+3. Preserva los encabezados Markdown
+4. Mantén el formato compatible con Notion
+`;
+      }
+
+      condenseSummaryPrompt += `
+
+Aquí está el resumen original a procesar:
+
+${markdownContent}
 `;
 
       try {
-        // Call Gemini API with the condensing prompt
+        // Call Gemini API with multimodal content
         console.log('Calling Gemini API to condense summary...');
         const startTime = Date.now();
         
-        const geminiResponse = await callGemini(condenseSummaryPrompt);
-        const generationTime = Date.now() - startTime;
+        const parts = [{ text: condenseSummaryPrompt }];
+        const systemInstruction = "Eres un asistente académico experto que ayuda a mejorar resúmenes educativos en formato Markdown para Notion.";
         
-        console.log('Successfully received condensed summary from Gemini API');
+        const geminiResponse = await generateMultimodalContent(userApiKey, parts, systemInstruction);
+        const generationTime = Date.now() - startTime;
+          console.log('Successfully received condensed summary from Gemini API');
         console.log(`Total generation time including network: ${generationTime}ms`);
         
         // Extract the markdown generated and metrics
-        const { text: condensedMarkdown, usageMetrics } = geminiResponse;
+        const { generatedText: condensedMarkdown, stats } = geminiResponse;
         
         // Return the condensed markdown and include usage metrics
         return res.json({ 
           notionMarkdown: condensedMarkdown,
           stats: {
             generationTimeMs: generationTime,
-            ...usageMetrics
+            ...stats
           }
         });
       } catch (geminiError) {
@@ -217,10 +229,11 @@ ${summaryText}
         
         // Extract error type if available, defaults to UNKNOWN_ERROR
         const errorType = geminiError.type || ERROR_TYPES.UNKNOWN_ERROR;
+        const statusCode = geminiError.status || 500;
         
         // Return a more detailed error message with type
-        return res.status(500).json({ 
-          error: `Error from Gemini API: ${geminiError.message}`,
+        return res.status(statusCode).json({ 
+          error: geminiError.message || 'Error al comunicarse con la API de Gemini',
           errorType: errorType
         });
       }

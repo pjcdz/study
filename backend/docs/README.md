@@ -2,10 +2,10 @@
 
 [![Node.js](https://img.shields.io/badge/Node.js-v22.15-green)](https://nodejs.org/)
 [![Express](https://img.shields.io/badge/Express-4.18-lightgrey)](https://expressjs.com/)
-[![Google Gemini](https://img.shields.io/badge/AI-Gemini-orange)](https://ai.google.dev/)
+[![Google Gemini](https://img.shields.io/badge/AI-Gemini%201.5%20Pro-blue)](https://ai.google.dev/models/gemini)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue)](https://www.docker.com/)
 
-Este documento proporciona una visión detallada del backend de la aplicación Study Tool, incluyendo su arquitectura, componentes principales, flujo de datos y guía de configuración.
+Este documento proporciona una visión detallada del backend de la aplicación Study Tool, incluyendo su arquitectura, componentes principales, flujo de datos y guía de configuración. Esta versión utiliza el modelo gemini-1.5-pro de Google, permitiendo el procesamiento multimodal nativo (texto, PDF, imágenes) y requiere que cada usuario proporcione su propia API Key de Google AI Studio para las operaciones de IA. Para más detalles sobre esta actualización, consulta [MULTIMODAL_UPDATE.md](./MULTIMODAL_UPDATE.md).
 
 ## 📝 Índice
 
@@ -175,53 +175,70 @@ Endpoint para verificar el estado del servidor.
 }
 ```
 
-## 🤖 Integración con Google Gemini
+## 🤖 Integración con Google Gemini 1.5 Pro
 
-### Configuración del Cliente
+### Configuración del Cliente Multimodal
 
-El servicio `geminiClient.js` encapsula toda la comunicación con la API de Google Gemini:
+El servicio `geminiClient.js` encapsula toda la comunicación con la API de Google Gemini, utilizando la API Key proporcionada por el usuario:
 
 ```javascript
-// Ejemplo simplificado del cliente de Gemini
-async function generateContent(prompt, systemPrompt) {
+// Ejemplo simplificado del cliente multimodal de Gemini
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+// Convierte un buffer de archivo en una parte para la API
+function fileToGenerativePart(buffer, mimeType) {
+  return {
+    inlineData: {
+      data: buffer.toString("base64"),
+      mimeType,
+    },
+  };
+}
+
+// Genera contenido multimodal usando la API Key del usuario
+async function generateMultimodalContent(userApiKey, parts, systemInstructionText) {
   try {
-    const response = await fetch('https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': process.env.GEMINI_API_KEY
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: prompt }]
-          }
-        ],
-        systemInstruction: { text: systemPrompt },
-        generationConfig: {
-          temperature: 0.2,
-          topP: 0.8,
-          topK: 40
-        }
-      })
+    const genAI = new GoogleGenerativeAI(userApiKey);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-pro-latest",
+      systemInstruction: systemInstructionText ? { parts: [{ text: systemInstructionText }] } : undefined,
+      generationConfig: {
+        temperature: 0.3,
+        topP: 0.8,
+        topK: 40
+      }
     });
+
+    const contentsForApi = [{ role: 'user', parts }];
+    const result = await model.generateContent({ contents: contentsForApi });
+    const response = result.response;
     
-    return await response.json();
+    // Procesar y devolver respuesta
+    // ...
   } catch (error) {
-    console.error('Error calling Gemini API:', error);
-    throw error;
+    // Manejar errores específicos (API Key inválida, cuota excedida, etc.)
+    // ...
   }
 }
 ```
 
+### Capacidades Multimodales
+
+El backend ahora puede procesar:
+
+- **Texto**: Análisis semántico avanzado
+- **PDFs**: Extracción y comprensión del contenido completo
+- **Imágenes**: Análisis visual y extracción de información
+
+Gemini 1.5 Pro soporta un gran contexto (hasta 2 millones de tokens), permitiendo analizar documentos extensos y múltiples imágenes en una sola solicitud.
+
 ### Prompts y Configuración
 
-Los prompts para la IA están centralizados en el archivo `prompts.js`:
+Los prompts para la IA están centralizados en el archivo `prompts.js`, optimizados para contenido multimodal:
 
-- Instrucciones detalladas para formatear resúmenes en estilo Notion
-- Plantillas para la creación de tarjetas de estudio eficaces
-- Configuraciones de parámetros como temperatura y top-p para diferentes tareas
+- Instrucciones detalladas para formatear resúmenes en estilo Notion, incluyendo análisis de contenido visual
+- Plantillas para la creación de tarjetas de estudio basadas en cualquier tipo de contenido
+- Ajustes de configuración para optimizar la calidad de las respuestas
 
 ## ⚙️ Configuración de Desarrollo
 
@@ -289,7 +306,9 @@ docker run -d -p 4000:4000 --name study-backend \
 | `PORT` | Puerto en que se ejecutará el servidor | `4000` |
 | `HOST` | Interfaz de red a utilizar | `0.0.0.0` |
 | `NODE_ENV` | Entorno de ejecución | `development` |
-| `GEMINI_API_KEY` | Clave de API para Google Gemini | **Requerida** |
+| `GEMINI_API_KEY` | (Opcional) Clave de API para Google Gemini para compatibilidad con versiones anteriores | No requerida |
+
+> **Importante:** A partir de esta actualización, la variable de entorno `GEMINI_API_KEY` ya no es necesaria para la operación normal. Cada usuario proporciona su propia API Key a través del frontend. La variable puede mantenerse para compatibilidad con código existente.
 
 ## 📈 Escalabilidad y Rendimiento
 
@@ -300,10 +319,12 @@ docker run -d -p 4000:4000 --name study-backend \
 
 ## 🔒 Seguridad
 
-- **Validación de Entrada**: Todos los datos de entrada son validados
+- **API Key del Usuario**: Las claves API nunca se almacenan en el backend; se usan sólo para la petición inmediata
+- **Validación de Entrada**: Todos los datos de entrada son validados rigurosamente
 - **CORS Configurado**: Protección contra solicitudes no autorizadas
 - **Sin Almacenamiento**: No se almacenan datos de usuario permanentemente
-- **Límites de Tamaño**: Restricciones en el tamaño máximo de solicitudes (50MB)
+- **Límites de Tamaño**: Restricciones en el tamaño máximo de solicitudes (20MB para archivos)
+- **Validación de Tipos de Archivo**: Solo se permiten PDFs e imágenes en formatos específicos
 
 ---
 

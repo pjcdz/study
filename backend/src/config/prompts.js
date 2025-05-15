@@ -1,5 +1,7 @@
 export const prompts = {
-  notionPrompt: `Utilizando el formato establecido en el archivo **"formatoNotion"**, elabora un resumen EXTENSO Y DETALLADO de los documentos que suba junto a este txt. Este resumen debe ser al menos 3 veces más largo que el resumen estándar, incluyendo explicaciones detalladas, ejemplos adicionales, análisis profundo y conexiones entre conceptos. NO omitas ningún detalle importante.
+  notionPrompt: `Utilizando el formato establecido a continuación, elabora un resumen EXTENSO Y DETALLADO del contenido proporcionado (ya sea texto, PDF, imagen o combinación). Este resumen debe ser al menos 3 veces más largo que el resumen estándar, incluyendo explicaciones detalladas, ejemplos adicionales, análisis profundo y conexiones entre conceptos. NO omitas ningún detalle importante.
+
+Si el contenido incluye imágenes o documentos PDF, analiza cuidadosamente el texto y los elementos visuales para extraer toda la información relevante.
 
 📌 **INSTRUCCIÓN ADICIONAL**:  
 - Asegúrate de que cada sección y subtítulo incluya al menos un emoji relevante.
@@ -57,8 +59,26 @@ Las ecuaciones matemáticas se utilizan en la física para describir el movimien
 ---
 
 Este prompt asegurará que el resumen sea **claro, visualmente atractivo y optimizado para el aprendizaje**, aprovechando todas las funciones de Notion. RECUERDA: el resumen debe ser al menos 3 veces más extenso de lo normal, con explicaciones detalladas y completas de cada tema.`,
-  
-  flashcardPrompt: `Detect the language of the provided Notion markdown content and generate the flashcards in the same language.
- Give the output as a MarkDown ready to copy, not text. Do not include "Front\tBack" as the first line. Using the provided data, generate a set of flashcards in a tab-separated format for importing into Quizlet. Each flashcard should include a front and a back that present clear, coherent, and well-structured concepts—avoid isolated words. Do not use newline characters within a flashcard's content (each newline indicates a new flashcard). Enhance the important terms by denoted by single asterisks at the start and end of the text to be bolded. Flashcards should be short, even if it takes more cards.Reduce the number of flashcards to just the most relevant information that could be on an exam. Data:
+    flashcardPrompt: `Detecta el idioma del contenido proporcionado (ya sea texto, PDF, imagen o combinación) y genera tarjetas de estudio en ese mismo idioma.
+
+Instrucciones específicas:
+1. Analiza cuidadosamente todo el contenido proporcionado (incluyendo texto e imágenes o documentos PDF si están presentes)
+2. Extrae los conceptos clave, definiciones, fórmulas y datos importantes
+3. Genera un conjunto de tarjetas de estudio en formato TSV (valores separados por tabuladores) para importar a Quizlet
+4. Cada tarjeta debe incluir:
+   - Anverso: Una pregunta clara o concepto a recordar
+   - Reverso: La respuesta completa o explicación
+5. Formato técnico:
+   - Separa el anverso y reverso con un tabulador (\t)
+   - Cada tarjeta en una línea separada (no incluyas saltos de línea dentro de una tarjeta)
+   - NO incluyas "Front\tBack" como primera línea
+   - Da formato a términos importantes con *asteriscos* para indicar énfasis
+6. Contenido:
+   - Crea entre 15-25 tarjetas que cubran los conceptos más importantes del material
+   - Las tarjetas deben ser concisas pero completas
+   - Evita información redundante entre tarjetas
+   - Incluye todo tipo de contenido relevante: definiciones, ejemplos, aplicaciones, comparaciones
+
+No incluyas explicaciones adicionales, solo proporciona el formato TSV listo para importar a Quizlet.
 `
 };

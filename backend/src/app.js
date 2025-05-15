@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import multer from 'multer';
 import { summaryController } from './controllers/summaryController.js';
 import { flashcardsController } from './controllers/flashcardsController.js';
 
@@ -19,10 +20,36 @@ app.use(cors({
     : true, // Allow any origin in development
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Accept', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Accept', 'Authorization', 'X-User-API-Key'] // Added X-User-API-Key header
 }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Configure multer for file uploads
+const storage = multer.memoryStorage(); // Store files in memory as Buffer objects
+const upload = multer({
+  storage: storage,
+  limits: { 
+    fileSize: 20 * 1024 * 1024 // 20MB file size limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Allow only specific file types
+    const allowedMimeTypes = [
+      'application/pdf', 
+      'image/jpeg', 
+      'image/png', 
+      'image/webp', 
+      'image/heic',
+      'image/heif'
+    ];
+    
+    if (allowedMimeTypes.includes(file.mimetype)) {
+      cb(null, true); // Accept file
+    } else {
+      cb(new Error(`Tipo de archivo no soportado: ${file.mimetype}`), false); // Reject file
+    }
+  }
+});
 
 // Simple logging middleware for debugging
 app.use((req, res, next) => {
@@ -36,10 +63,21 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });
 });
 
+// API Key middleware - validate presence of user API key
+const validateApiKey = (req, res, next) => {
+  const userApiKey = req.headers['x-user-api-key'];
+  if (!userApiKey) {
+    return res.status(401).json({ 
+      error: "API Key no proporcionada. Por favor, configura tu API Key de Google AI Studio."
+    });
+  }
+  next();
+};
+
 // Routes
-app.post('/summary', summaryController.getSummary);
-app.post('/summary/condense', summaryController.condenseExistingSummary);
-app.post('/flashcards', flashcardsController.getFlashcards);
+app.post('/summary', validateApiKey, upload.single('file'), summaryController.getSummary);
+app.post('/summary/condense', validateApiKey, summaryController.condenseExistingSummary);
+app.post('/flashcards', validateApiKey, upload.single('file'), flashcardsController.getFlashcards);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

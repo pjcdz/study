@@ -1,8 +1,8 @@
 import fetch from 'node-fetch';
 
 // Update to use the correct model name according to Google's documentation
-const MODEL_NAME = 'gemini-2.5-pro-exp-03-25';
-const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent`;
+const MODEL_NAME = 'gemini-1.5-pro-latest';
+const API_URL = `https://generativelanguage.googleapis.com/v1/models/${MODEL_NAME}:generateContent`;
 
 // Error types - used for better frontend handling
 export const ERROR_TYPES = {
@@ -13,41 +13,64 @@ export const ERROR_TYPES = {
 };
 
 /**
- * Call Gemini API with a prompt
- * @param {string} prompt - The prompt to send to Gemini
+ * Convierte un buffer de archivo (PDF, JPG, PNG, etc.) en una parte de contenido
+ * para la API de Gemini.
+ * @param {Buffer} buffer El buffer del archivo.
+ * @param {string} mimeType El tipo MIME del archivo (ej. "application/pdf", "image/jpeg").
+ * @returns {object} Objeto de parte de contenido para la API.
+ */
+export function fileToGenerativePart(buffer, mimeType) {
+  return {
+    inlineData: {
+      data: buffer.toString("base64"),
+      mimeType,
+    },
+  };
+}
+
+/**
+ * Call Gemini API with a user's API key and multimodal content
+ * @param {string} userApiKey - The user's Gemini API key
+ * @param {Array<object>} parts - Array of parts (text and/or files)
+ * @param {string} systemInstructionText - Optional system instruction
  * @returns {Promise<object>} - The generated text response and usage statistics
  */
-export async function callGemini(prompt) {
+export async function generateMultimodalContent(userApiKey, parts, systemInstructionText) {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
-    
-    if (!apiKey) {
-      throw new Error('GEMINI_API_KEY environment variable is not set');
-    }
-
-    console.log('Sending request to Gemini API...');
-    console.log(`Using API key: ${apiKey.substring(0, 3)}...${apiKey.substring(apiKey.length - 3)}`); // Log partial key for debugging
+    if (!userApiKey) {
+      throw new Error('API Key no proporcionada');
+    }    console.log('Sending request to Gemini API...');
+    console.log(`Using API key: ${userApiKey.substring(0, 3)}...${userApiKey.substring(userApiKey.length - 3)}`); // Log partial key for debugging
     console.log(`Using model: ${MODEL_NAME}`);
-    
-    // Estimate input token count (rough estimate: ~4 chars per token for English)
-    const estimatedInputTokens = Math.ceil(prompt.length / 4);
-    console.log(`Estimated input tokens: ~${estimatedInputTokens}`);
     
     const startTime = Date.now();
     
+    // Create contents structure for Gemini API - multimodal support
+    const contents = [{ 
+      role: 'user', 
+      parts: parts 
+    }];
+    
+    // Create request body
     const body = {
-      contents: [{ parts: [{ text: prompt }] }],
+      contents: contents,
       generationConfig: {
-        temperature: 1,         // Increased for more creative and detailed output
-        maxOutputTokens: 16384,    // Increased token limit to allow longer responses
-        topP: 0.95                 // Sample tokens from top 95% probability mass for diversity
+        temperature: 0.3,        // Lower temperature for more focused output
+        maxOutputTokens: 16384,  // Large token limit to allow detailed responses
+        topP: 0.8,               // Sample from top 80% probability mass
+        topK: 40                 // Sample from top 40 tokens
       }
     };
+    
+    // Add system instruction if provided
+    if (systemInstructionText) {
+      body.systemInstruction = { text: systemInstructionText };
+    }
     
     // Log the endpoint being used
     console.log(`Using API endpoint: ${API_URL}`);
     
-    const response = await fetch(`${API_URL}?key=${apiKey}`, {
+    const response = await fetch(`${API_URL}?key=${userApiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
@@ -156,14 +179,17 @@ export async function callGemini(prompt) {
     console.log(`API response time: ${usageMetrics.apiResponseTimeMs}ms`);
     console.log(`Total processing time: ${usageMetrics.totalProcessingTimeMs}ms`);
     console.log('======================================');
-    
-    // Extract the text from the response
+      // Extract the text from the response
     if (data.candidates && data.candidates[0] && data.candidates[0].content) {
       const generatedText = data.candidates[0].content.parts[0].text;
       // Return both the text and the usage metrics
       return {
-        text: generatedText,
-        usageMetrics
+        generatedText,
+        stats: {
+          promptTokens: usageMetrics.inputTokens,
+          candidatesTokens: usageMetrics.outputTokens, 
+          totalTokens: usageMetrics.totalTokens
+        }
       };
     }
     
@@ -174,6 +200,19 @@ export async function callGemini(prompt) {
   } catch (error) {
     // Log the full error details
     console.error('Error calling Gemini API:', error);
+    
+    // Handle specific errors based on response
+    if (error.message && error.message.includes('API key not valid')) {
+      const authError = new Error('API Key inválida o sin permisos. Por favor, verifica tu API Key de Google AI Studio.');
+      authError.type = ERROR_TYPES.INVALID_API_KEY;
+      authError.status = 401;
+      throw authError;
+    } else if (error.message && (error.message.includes('quota') || error.status === 429)) {
+      const quotaError = new Error('Se ha excedido la cuota para esta API Key o se ha alcanzado el límite de peticiones.');
+      quotaError.type = ERROR_TYPES.QUOTA_EXCEEDED;
+      quotaError.status = 429;
+      throw quotaError;
+    } 
     
     // Preserve error type if already set
     if (error.type) {
@@ -189,6 +228,25 @@ export async function callGemini(prompt) {
     
     // Default error type
     error.type = ERROR_TYPES.UNKNOWN_ERROR;
+    throw error;
+  }
+}
+
+// Legacy function for backward compatibility
+export async function callGemini(prompt) {
+  console.warn('DEPRECATED: callGemini() is deprecated. Please use generateMultimodalContent() instead.');
+  try {
+    const parts = [{ text: prompt }];
+    const result = await generateMultimodalContent(process.env.GEMINI_API_KEY, parts);
+    return {
+      text: result.generatedText,
+      usageMetrics: {
+        inputTokens: result.stats.promptTokens,
+        outputTokens: result.stats.candidatesTokens,
+        totalTokens: result.stats.totalTokens
+      }
+    };
+  } catch (error) {
     throw error;
   }
 }
