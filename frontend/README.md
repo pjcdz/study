@@ -6,7 +6,7 @@
 [![ShadCN UI](https://img.shields.io/badge/ShadCN-UI-gray)](https://ui.shadcn.com/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6)](https://www.typescriptlang.org/)
 
-Esta documentación detalla la interfaz de usuario de Study Tool, una aplicación para transformar documentos en notas estructuradas y tarjetas de estudio.
+Esta documentación detalla la interfaz de usuario de Studydo, una aplicación para transformar documentos en notas estructuradas y tarjetas de estudio.
 
 ## 📝 Índice
 
@@ -25,7 +25,7 @@ Esta documentación detalla la interfaz de usuario de Study Tool, una aplicació
 
 ## 🔍 Visión General
 
-El frontend de Study Tool es una aplicación moderna basada en Next.js 15.3 y React 19, diseñada para ofrecer una experiencia de usuario fluida e intuitiva para:
+El frontend de Study es una aplicación moderna basada en Next.js 15.3 y React 19, diseñada para ofrecer una experiencia de usuario fluida e intuitiva para:
 
 1. Subir y procesar documentos de estudio
 2. Transformar el contenido en notas estructuradas para Notion
@@ -168,8 +168,6 @@ Generación de tarjetas de estudio en formato TSV:
 
 - **MarkdownPreview**: Visualizador de markdown con sintaxis resaltada
 - **FileDropzone**: Zona para arrastrar y soltar texto o pegarlo
-- **AnimatedLoader**: Indicador de carga con animaciones fluidas
-- **AnimatedButton**: Botones con efectos de animación para mejor UX
 - **ThemeSwitcher**: Alternador entre modos claro y oscuro
 
 ## 📦 Gestión del Estado
@@ -244,6 +242,10 @@ Implementación completa de temas claro y oscuro:
 - Persistencia de preferencia de tema
 - Transiciones suaves entre temas
 - Detección automática de preferencia del sistema
+
+### Animaciones y Transiciones
+
+La aplicación utiliza `framer-motion` para animaciones complejas y transiciones de página, complementado con utilidades de transición de Tailwind CSS para efectos más simples.
 
 ## ⚙️ Configuración de Desarrollo
 
