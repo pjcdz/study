@@ -12,6 +12,7 @@
     "upload": "Upload",
     "summary": "Summary",
     "flashcards": "Flashcards",
+    "settings": "Settings",
     "restart": "Restart",
     "restartConfirm": "Restart the process?",
     "restartDescription": "This action will delete all uploaded files, summaries, and generated flashcards.",
@@ -27,6 +28,7 @@
     "processing": "Processing",
     "title": "Add Study Material",
     "description": "Upload files or enter text to generate a summary.",
+    "multimodalDescription": "Upload a file (PDF or image) and/or enter text to generate a summary.",
     "dropzone": {
       "title": "Drag and drop files here",
       "or": "or",
@@ -58,7 +60,7 @@
       "error": "Could not generate summary: {message}",
       "quotaExceeded": "API usage limit exceeded. Please try again later.",
       "networkError": "Network connection error. Please check your internet and try again.",
-      "apiKeyError": "API authentication error. Please contact support.",
+      "apiKeyError": "API authentication error. Please check your API key in Settings.",
       "processingPdf": "Processing PDF: {name}",
       "pdfProcessed": "PDF processed successfully: {name}",
       "pdfError": "Error processing PDF: {name}"
@@ -97,7 +99,7 @@
       "error": "Could not generate flashcards: {message}",
       "quotaExceeded": "API usage limit exceeded. Please try again later.",
       "networkError": "Connection error. Please check your internet and try again.",
-      "apiKeyError": "API authentication error. Please contact support."
+      "apiKeyError": "API authentication error. Please check your API key in Settings."
     },
     "button": {
       "generate": "Generate Flashcards",
@@ -126,7 +128,7 @@
       "copyError": "Error copying to clipboard",
       "quotaExceeded": "API usage limit exceeded. Please try again later.",
       "networkError": "Network connection error. Please check your internet and try again.",
-      "apiKeyError": "API authentication error. Please contact support."
+      "apiKeyError": "API authentication error. Please check your API key in Settings."
     },
     "instructions": {
       "title": "Quizlet Import Instructions",
@@ -140,22 +142,108 @@
       "note": "Note: Flashcards are in the \"Term → Definition\" format"
     }
   },
+  "api": {
+    "title": "Google Gemini API Key",
+    "description": "Configure your API key to use the application",
+    "keyManagement": {
+      "title": "API Key Configuration",
+      "description": "This application requires a Google Gemini API key to function",
+      "enterKey": "Enter your Google AI Studio API Key",
+      "saveKey": "Save API Key",
+      "showKey": "Show API Key",
+      "hideKey": "Hide API Key",
+      "copyKey": "Copy API Key",
+      "deleteKey": "Delete API Key",
+      "keyConfigured": "API Key is configured and ready to use",
+      "noKeyConfigured": "No API Key configured. Please enter your key below:",
+      "securityWarning": "Never share your API key with anyone",
+      "storageNote": "Your API Key is stored only in your browser and never sent to our servers"
+    },
+    "instructions": {
+      "title": "How to get a Google Gemini API Key",
+      "description": "Follow these steps to obtain your own API key from Google AI Studio",
+      "whatIs": "What is a Google Gemini API Key?",
+      "apiDescription": "The Google Gemini API Key allows you to use Google's AI capabilities to process your documents and generate summaries and flashcards. Each user needs their own API key.",
+      "howToGet": "Step-by-step instructions",
+      "steps": {
+        "step1": {
+          "title": "Go to Google AI Studio website",
+          "description": "Visit aistudio.google.com and sign in with your Google account"
+        },
+        "step2": {
+          "title": "Navigate to API Keys",
+          "description": "In the left sidebar, click on 'Get API key'"
+        },
+        "step3": {
+          "title": "Create a new API key",
+          "description": "Click on 'Create API key' and give it a name like 'Study App'"
+        },
+        "step4": {
+          "title": "Copy your API key",
+          "description": "Copy your new API key and paste it in the field above"
+        }
+      }
+    },
+    "actions": {
+      "getApiKey": "Open Google AI Studio",
+      "returnToApp": "Return to Application"
+    },
+    "errors": {
+      "emptyKey": "API Key cannot be empty",
+      "invalidKey": "Invalid API Key format",
+      "copyFailed": "Failed to copy API key"
+    },
+    "success": {
+      "keySaved": "API Key saved successfully",
+      "keyCleared": "API Key cleared",
+      "keyCopied": "API Key copied to clipboard"
+    }
+  },
   "settings": {
-    "label": "Settings",
+    "title": "Settings",
+    "tabs": {
+      "general": "General",
+      "api": "API Settings",
+      "appearance": "Appearance"
+    },
     "language": {
-      "label": "Language:",
+      "title": "Language",
+      "description": "Change the application language",
+      "label": "Select language:",
       "options": {
         "es": "Español",
         "en": "English"
       }
     },
     "theme": {
-      "label": "Theme",
+      "title": "Theme Settings",
+      "description": "Customize the application appearance",
+      "label": "Select theme:",
       "options": {
         "light": "Light",
         "dark": "Dark",
         "system": "System"
       }
+    },
+    "apiKey": {
+      "title": "API Key",
+      "description": "Your Google Gemini API key is required to use AI features",
+      "placeholder": "Enter your Google AI Studio API Key",
+      "saveButton": "Save API Key",
+      "clearButton": "Clear API Key",
+      "saved": "API Key saved successfully",
+      "missing": "API Key is required to use AI features",
+      "localStorageNote": "Your API Key is stored only in your browser and never sent to our servers."
+    },
+    "apiInfo": {
+      "title": "About Gemini API",
+      "geminiDescription": "This application uses Google's Gemini 1.5 Pro API to generate summaries and flashcards. You need to provide your own API key from Google AI Studio.",
+      "howToGet": "How to get a Google Gemini API Key:",
+      "step1": "Visit Google AI Studio (aistudio.google.com)",
+      "step2": "Sign in with your Google account",
+      "step3": "Go to 'API Keys' in the left menu",
+      "step4": "Click 'Create API Key' and copy your new key",
+      "getApiKeyButton": "Go to Google AI Studio"
     }
   },
   "toast": {
@@ -163,6 +251,6 @@
     "success": "Success!",
     "quotaExceeded": "API usage limit exceeded. Please try again later.",
     "networkError": "Network connection error. Please check your internet and try again.",
-    "apiKeyError": "API authentication error. Please contact support."
+    "apiKeyError": "API authentication error. Please check your API key in Settings."
   }
 }

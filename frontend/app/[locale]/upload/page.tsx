@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
-import { Loader2 } from "lucide-react"
+import { Loader2, X, Zap } from "lucide-react"
 import { toast } from "sonner"
 import { useUploadStore } from '@/store/use-upload-store'
 import { useTranslations } from 'next-intl'
-import apiClient, { ApiError, ApiErrorType } from "@/lib/api-client"
+import apiClient, { ApiError } from "@/lib/api-client"
 import { FileDropzone } from "@/components/upload/file-dropzone"
 import { FileList } from "@/components/upload/file-list"
 import { motion } from "framer-motion"
@@ -68,7 +68,7 @@ export default function UploadPage() {
     addFiles,
     removeFile,
     setInputText,
-    addSummary, // Use addSummary instead of setSummary
+    addSummary,
     setCurrentStep,
     reset
   } = useUploadStore()
@@ -95,253 +95,127 @@ export default function UploadPage() {
       
       // Extract text from each page
       for (let i = 1; i <= totalPages; i++) {
+        setPdfProcessingStatus(`Extracting text from ${file.name} (${i}/${totalPages} pages)`);
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
-        const pageText = textContent.items
-          // TypeScript fix: ensure item has the expected structure with str property
-          .map((item: any) => (item.str || ''))
-          .join(' ');
+        const textItems = textContent.items;
         
-        extractedText += `## Page ${i}\n${pageText}\n\n`;
-        
-        // Update status every few pages
-        if (i % 5 === 0 || i === totalPages) {
-          setPdfProcessingStatus(`Extracting text from ${file.name} (${i}/${totalPages} pages)`);
+        // Extract text from text items
+        let lastY: number | null = null;
+        let pageText = '';
+        for (const item of textItems) {
+          const itemAny = item as any;
+          if (itemAny.str) {
+            // Add a newline when the y-position changes significantly (simple paragraph detection)
+            if (lastY !== null && Math.abs(itemAny.transform[5] - lastY) > 5) {
+              pageText += '\n';
+            }
+            pageText += itemAny.str;
+            lastY = itemAny.transform[5];
+            
+            // Add a space after each text chunk unless it ends with hyphen (might be a hyphenated word)
+            if (!itemAny.str.endsWith('-')) {
+              pageText += ' ';
+            }
+          }
         }
+        
+        extractedText += `\n## Page ${i}\n\n${pageText}\n`;
       }
       
       return extractedText;
     } catch (error) {
-      console.error('Error extracting PDF text:', error);
-      toast.error(`Error extracting text from PDF: ${file.name}`);
-      
-      // Return the original metadata format as fallback
-      return `[PDF Document: ${file.name}]\nThis is a PDF document that contains information about "${file.name.replace('.pdf', '')}". Please analyze the content of the file that is related to this topic. The document has a size of ${Math.round(file.size / 1024)} KB.\n\n`;
-    } finally {
-      setPdfProcessingStatus("");
+      console.error('Error extracting text from PDF:', error);
+      throw new Error(`PDF processing error: ${(error as Error).message}`);
     }
   };
 
-  // Function to process files
-  const processFiles = async () => {
-    try {
-      let extractedText = ''
-      const { files, originalFiles, inputText } = useUploadStore.getState()
-      
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i]
-        const originalFile = originalFiles[i]
-        
-        // For images, use base64
-        if (file.type.includes('image/')) {
-          const base64 = await fileToBase64(originalFile)
-          extractedText += `[Image Content: ${file.name}]\n${base64}\n\n`
-        }
-        // For PDFs - use the PDF.js extraction
-        else if (file.type === 'application/pdf') {
-          // Send notification that PDF is being processed
-          toast.info(t('upload.toast.processingPdf', { name: file.name }));
-          
-          try {
-            // Get the full text content from the PDF
-            const pdfText = await extractPdfText(originalFile);
-            extractedText += pdfText;
-            
-            // Show success notification
-            toast.success(t('upload.toast.pdfProcessed', { name: file.name }));
-          } catch (pdfError) {
-            console.error('Error processing PDF:', pdfError);
-            toast.error(t('upload.toast.pdfError', { name: file.name }));
-            
-            // Fallback - send base64 encoded PDF
-            const base64 = await fileToBase64(originalFile);
-            extractedText += `[PDF Content (Base64): ${file.name}]\n${base64}\n\n`;
-          }
-          
-          if (inputText) {
-            extractedText += `Additional context provided by the user:\n${inputText}\n\n`
-          }
-        }
-        // For text files
-        else if (file.type.includes('text/') || file.type === 'application/json') {
-          const text = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader()
-            reader.onload = () => {
-              const result = reader.result
-              if (typeof result === 'string') {
-                resolve(result)
-              } else {
-                reject(new Error('Invalid file content'))
-              }
-            }
-            reader.onerror = reject
-            reader.readAsText(originalFile)
-          })
-          extractedText += `[Text Content: ${file.name}]\n${text}\n\n`
-        }
+  const processPdfFiles = async () => {
+    const pdfFiles = files.filter(file => file.type === 'application/pdf');
+    let allText = '';
+    
+    // Process all PDF files
+    for (const file of pdfFiles) {
+      try {
+        toast.info(t('upload.toast.processingPdf', { name: file.name }));
+        const extractedText = await extractPdfText(file);
+        allText += extractedText + '\n\n';
+        toast.success(t('upload.toast.pdfProcessed', { name: file.name }));
+      } catch (error) {
+        toast.error(t('upload.toast.pdfError', { name: file.name }));
+        console.error(`Error processing PDF ${file.name}:`, error);
       }
-
-      console.log(`Sending ${extractedText.length} characters of extracted text to API`);
-      
-      // Process the extracted text
-      const response = await fetch('/api/process-files', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          text: extractedText, 
-          inputText,
-          hasPdfContent: files.some(f => f.type === 'application/pdf')  // Flag to inform backend about PDF content
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to process files')
-      }
-
-      const data = await response.json()
-      addSummary(data.summary)
-      
-      // No llamamos a stopProcessing() aquí para mantener el timer corriendo
-      // El timer solo debe detenerse en la página de summary
-    } catch (error: unknown) {
-      console.error('Error processing files:', error)
-      toast.error(t('upload.toast.error', { message: 'Error processing files' }))
-      
-      // No llamamos a stopProcessing() aquí para mantener el timer corriendo incluso en caso de error
-      // Esto permite al usuario ver cuánto tiempo ha pasado y decidir si intentar de nuevo
-    }
-  }
-
-  // Helper to convert file to base64
-  const fileToBase64 = async (file: Blob): Promise<string> => {
-    return new Promise<string>((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => {
-        const result = reader.result
-        if (typeof result === 'string') {
-          resolve(result)
-        } else {
-          reject(new Error('Failed to convert file to base64'))
-        }
-      }
-      reader.onerror = reject
-      reader.readAsDataURL(file)
-    })
-  }
-  
-  const handleGenerateSummary = async () => {
-    if (!inputText && files.length === 0) {
-      toast.error(t('upload.validation.noContent'))
-      return
     }
     
+    return allText;
+  };
+  
+  const handleSubmit = async () => {
     try {
-      // Start processing timer (sets isLoading=true)
-      startProcessing()
-      
-      // Process uploaded files and ensure they generate content
-      if (files.length > 0) {
-        await processFiles(); // Call for side effects
-        // Wait a moment to ensure state has updated
-        await new Promise(resolve => setTimeout(resolve, 100));
+      // Validate input - at least one file or text content
+      if (files.length === 0 && !inputText.trim()) {
+        toast.error(t('upload.validation.noContent'));
+        return;
       }
       
-      // Get the current state after files are processed
-      const currentState = useUploadStore.getState();
+      // Start processing and show timer
+      startProcessing();
+      setCurrentStep('upload');
       
-      // Use direct input text if no files, otherwise use the processed summary
-      const combinedText = files.length > 0 
-        ? currentState.getCurrentSummary() || inputText  // Use getCurrentSummary instead of summary
-        : inputText;
-      
-      if (!combinedText || combinedText.trim() === '') {
-        throw new Error('No content to process');
+      // Extract text from PDFs if present
+      let pdfText = '';
+      if (files.some(file => file.type === 'application/pdf')) {
+        pdfText = await processPdfFiles();
       }
       
-      console.log('Sending content to backend, length:', combinedText.length);
-      
-      // Send to backend - making sure we have actual content - and WAIT for complete response
-      // This is a long-running operation that may take 1-2 minutes with Gemini
-      const response = await apiClient.postSummary(combinedText)
-      
-      // Only proceed with redirect when we have a valid notionMarkdown response AND stats
-      // This ensures we got a complete response from Gemini including token usage info
-      if (!response || !response.notionMarkdown || !response.stats) {
-        throw new Error('Invalid or incomplete server response')
+      // Combine all text
+      let contentToSend = inputText;
+      if (pdfText) {
+        contentToSend = contentToSend 
+          ? `${contentToSend}\n\n${pdfText}` 
+          : pdfText;
       }
       
-      // Log token usage information
-      console.log('Gemini API response received:');
-      console.log('- Generation time:', response.stats.generationTimeMs, 'ms');
-      if (response.stats.inputTokens) {
-        console.log('- Input tokens:', response.stats.inputTokens);
-        console.log('- Output tokens:', response.stats.outputTokens);
-        console.log('- Total tokens:', response.stats.inputTokens + response.stats.outputTokens);
-      }
+      // Send the request
+      const response = await apiClient.generateSummary({ content: contentToSend });
       
-      // Save the complete markdown response
-      addSummary(response.notionMarkdown) // Use addSummary instead of setSummary
-      setCurrentStep('summary')
+      // Stop processing timer
+      stopProcessing();
       
-      // Now that we have the complete summary with all token information, show success
-      toast.success(t('upload.toast.success'))
+      // Add the summary to our state
+      addSummary(response.notionMarkdown);
+      setCurrentStep('summary');
       
-      // Navigate to the summary page - we keep timer running during navigation
-      router.push('./summary')
+      // Show success message
+      toast.success(t('upload.toast.success'));
       
-      // NOTE: We do NOT stop the timer here
-      // The timer will continue running until the user reaches the summary page
-      // The summary page component will be responsible for stopping the timer when it loads
+      // Navigate to the next step
+      router.push('./summary');
+    } catch (error) {
+      stopProcessing();
       
-    } catch (err: unknown) {
-      console.error('Error generating summary:', err);
-      
-      // Flag to determine if this is a critical error that should stop processing
-      let isCriticalError = false;
-      
-      // Verificar si es un error de API y manejar según su tipo
-      if (err instanceof ApiError) {
-        switch(err.type) {
-          case ApiErrorType.QUOTA_EXCEEDED:
+      let errorMessage: string;
+      if (error instanceof ApiError) {
+        errorMessage = error.message;
+        
+        // Handle different error types
+        switch (error.type) {
+          case 'QUOTA_EXCEEDED':
             toast.error(t('upload.toast.quotaExceeded'));
-            isCriticalError = true; // Can't continue if quota exceeded
             break;
-          case ApiErrorType.NETWORK_ERROR:
+          case 'NETWORK_ERROR':
             toast.error(t('upload.toast.networkError'));
-            isCriticalError = true; // Can't continue without network
-            break;
-          case ApiErrorType.INVALID_API_KEY:
-            toast.error(t('upload.toast.apiKeyError'));
-            isCriticalError = true; // Can't continue with invalid API key
             break;
           default:
-            toast.error(t('upload.toast.error', { message: err.message }));
-            // For other API errors, we could potentially retry
+            toast.error(t('upload.toast.error', { message: errorMessage }));
+            break;
         }
       } else {
-        // Para errores genéricos
-        let message = 'Unknown error';
-        if (typeof err === 'object' && err && 'message' in err && typeof (err as { message?: string }).message === 'string') {
-          message = (err as { message: string }).message;
-        }
-        toast.error(t('upload.toast.error', { message }));
-        
-        // Network errors or "failed to fetch" indicate connection problems
-        if (message.includes('fetch') || message.includes('network') || message.includes('connection')) {
-          isCriticalError = true;
-        }
+        errorMessage = (error as Error).message;
+        toast.error(t('upload.toast.error', { message: errorMessage }));
       }
       
-      // Stop the timer for critical errors where retrying won't help
-      // This prevents the loading state from persisting indefinitely
-      if (isCriticalError) {
-        console.log('Critical error detected, stopping processing timer');
-        stopProcessing();
-        useUploadStore.getState().setIsLoading(false);
-      }
-      // For non-critical errors, we keep the timer running to allow retries
+      console.error('Error in upload process:', errorMessage);
     }
   }
   
@@ -372,7 +246,7 @@ export default function UploadPage() {
               initial="hidden"
               animate="show"
               variants={containerVariants}
-              className="space-y-4"
+              className="space-y-6"
             >
               <motion.div 
                 variants={itemVariants}
@@ -382,57 +256,55 @@ export default function UploadPage() {
                 <p className="text-muted-foreground">{t('upload.description')}</p>
               </motion.div>
 
-              {pdfProcessingStatus && (
-                <div className="text-center text-sm text-primary flex items-center justify-center mt-2">
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {pdfProcessingStatus}
-                </div>
-              )}
-
               <Card className="shadow-sm border-2 border-muted rounded-lg overflow-hidden">
-                <CardContent>
+                <CardContent className="p-6">
                   <motion.div 
                     variants={itemVariants}
                     className="space-y-6"
                   >
-                    <div className="grid gap-4">
-                      <motion.div 
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        className="relative"
-                      >
-                        <FileDropzone 
-                          addFiles={addFiles}
-                          className="border-2 border-dashed border-primary/50 rounded-lg p-8 text-center"
-                        />
-                      </motion.div>
-
+                    {/* File Upload */}
+                    <div className="space-y-4">
+                      <FileDropzone onFileAccepted={addFiles} />
                       {files.length > 0 && (
-                        <motion.div 
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          className="space-y-2"
-                        >
-                          <FileList 
-                            files={files}
-                            onRemove={removeFile}
-                            className="space-y-2"
-                          />
-                        </motion.div>
+                        <FileList files={files} onRemove={removeFile} />
+                      )}
+                    </div>
+                    
+                    {/* Text Input */}
+                    <div className="space-y-2">
+                      <label
+                        htmlFor="textContent"
+                        className="text-sm font-medium"
+                      >
+                        {files.length > 0 
+                          ? t('upload.textInput.labelWithFiles')
+                          : t('upload.textInput.labelWithoutFiles')}
+                      </label>
+                      <Textarea
+                        id="textContent"
+                        placeholder={files.length > 0 
+                          ? t('upload.textInput.placeholderWithFiles')
+                          : t('upload.textInput.placeholderWithoutFiles')
+                        }
+                        value={inputText}
+                        onChange={(e) => setInputText(e.target.value)}
+                        className="min-h-[100px] resize-y"
+                      />
+                      {files.length > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          {t('upload.textInput.helpWithFiles')}
+                        </p>
                       )}
                     </div>
 
-                    <motion.div 
-                      variants={itemVariants}
-                      className="relative"
-                    >
-                      <Textarea
-                        placeholder={t('upload.textPlaceholder')}
-                        value={inputText}
-                        onChange={(e) => setInputText(e.target.value)}
-                        className="resize-none min-h-[100px]"
-                      />
-                    </motion.div>
+                    {/* PDF Processing Status */}
+                    {pdfProcessingStatus && (
+                      <div className="text-sm text-muted-foreground font-mono">
+                        <p>{pdfProcessingStatus}</p>
+                      </div>
+                    )}
+                    
+                    {/* Submit button - moved to footer */}
                   </motion.div>
                 </CardContent>
               </Card>
@@ -443,26 +315,33 @@ export default function UploadPage() {
 
       {/* Fixed footer */}
       <footer className="fixed bottom-0 left-0 right-0 bg-background border-t border-border shadow-md py-4 z-10">
-        <div className="container max-w-4xl mx-auto flex justify-end gap-4">
+        <div className="container max-w-4xl mx-auto flex justify-center space-x-4">
           <Button 
             onClick={handleCancel}
             variant="outline"
-            className="transition-all hover:border-accent hover:border-2 hover:shadow-[0_0_10px_rgba(var(--color-accent)/0.3)]"
+            size="lg"
+            className="transition-all hover:bg-primary/10 hover:border-secondary hover:border-2 hover:shadow-[0_0_15px_rgba(var(--color-secondary)/0.4)]"
           >
+            <X className="mr-2 h-4 w-4" />
             {t('common.cancel')}
           </Button>
+          
           <Button 
-            onClick={handleGenerateSummary}
-            disabled={isLoading || (!files.length && !inputText)}
+            onClick={handleSubmit}
+            disabled={isLoading || (files.length === 0 && !inputText.trim())}
+            size="lg"
             className="transition-all hover:border-primary hover:border-2 hover:shadow-[0_0_15px_rgba(var(--color-primary)/0.5)]"
           >
             {isLoading ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {t('upload.button.generating')} ({displayTime})
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
+                {t('upload.processing')} {displayTime}
               </>
             ) : (
-              t('upload.process')
+              <>
+                <Zap className="mr-2 h-4 w-4" />
+                {t('upload.process')}
+              </>
             )}
           </Button>
         </div>

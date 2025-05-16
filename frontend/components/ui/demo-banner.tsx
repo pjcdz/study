@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { AlertCircle } from 'lucide-react'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Beaker } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { Badge } from '@/components/ui/badge'
 
 export function DemoBanner() {
   const [isDemoMode, setIsDemoMode] = useState(false)
@@ -20,11 +20,12 @@ export function DemoBanner() {
   if (!isDemoMode) return null
   
   return (
-    <Alert variant="default" className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center bg-yellow-100 border-yellow-400 text-yellow-800 py-2">
-      <AlertCircle className="h-4 w-4 mr-2" />
-      <AlertDescription>
-        🧪 {t('common.demoBanner') || 'Demo Mode: Using fixed content for testing'}
-      </AlertDescription>
-    </Alert>
+    <Badge 
+      variant="outline" 
+      className="fixed top-2 right-2 z-50 bg-yellow-50/70 hover:bg-yellow-50 text-yellow-700 border-yellow-200 py-1 px-2 text-xs font-normal shadow-sm"
+    >
+      <Beaker className="h-3 w-3 mr-1" />
+      {t('common.demoBanner') || 'Demo Mode'}
+    </Badge>
   )
 }

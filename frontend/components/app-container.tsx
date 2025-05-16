@@ -3,13 +3,16 @@
 import { Progress } from "@/components/ui/progress";
 import { WorkflowTabs } from "@/components/navigation/tab-nav";
 import { useUploadStore } from "@/store/use-upload-store";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect } from "react";
-import LanguageSwitcher from "@/components/settings/language-switcher";
-import ThemeSwitcher from "@/components/settings/theme-switcher";
+import { LanguageSwitcher } from "@/components/settings/language-switcher";
+import { ThemeSwitcher } from "@/components/settings/theme-switcher";
 import Link from "next/link";
 import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { KeyRound } from "lucide-react";
+import { useApiKey } from "@/lib/hooks/useApiKey";
 
 export default function AppContainer({
   children,
@@ -18,7 +21,9 @@ export default function AppContainer({
 }) {
   const { currentStep, setCurrentStep } = useUploadStore();
   const pathname = usePathname();
+  const router = useRouter();
   const t = useTranslations("app");
+  const { isAvailable } = useApiKey();
 
   // Actualizar el paso actual basado en la URL
   useEffect(() => {
@@ -31,6 +36,16 @@ export default function AppContainer({
     }
   }, [pathname, setCurrentStep]);
 
+  // Redireccionar a /api si no hay API key
+  useEffect(() => {
+    // No redireccionar si ya estamos en /api o si es la página raíz
+    if (!isAvailable && !pathname.includes('/api') && 
+        pathname.split('/').length > 2 && pathname !== `/${pathname.split('/')[1]}`) {
+      const locale = pathname.split('/')[1];
+      router.push(`/${locale}/api`);
+    }
+  }, [isAvailable, pathname, router]);
+
   // Calcular progreso basado en el paso actual
   const getProgress = () => {
     switch (currentStep) {
@@ -39,6 +54,12 @@ export default function AppContainer({
       case 'flashcards': return 100;
       default: return 33;
     }
+  };
+
+  // Ir a la página de API
+  const goToApiPage = () => {
+    const locale = pathname.split('/')[1];
+    router.push(`/${locale}/api`);
   };
 
   return (
@@ -63,6 +84,17 @@ export default function AppContainer({
             </Link>
           </div>
           <div className="flex items-center space-x-2">
+            {/* Botón de API */}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={goToApiPage}
+              className={`mr-2 ${!isAvailable ? "border-red-500 text-red-500 hover:bg-red-100 hover:text-red-600" : ""}`}
+            >
+              <KeyRound className="h-4 w-4 mr-1" />
+              API
+              {!isAvailable && <span className="ml-1 text-xs">⚠️</span>}
+            </Button>
             <ThemeSwitcher />
             <LanguageSwitcher />
           </div>

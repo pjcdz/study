@@ -66,37 +66,39 @@ export function WorkflowTabs() {
           </Tabs>
         </div>
         
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              title={t('restart')} 
-              className="ml-4 transition-all hover:border-ring hover:border-2 hover:shadow-[0_0_8px_rgba(var(--color-ring)/0.4)]"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>{t('restartConfirm')}</AlertDialogTitle>
-              <AlertDialogDescription>
-                {t('restartDescription')}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
-              <AlertDialogAction onClick={() => {
-                reset()
-                // Obtener el prefijo de idioma de la ruta actual
-                const localePrefix = pathname.split('/')[1]; // Obtiene 'es' o 'en', etc.
-                router.push(`/${localePrefix}/upload`)
-              }}>
-                {t('confirm')}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <div className="flex items-center gap-2">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                title={t('restart')} 
+                className="transition-all hover:border-ring hover:border-2 hover:shadow-[0_0_8px_rgba(var(--color-ring)/0.4)]"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{t('restartConfirm')}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {t('restartDescription')}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
+                <AlertDialogAction onClick={() => {
+                  reset()
+                  // Obtener el prefijo de idioma de la ruta actual
+                  const localePrefix = pathname.split('/')[1]; // Obtiene 'es' o 'en', etc.
+                  router.push(`/${localePrefix}/upload`)
+                }}>
+                  {t('confirm')}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </div>
     </div>
   )

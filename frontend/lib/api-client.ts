@@ -69,6 +69,12 @@ class ApiClient {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
   
+  // Get user API key from local storage
+  private getUserApiKey(): string | null {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('studyToolUserApiKey');
+  }
+  
   // Test the connection to make sure our backend is reachable
   public async testConnection(): Promise<boolean> {
     // Always return true in demo mode
@@ -100,28 +106,43 @@ class ApiClient {
     }
   }
   
-  async postSummary(content: string) {
+  // Process a summary with multimodal support
+  async processSummary(content: string | FormData, apiKey?: string) {
     // Return mock data in demo mode with a simulated delay
     if (this.useDemoContent) {
       console.log('🧪 Demo mode: Returning mock summary data');
-      // Add a simulated delay to mimic API response time
       await this.delay(1500);
       return mockSummaryResponse;
     }
     
     try {
-      console.log(`Sending content to backend, length: ${content.length}`);
+      // Get API key from parameter or from local storage
+      const userApiKey = apiKey || this.getUserApiKey();
+      if (!userApiKey) {
+        throw new ApiError('API Key no configurada. Por favor, configura tu API Key en Ajustes.', ApiErrorType.INVALID_API_KEY);
+      }
       
-      const options = {
+      let options: RequestInit = {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({ filesText: content }),
+          'Accept': 'application/json',
+          'X-User-API-Key': userApiKey
+        }
       };
       
-      console.log(`Sending POST request to ${this.baseUrl}/summary`);
+      // Handle both string content and FormData
+      if (typeof content === 'string') {
+        options.headers = {
+          ...options.headers,
+          'Content-Type': 'application/json'
+        };
+        options.body = JSON.stringify({ textPrompt: content });
+      } else {
+        // For FormData, don't set Content-Type header - browser will set it with correct boundary
+        options.body = content;
+      }
+      
+      console.log('Sending multimodal content to backend');
       const response = await fetch(`${this.baseUrl}/summary`, options);
       
       if (!response.ok) {
@@ -130,53 +151,64 @@ class ApiClient {
           errorType: ApiErrorType.UNKNOWN_ERROR
         }));
         
-        // Obtener el tipo de error del backend o asumir UNKNOWN_ERROR
+        // Map backend error types to client error types
         const errorType = errorData.errorType || ApiErrorType.UNKNOWN_ERROR;
-        
-        // Crear un error tipificado
         throw new ApiError(errorData.error || errorData.message || `Error ${response.status}`, errorType as ApiErrorType);
       }
       
       return await response.json();
     } catch (error) {
-      console.error('Error in postSummary:', error);
+      console.error('Error in processSummary:', error);
       
-      // Si ya es un ApiError, simplemente reenvíalo
       if (error instanceof ApiError) {
         throw error;
       }
       
-      // Si es un error de red, transformarlo a un ApiError con tipo NETWORK_ERROR
       if (error instanceof TypeError && error.message.includes('fetch')) {
-        throw new ApiError(`Network error connecting to API: ${error.message}`, ApiErrorType.NETWORK_ERROR);
+        throw new ApiError(`Error de red al conectar con la API: ${error.message}`, ApiErrorType.NETWORK_ERROR);
       }
       
-      // Cualquier otro error se considera desconocido
-      throw new ApiError((error as Error).message || 'Unknown error in API client');
+      throw new ApiError((error as Error).message || 'Error desconocido en el cliente API');
     }
   }
   
-  async postFlashcards(markdown: string) {
+  // Process flashcards with multimodal support
+  async processFlashcards(content: string | FormData, apiKey?: string) {
     // Return mock data in demo mode with a simulated delay
     if (this.useDemoContent) {
       console.log('🧪 Demo mode: Returning mock flashcards data');
-      // Add a simulated delay to mimic API response time
       await this.delay(1200);
       return mockFlashcardsResponse;
     }
     
     try {
-      console.log(`Sending POST request for flashcards, markdown length: ${markdown.length}`);
+      // Get API key from parameter or from local storage
+      const userApiKey = apiKey || this.getUserApiKey();
+      if (!userApiKey) {
+        throw new ApiError('API Key no configurada. Por favor, configura tu API Key en Ajustes.', ApiErrorType.INVALID_API_KEY);
+      }
       
-      const options = {
+      let options: RequestInit = {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({ notionMarkdown: markdown }),
+          'Accept': 'application/json',
+          'X-User-API-Key': userApiKey
+        }
       };
       
+      // Handle both string content and FormData
+      if (typeof content === 'string') {
+        options.headers = {
+          ...options.headers,
+          'Content-Type': 'application/json'
+        };
+        options.body = JSON.stringify({ textPrompt: content });
+      } else {
+        // For FormData, don't set Content-Type header
+        options.body = content;
+      }
+      
+      console.log('Sending multimodal content to backend for flashcards');
       const response = await fetch(`${this.baseUrl}/flashcards`, options);
       
       if (!response.ok) {
@@ -185,53 +217,63 @@ class ApiClient {
           errorType: ApiErrorType.UNKNOWN_ERROR
         }));
         
-        // Obtener el tipo de error del backend o asumir UNKNOWN_ERROR
         const errorType = errorData.errorType || ApiErrorType.UNKNOWN_ERROR;
-        
-        // Crear un error tipificado
         throw new ApiError(errorData.error || errorData.message || `Error ${response.status}`, errorType as ApiErrorType);
       }
       
       return await response.json();
     } catch (error) {
-      console.error('Error in postFlashcards:', error);
+      console.error('Error in processFlashcards:', error);
       
-      // Si ya es un ApiError, simplemente reenvíalo
       if (error instanceof ApiError) {
         throw error;
       }
       
-      // Si es un error de red, transformarlo a un ApiError con tipo NETWORK_ERROR
       if (error instanceof TypeError && error.message.includes('fetch')) {
-        throw new ApiError(`Network error connecting to API: ${error.message}`, ApiErrorType.NETWORK_ERROR);
+        throw new ApiError(`Error de red al conectar con la API: ${error.message}`, ApiErrorType.NETWORK_ERROR);
       }
       
-      // Cualquier otro error se considera desconocido
-      throw new ApiError((error as Error).message || 'Unknown error in API client');
+      throw new ApiError((error as Error).message || 'Error desconocido en el cliente API');
     }
   }
+  
+  // For backward compatibility
+  async postSummary(content: string) {
+    console.warn('DEPRECATED: postSummary() is deprecated. Please use processSummary() instead.');
+    return this.processSummary(content);
+  }
+  
+  // For backward compatibility
+  async postFlashcards(markdown: string) {
+    console.warn('DEPRECATED: postFlashcards() is deprecated. Please use processFlashcards() instead.');
+    return this.processFlashcards(markdown);
+  }
 
-  async condenseSummary(summaryText: string) {
+  async condenseSummary(markdownContent: string, condensationType: 'shorter' | 'clarity' | 'examples' = 'shorter', apiKey?: string) {
     // Return a condensed version of the mock data in demo mode
     if (this.useDemoContent) {
       console.log('🧪 Demo mode: Returning mock condensed summary');
-      // Add a simulated delay to mimic API response time
       await this.delay(1000);
-      
-      // Return the mock condensed summary response
       return mockCondensedSummaryResponse;
     }
     
     try {
-      console.log(`Sending condensing request, summary length: ${summaryText.length}`);
+      // Get API key from parameter or from local storage
+      const userApiKey = apiKey || this.getUserApiKey();
+      if (!userApiKey) {
+        throw new ApiError('API Key no configurada. Por favor, configura tu API Key en Ajustes.', ApiErrorType.INVALID_API_KEY);
+      }
+      
+      console.log(`Sending condensing request, summary length: ${markdownContent.length}`);
       
       const options = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json'
+          'Accept': 'application/json',
+          'X-User-API-Key': userApiKey
         },
-        body: JSON.stringify({ summaryText }),
+        body: JSON.stringify({ markdownContent, condensationType }),
       };
       
       console.log(`Sending POST request to ${this.baseUrl}/summary/condense`);
@@ -243,10 +285,7 @@ class ApiClient {
           errorType: ApiErrorType.UNKNOWN_ERROR
         }));
         
-        // Obtener el tipo de error del backend o asumir UNKNOWN_ERROR
         const errorType = errorData.errorType || ApiErrorType.UNKNOWN_ERROR;
-        
-        // Crear un error tipificado
         throw new ApiError(errorData.error || errorData.message || `Error ${response.status}`, errorType as ApiErrorType);
       }
       
@@ -254,18 +293,15 @@ class ApiClient {
     } catch (error) {
       console.error('Error in condenseSummary:', error);
       
-      // Si ya es un ApiError, simplemente reenvíalo
       if (error instanceof ApiError) {
         throw error;
       }
       
-      // Si es un error de red, transformarlo a un ApiError con tipo NETWORK_ERROR
       if (error instanceof TypeError && error.message.includes('fetch')) {
-        throw new ApiError(`Network error connecting to API: ${error.message}`, ApiErrorType.NETWORK_ERROR);
+        throw new ApiError(`Error de red al conectar con la API: ${error.message}`, ApiErrorType.NETWORK_ERROR);
       }
       
-      // Cualquier otro error se considera desconocido
-      throw new ApiError((error as Error).message || 'Unknown error in API client');
+      throw new ApiError((error as Error).message || 'Error desconocido en el cliente API');
     }
   }
 }

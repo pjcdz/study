@@ -7,7 +7,7 @@ Esta actualización migra Study Tool para utilizar gemini-1.5-pro-latest con cap
 ## 1. Archivos Modificados
 
 ### geminiClient.js
-- Actualizado para usar el modelo "gemini-1.5-pro-latest"
+- Actualizado para usar el modelo "gemini-1.5-pro"
 - Implementado soporte para contenido multimodal (texto + archivos)
 - Agregada función `fileToGenerativePart` para convertir archivos a formato base64
 - Implementada nueva función principal `generateMultimodalContent` que acepta API Key del usuario

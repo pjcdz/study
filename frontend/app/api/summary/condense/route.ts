@@ -17,7 +17,7 @@ const mockCondensedResponse = {
   }
 };
 
-export const POST = async (request: NextRequest) => {
+export async function POST(request: NextRequest) {
   try {
     // Check if we're in demo mode
     const useDemoContent = process.env.USE_DEMO_CONTENT === 'true';
@@ -30,6 +30,15 @@ export const POST = async (request: NextRequest) => {
       return NextResponse.json(mockCondensedResponse);
     }
     
+    // Get the user API key from the request headers
+    const userApiKey = request.headers.get('X-User-API-Key');
+    if (!userApiKey) {
+      return NextResponse.json(
+        { error: 'API Key no proporcionada', errorType: 'INVALID_API_KEY' },
+        { status: 401 }
+      );
+    }
+    
     // Get the body from the request
     const body = await request.json();
     
@@ -38,11 +47,12 @@ export const POST = async (request: NextRequest) => {
     
     console.log(`API proxy: Forwarding condense summary request to ${backendUrl}/summary/condense`);
     
-    // Forward the request to the backend
+    // Forward the request to the backend with the user API key
     const response = await fetch(`${backendUrl}/summary/condense`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'X-User-API-Key': userApiKey
       },
       body: JSON.stringify(body),
       // Important for Docker networking
