@@ -132,13 +132,22 @@ export default function UploadPage() {
 
   const processPdfFiles = async () => {
     const pdfFiles = files.filter(file => file.type === 'application/pdf');
+    const { originalFiles } = useUploadStore.getState();
     let allText = '';
     
     // Process all PDF files
-    for (const file of pdfFiles) {
+    for (let i = 0; i < pdfFiles.length; i++) {
+      const file = pdfFiles[i];
+      const originalFile = originalFiles.find(f => f.name === file.name);
+      
+      if (!originalFile) {
+        toast.error(t('upload.toast.pdfError', { name: file.name }));
+        continue;
+      }
+      
       try {
         toast.info(t('upload.toast.processingPdf', { name: file.name }));
-        const extractedText = await extractPdfText(file);
+        const extractedText = await extractPdfText(originalFile);
         allText += extractedText + '\n\n';
         toast.success(t('upload.toast.pdfProcessed', { name: file.name }));
       } catch (error) {
@@ -177,7 +186,7 @@ export default function UploadPage() {
       }
       
       // Send the request
-      const response = await apiClient.generateSummary({ content: contentToSend });
+      const response = await apiClient.processSummary(contentToSend);
       
       // Stop processing timer
       stopProcessing();
@@ -264,7 +273,7 @@ export default function UploadPage() {
                   >
                     {/* File Upload */}
                     <div className="space-y-4">
-                      <FileDropzone onFileAccepted={addFiles} />
+                      <FileDropzone addFiles={addFiles} />
                       {files.length > 0 && (
                         <FileList files={files} onRemove={removeFile} />
                       )}
