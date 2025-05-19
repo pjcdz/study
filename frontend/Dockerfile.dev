@@ -1,19 +1,24 @@
 # Development Dockerfile for Next.js frontend
-FROM node:23-alpine
+FROM node:23
 
 # Set working directory
 WORKDIR /app
 
-# Install dependencies
+# Copy package files for dependency installation
 COPY package*.json ./
+
+# Install dependencies
 RUN npm install
+
+# Copy the rest of the application
+COPY . .
 
 # Create environment variables to disable Telemetry
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=development
 
-# Expose development port
+# Expose the development port
 EXPOSE 3000
 
-# Start development server - standard Next.js dev server without any flags
+# Start the development server
 CMD ["npm", "run", "dev"]

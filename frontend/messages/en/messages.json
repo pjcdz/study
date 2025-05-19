@@ -29,6 +29,10 @@
     "title": "Add Study Material",
     "description": "Upload files or enter text to generate a summary.",
     "multimodalDescription": "Upload a file (PDF or image) and/or enter text to generate a summary.",
+    "apiKeyDialog": {
+      "title": "API Key Required",
+      "configure": "Configure API Key"
+    },
     "dropzone": {
       "title": "Drag and drop files here",
       "or": "or",
@@ -63,8 +67,14 @@
       "apiKeyError": "API authentication error. Please check your API key in Settings.",
       "processingPdf": "Processing PDF: {name}",
       "pdfProcessed": "PDF processed successfully: {name}",
-      "pdfError": "Error processing PDF: {name}"
-    }
+      "pdfError": "Error processing PDF: {name}",
+      "apiKeyMissing": "You cannot upload a file without configuring your API key first",
+      "fileTooLarge": "File is too large to process even with the Files API.",
+      "fileProcessingFailed": "File processing failed on the server. Try with a different file or format.",
+      "invalidApiKey": "Invalid API key. Please configure your API key."
+    },
+    "processingLargeFile": "Processing large file",
+    "processing": "Processing"
   },
   "summary": {
     "title": "Generated Summary",
@@ -196,7 +206,8 @@
     "success": {
       "keySaved": "API Key saved successfully",
       "keyCleared": "API Key cleared",
-      "keyCopied": "API Key copied to clipboard"
+      "keyCopied": "API Key copied to clipboard",
+      "savingKey": "Saving API key..."
     }
   },
   "settings": {

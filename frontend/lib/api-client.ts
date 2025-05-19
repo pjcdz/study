@@ -3,6 +3,8 @@ export enum ApiErrorType {
   QUOTA_EXCEEDED = 'QUOTA_EXCEEDED',
   NETWORK_ERROR = 'NETWORK_ERROR',
   INVALID_API_KEY = 'INVALID_API_KEY',
+  FILE_TOO_LARGE = 'FILE_TOO_LARGE', // Añadido para manejar archivos grandes
+  FILE_PROCESSING_FAILED = 'FILE_PROCESSING_FAILED', // Añadido para manejar fallos en el procesamiento de archivos
   UNKNOWN_ERROR = 'UNKNOWN_ERROR'
 }
 
@@ -30,9 +32,21 @@ class ApiClient {
   constructor() {
     const isClient = typeof window !== 'undefined';
     
-    // Check if demo content mode is enabled
-    this.useDemoContent = process.env.USE_DEMO_CONTENT === 'true' || 
-                          (isClient && window.localStorage.getItem('USE_DEMO_CONTENT') === 'true');
+    // Check if demo content mode is enabled - give priority to env variable if explicitly set
+    if (process.env.USE_DEMO_CONTENT === 'false') {
+      // Explicitly disabled by environment variable - this takes precedence
+      this.useDemoContent = false;
+      
+      // Clear any localStorage setting that might be causing confusion
+      if (isClient && window.localStorage.getItem('USE_DEMO_CONTENT') === 'true') {
+        console.log('🧪 Demo mode: Clearing localStorage value as env variable is set to false');
+        window.localStorage.removeItem('USE_DEMO_CONTENT');
+      }
+    } else {
+      // Otherwise check both env var and localStorage (for backwards compatibility)
+      this.useDemoContent = process.env.USE_DEMO_CONTENT === 'true' || 
+                           (isClient && window.localStorage.getItem('USE_DEMO_CONTENT') === 'true');
+    }
     
     if (this.useDemoContent) {
       console.log('🧪 API Client initialized in DEMO mode - using mock data');
@@ -292,6 +306,62 @@ class ApiClient {
       return await response.json();
     } catch (error) {
       console.error('Error in condenseSummary:', error);
+      
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new ApiError(`Error de red al conectar con la API: ${error.message}`, ApiErrorType.NETWORK_ERROR);
+      }
+      
+      throw new ApiError((error as Error).message || 'Error desconocido en el cliente API');
+    }
+  }
+
+  // Get the status of files being processed by the Files API
+  async getFileProcessingStatus(apiKey?: string) {
+    // In demo mode, simulate with sample data
+    if (this.useDemoContent) {
+      await this.delay(500);
+      return {
+        fileStatus: {
+          'demo_file_1.pdf': 'PROCESSED',
+          'demo_file_2.pdf': 'PROCESSING'
+        }
+      };
+    }
+    
+    try {
+      // Get API key from parameter or from local storage
+      const userApiKey = apiKey || this.getUserApiKey();
+      if (!userApiKey) {
+        throw new ApiError('API Key no configurada. Por favor, configura tu API Key en Ajustes.', ApiErrorType.INVALID_API_KEY);
+      }
+      
+      const options = {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'X-User-API-Key': userApiKey
+        }
+      };
+      
+      const response = await fetch(`${this.baseUrl}/files/status`, options);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ 
+          message: `HTTP Error ${response.status}`,
+          errorType: ApiErrorType.UNKNOWN_ERROR
+        }));
+        
+        const errorType = errorData.errorType || ApiErrorType.UNKNOWN_ERROR;
+        throw new ApiError(errorData.error || errorData.message || `Error ${response.status}`, errorType as ApiErrorType);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error in getFileProcessingStatus:', error);
       
       if (error instanceof ApiError) {
         throw error;

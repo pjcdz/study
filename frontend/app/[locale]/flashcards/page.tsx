@@ -215,10 +215,23 @@ export default function FlashcardsPage() {
                 <AlertDialogFooter>
                   <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
                   <AlertDialogAction onClick={() => {
+                    // Reset the app state
                     reset()
+                    
+                    // Clear all summaries and flashcards from local storage
+                    if (typeof window !== 'undefined') {
+                      localStorage.removeItem('studyToolSummaries')
+                      localStorage.removeItem('studyToolFlashcards')
+                      localStorage.removeItem('studyToolCurrentStep')
+                      localStorage.removeItem('studyToolCurrentSummaryIndex')
+                    }
+                    
                     // Obtener el prefijo de idioma de la ruta actual
                     const localePrefix = pathname.split('/')[1];
                     router.push(`/${localePrefix}/upload`)
+                    
+                    // Show confirmation toast
+                    toast.success(t('toast.resetSuccess', { defaultValue: 'All data cleared. Ready to start a new session.' }))
                   }}>
                     {tNav('confirm')}
                   </AlertDialogAction>

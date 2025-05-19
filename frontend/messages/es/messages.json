@@ -27,9 +27,14 @@
     "textPlaceholder": "Escribe o pega tu texto aquí...",
     "process": "Procesar",
     "processing": "Procesando",
+    "processingLargeFile": "Procesando archivo grande",
     "title": "Añadir Material de Estudio",
     "description": "Sube archivos o ingresa texto para generar un resumen.",
     "multimodalDescription": "Sube un archivo (PDF o imagen) y/o ingresa texto para generar un resumen.",
+    "apiKeyDialog": {
+      "title": "API Key Requerida",
+      "configure": "Configurar API Key"
+    },
     "dropzone": {
       "title": "Arrastra y suelta archivos aquí",
       "or": "o",
@@ -59,12 +64,16 @@
     "toast": {
       "success": "El resumen ha sido generado exitosamente",
       "error": "No se pudo generar el resumen: {message}",
-      "quotaExceeded": "Se ha excedido el límite de uso de la API. Por favor, intente más tarde.",
-      "networkError": "Error de conexión. Por favor, verifique su internet e intente de nuevo.",
-      "apiKeyError": "Error de autenticación de la API. Por favor, verifique su API Key en Configuración.",
+      "quotaExceeded": "Límite de uso de API excedido. Por favor, intenta más tarde.",
+      "networkError": "Error de conexión de red. Por favor, verifica tu internet e intenta de nuevo.",
+      "apiKeyError": "Error de autenticación de API. Por favor, verifica tu API key en Configuración.",
       "processingPdf": "Procesando PDF: {name}",
-      "pdfProcessed": "PDF procesado con éxito: {name}",
-      "pdfError": "Error al procesar PDF: {name}"
+      "pdfProcessed": "PDF procesado exitosamente: {name}",
+      "pdfError": "Error procesando PDF: {name}",
+      "apiKeyMissing": "No puedes subir un archivo sin configurar tu API key primero",
+      "fileTooLarge": "El archivo es demasiado grande para procesar, incluso con la API de archivos.",
+      "fileProcessingFailed": "El procesamiento del archivo ha fallado en el servidor. Intenta con otro archivo o formato.",
+      "invalidApiKey": "API key inválida. Por favor, configura tu API key."
     }
   },
   "summary": {
@@ -195,7 +204,8 @@
     "success": {
       "keySaved": "API Key guardada exitosamente",
       "keyCleared": "API Key eliminada",
-      "keyCopied": "API Key copiada al portapapeles"
+      "keyCopied": "API Key copiada al portapapeles",
+      "savingKey": "Guardando API key..."
     }
   },
   "settings": {

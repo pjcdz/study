@@ -1,13 +1,34 @@
-import { generateMultimodalContent, fileToGenerativePart, ERROR_TYPES } from '../services/geminiClient.js';
+import geminiClient, { 
+  generateMultimodalContent, 
+  processFileForGemini,
+  cleanupFile,
+  ERROR_TYPES, 
+  MAX_INLINE_FILE_SIZE 
+} from '../services/geminiClient.js';
 import { prompts } from '../config/prompts.js';
+import multer from 'multer';
+import fs from 'fs';
+import path from 'path';
+import { promisify } from 'util';
+const readFileAsync = promisify(fs.readFile);
+
+// Configure multer for memory storage
+const storage = multer.memoryStorage();
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 100 * 1024 * 1024 } // Aumentado a 100MB para soportar PDFs grandes
+});
 
 export const summaryController = {
   /**
    * Process text and files content to generate a Notion-formatted summary
-   * @param {object} req - Request object with textPrompt in body and file in req.file
+   * @param {object} req - Request object with textPrompt in body and file in req.files
    * @param {object} res - Response object
    */
   getSummary: async (req, res) => {
+    // Track uploaded file IDs
+    const uploadedFileIds = [];
+    
     try {
       console.log("Summary controller received request");
       
@@ -17,9 +38,8 @@ export const summaryController = {
         return res.status(401).json({ error: "API Key no proporcionada." });
       }
       
-      // Get text prompt and file from request
+      // Get text prompt from request
       const { textPrompt } = req.body;
-      const file = req.file;
       
       // Prepare parts array for multimodal content
       const parts = [];
@@ -29,29 +49,69 @@ export const summaryController = {
         parts.push({ text: textPrompt });
       }
       
-      // Add file to parts if provided
-      if (file) {
-        console.log(`Received file: ${file.originalname}, type: ${file.mimetype}, size: ${file.size} bytes`);
-        parts.push(fileToGenerativePart(file.buffer, file.mimetype));
+      // Add files to parts if provided
+      if (req.files && req.files.length > 0) {
+        console.log(`Received ${req.files.length} files`);
+        
+        for (const file of req.files) {
+          console.log(`Processing file: ${file.originalname}, type: ${file.mimetype}, size: ${Math.round(file.size / (1024 * 1024))}MB`);
+          
+          try {
+            // Process file for Gemini
+            const filePart = await processFileForGemini(
+              file.buffer, 
+              file.mimetype, 
+              userApiKey,
+              file.originalname
+            );
+            
+            // Store the file ID for later cleanup if it exists
+            if (filePart.fileId) {
+              uploadedFileIds.push(filePart.fileId);
+            }
+            
+            parts.push(filePart);
+          } catch (fileError) {
+            console.error(`Error procesando archivo ${file.originalname}:`, fileError);
+            // Attempt to clean up any files already uploaded before returning error
+            if (uploadedFileIds.length > 0) {
+              console.log(`Cleaning up ${uploadedFileIds.length} files due to processing error`);
+              for (const fileId of uploadedFileIds) {
+                await cleanupFile(fileId, userApiKey).catch(err => 
+                  console.log(`Non-critical error during file cleanup: ${err.message}`)
+                );
+              }
+            }
+            return res.status(400).json({
+              error: `Error procesando archivo ${file.originalname}: ${fileError.message}`,
+              errorType: fileError.type || ERROR_TYPES.UNKNOWN_ERROR
+            });
+          }
+        }
       }
       
-      // Validate that either text or file is provided
+      // Validate that either text or files are provided
       if (parts.length === 0) {
         return res.status(400).json({ error: "Se requiere un archivo o un texto para procesar" });
       }
-        // If only a file was uploaded with no text prompt, add a default prompt
-      if (file && (!textPrompt || textPrompt.trim() === "")) {
-        let defaultPrompt;
+      
+      // If only files were uploaded with no text prompt, add a default prompt
+      if ((req.files && req.files.length > 0) && (!textPrompt || textPrompt.trim() === "")) {
+        let defaultPrompt = "Por favor analiza el contenido de estos archivos y genera un resumen detallado en formato Notion Markdown siguiendo todas las instrucciones establecidas.";
         
-        if (file.mimetype === 'application/pdf') {
-          defaultPrompt = `Este es un documento PDF llamado "${file.originalname}". Por favor analiza su contenido completo y genera un resumen detallado en formato Notion Markdown siguiendo todas las instrucciones establecidas. El resumen debe ser extenso, completo y bien estructurado.`;
-        } else {
-          defaultPrompt = `Esta es una imagen llamada "${file.originalname}". Por favor analiza su contenido visual y genera un resumen detallado en formato Notion Markdown siguiendo todas las instrucciones establecidas. El resumen debe incluir todos los elementos visuales importantes y el texto visible en la imagen.`;
+        // If only one file, make the prompt more specific
+        if (req.files.length === 1) {
+          const file = req.files[0];
+          if (file.mimetype === 'application/pdf') {
+            defaultPrompt = `Este es un documento PDF llamado "${file.originalname}". Por favor analiza su contenido completo y genera un resumen detallado en formato Notion Markdown siguiendo todas las instrucciones establecidas. El resumen debe ser extenso, completo y bien estructurado.`;
+          } else if (file.mimetype.startsWith('image/')) {
+            defaultPrompt = `Esta es una imagen llamada "${file.originalname}". Por favor analiza su contenido visual y genera un resumen detallado en formato Notion Markdown siguiendo todas las instrucciones establecidas. El resumen debe incluir todos los elementos visuales importantes y el texto visible en la imagen.`;
+          }
         }
         
         // Add default prompt as first item in parts
         parts.unshift({ text: defaultPrompt });
-        console.log(`Added default prompt for ${file.mimetype} file`);
+        console.log(`Added default prompt for ${req.files.length} files`);
       }
       
       // Get the system instruction from prompts
@@ -62,12 +122,22 @@ export const summaryController = {
         console.log('Calling Gemini API with multimodal content...');
         const startTime = Date.now();
         
-        // Use the new multimodal function
+        // Use the multimodal function
         const geminiResponse = await generateMultimodalContent(userApiKey, parts, systemInstruction);
         const generationTime = Date.now() - startTime;
         
         console.log('Successfully received response from Gemini API');
         console.log(`Total generation time including network: ${generationTime}ms`);
+        
+        // Clean up uploaded files after successful processing
+        if (uploadedFileIds.length > 0) {
+          console.log(`Cleaning up ${uploadedFileIds.length} files after successful processing`);
+          for (const fileId of uploadedFileIds) {
+            await cleanupFile(fileId, userApiKey).catch(err => 
+              console.log(`Non-critical error during file cleanup: ${err.message}`)
+            );
+          }
+        }
         
         // Extract the markdown generated and the metrics
         const { generatedText: notionMarkdown, stats } = geminiResponse;
@@ -83,6 +153,16 @@ export const summaryController = {
       } catch (geminiError) {
         console.error('Gemini API error:', geminiError);
         
+        // Attempt to clean up any files already uploaded
+        if (uploadedFileIds.length > 0) {
+          console.log(`Cleaning up ${uploadedFileIds.length} files due to Gemini API error`);
+          for (const fileId of uploadedFileIds) {
+            await cleanupFile(fileId, userApiKey).catch(err => 
+              console.log(`Non-critical error during file cleanup: ${err.message}`)
+            );
+          }
+        }
+        
         // Extract the error type and status code
         const errorType = geminiError.type || ERROR_TYPES.UNKNOWN_ERROR;
         const statusCode = geminiError.status || 500;
@@ -95,6 +175,19 @@ export const summaryController = {
       }
     } catch (error) {
       console.error('Unexpected error in getSummary controller:', error);
+      
+      // Attempt to clean up any files already uploaded
+      if (uploadedFileIds && uploadedFileIds.length > 0 && req && req.headers) {
+        const userApiKey = req.headers['x-user-api-key'];
+        if (userApiKey) {
+          console.log(`Cleaning up ${uploadedFileIds.length} files due to unexpected error`);
+          for (const fileId of uploadedFileIds) {
+            await cleanupFile(fileId, userApiKey).catch(err => 
+              console.log(`Non-critical error during file cleanup: ${err.message}`)
+            );
+          }
+        }
+      }
       
       // Ensure we always return a valid JSON response
       return res.status(500).json({ 
@@ -109,7 +202,8 @@ export const summaryController = {
    * Further condense an existing summary in Markdown format
    * @param {object} req - Request object with summaryText in body
    * @param {object} res - Response object
-   */  condenseExistingSummary: async (req, res) => {
+   */  
+  condenseExistingSummary: async (req, res) => {
     try {
       console.log("Condense summary controller received request");
       

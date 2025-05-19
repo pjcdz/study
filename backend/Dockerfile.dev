@@ -4,17 +4,21 @@ FROM node:20-alpine
 # Set working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json
+# Copy package files first for better layer caching
 COPY package.json package-lock.json ./
 
-# Install all dependencies including development dependencies
-RUN npm install
+# Clean install dependencies with --no-cache to ensure fresh installation
+RUN npm ci --no-cache
+
+# Copy the rest of the app
+COPY . .
 
 # Set environment variables
 ENV NODE_ENV=development
+ENV NODE_PATH=./node_modules
 
 # Expose port 4000
 EXPOSE 4000
 
-# Command to start the application with nodemon for hot reloading
+# Development mode command
 CMD ["npm", "run", "dev"]

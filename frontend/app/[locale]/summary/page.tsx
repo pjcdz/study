@@ -144,9 +144,15 @@ export default function SummaryPage() {
     }
   }
 
-  // New handler for "Resumir más" functionality
+  // New handler for "Condense more" functionality
   const handleCondenseSummary = async () => {
     try {
+      // Limit to 3 versions total
+      if (summaries.length >= 3) {
+        toast.info(t('toast.maxVersionsReached', { defaultValue: 'Maximum number of summary versions reached (3)' }))
+        return
+      }
+      
       // Use separate loading state for condensing
       setIsCondensing(true)
       startProcessing()
@@ -157,19 +163,9 @@ export default function SummaryPage() {
       // Get the condensed summary from the response
       const { condensedSummary } = response;
       
-      // Reset summaries to keep only original and newest condensed version
-      // This prevents accumulating multiple versions
-      if (summaries.length >= 2) {
-        // Keep only the first summary (original) and replace the second with new condensed
-        const updatedSummaries = [summaries[0], condensedSummary];
-        useUploadStore.setState({ 
-          summaries: updatedSummaries,
-          currentSummaryIndex: 1 // Set to show the condensed version
-        });
-      } else {
-        // Just add the new condensed summary if there's only one summary
-        addSummary(condensedSummary);
-      }
+      // Add the new condensed summary and move to it
+      addSummary(condensedSummary);
+      setCurrentSummaryIndex(summaries.length); // This points to the newly added summary
       
       toast.success(t('toast.condensed', { defaultValue: 'Summary condensed successfully' }))
       

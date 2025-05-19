@@ -7,8 +7,9 @@ services:
       - "3000:3000"
     volumes:
       - ./frontend:/app
-      - /app/node_modules
       - /app/.next
+      # Add a named volume for node_modules to prevent overwriting with host directory
+      - frontend-node-modules:/app/node_modules
     environment:
       - CHOKIDAR_USEPOLLING=true
       - NODE_ENV=development
@@ -17,7 +18,7 @@ services:
       # Set the backend URL for server-side API routes
       - BACKEND_URL=http://backend:4000
       # Demo mode with fixed content for development/testing
-      - USE_DEMO_CONTENT=true
+      - USE_DEMO_CONTENT=false
     depends_on:
       - backend
     networks:
@@ -31,13 +32,16 @@ services:
       - "4000:4000"
     volumes:
       - ./backend:/app
-      - /app/node_modules
     environment:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - NODE_ENV=development
     networks:
       - study-network
     command: npm run dev
+
+# Define named volumes
+volumes:
+  frontend-node-modules:
 
 networks:
   study-network:

@@ -25,6 +25,12 @@ export function WorkflowTabs() {
   const t = useTranslations('navigation')
   const tCommon = useTranslations('common')
   
+  // Check if we're on the API page
+  const isApiPage = pathname.includes('/api')
+  
+  // Set activeTab to either the current step or null if on API page
+  const activeTab = isApiPage ? null : currentStep
+  
   const handleTabChange = (value: string) => {
     // Validaciones para evitar navegación a pasos no completados
     if (value === 'summary' && (!summaries || summaries.length === 0)) {
@@ -45,7 +51,7 @@ export function WorkflowTabs() {
       <div className="container max-w-7xl px-4 sm:px-6 lg:px-8 mx-auto flex items-center justify-between py-2">
         <div className="w-full flex justify-center">
           <Tabs 
-            value={currentStep} 
+            value={activeTab || ""} 
             onValueChange={handleTabChange} 
             className="w-full max-w-lg"
           >

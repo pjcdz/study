@@ -27,6 +27,13 @@ export default function AppContainer({
 
   // Actualizar el paso actual basado en la URL
   useEffect(() => {
+    // If we're on the API page, don't set any active step
+    if (pathname.includes('/api')) {
+      // Optional: you could set a special value or leave it as is
+      // setCurrentStep('api');
+      return;
+    }
+    
     if (pathname.includes('/upload')) {
       setCurrentStep('upload');
     } else if (pathname.includes('/summary')) {
@@ -73,12 +80,13 @@ export default function AppContainer({
               className="flex items-center gap-2 hover:opacity-80 transition-opacity"
             >
               <Image 
-                src="/logo.png" 
+                src="/favicon.ico" 
                 alt="Study App Logo" 
                 width={24}
                 height={24}
-                unoptimized
                 className="w-6 h-6"
+                priority
+                unoptimized
               />
               <h1 className="text-2xl font-bold">{t("name")}</h1>
             </Link>

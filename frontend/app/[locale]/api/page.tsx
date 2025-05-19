@@ -22,20 +22,36 @@ export default function ApiPage() {
   const pathname = usePathname()
 
   // Guardar la API key
-  const handleSaveApiKey = () => {
+  const handleSaveApiKey = async () => {
     if (!apiKey.trim()) {
       toast.error(t('errors.emptyKey'))
       return
     }
     
-    // Guardar API key
-    saveApiKey(apiKey)
-    toast.success(t('success.keySaved'))
-    setApiKey("")
+    // Mostrar indicador de carga
+    const loadingToast = toast.loading(t('success.savingKey', {defaultValue: 'Guardando API key...'}))
     
-    // Redireccionar a la página de upload
-    const locale = pathname.split('/')[1]
-    router.push(`/${locale}/upload`)
+    try {
+      // Guardar API key usando la versión con promesa
+      await saveApiKey(apiKey)
+      
+      // Dismis loading toast y mostrar éxito
+      toast.dismiss(loadingToast)
+      toast.success(t('success.keySaved'))
+      setApiKey("")
+      
+      // Esperar un momento para asegurar que la UI se actualice (opcional)
+      setTimeout(() => {
+        // Redireccionar a la página de upload
+        const locale = pathname.split('/')[1]
+        router.push(`/${locale}/upload`)
+      }, 100)
+    } catch (error) {
+      // Dismis loading toast y mostrar error
+      toast.dismiss(loadingToast)
+      console.error('Error guardando API key:', error)
+      toast.error(t('errors.saveFailed', {defaultValue: 'Error al guardar la API key'}))
+    }
   }
   
   // Limpiar la API key
@@ -155,18 +171,7 @@ export default function ApiPage() {
                     </p>
                   </div>
                   
-                  {/* Botón prominente para obtener API key */}
-                  <Button 
-                    onClick={() => {
-                      window.open("https://aistudio.google.com/app/apikey", "_blank")
-                    }}
-                    className="w-full"
-                    size="lg"
-                    variant="default"
-                  >
-                    <ExternalLink className="mr-2 h-5 w-5" />
-                    {t('actions.getApiKey')}
-                  </Button>
+                  {/* Removed the Open Google AI Studio button as it's now in the fixed footer */}
                   
                   <div className="space-y-2">
                     <Input
@@ -217,11 +222,11 @@ export default function ApiPage() {
                   <li className="text-sm">
                     <span className="font-medium">{t('instructions.steps.step1.title')}</span>
                     <p className="mt-1 text-muted-foreground">
-                      {t('instructions.steps.step1.description')}
+                      Si ves la ventana emergente "It's time to build", haz clic en el botón "Get API key".
                     </p>
                     <div className="mt-2 border rounded-md overflow-hidden">
                       <Image 
-                        src="/api-instructions/step1.png" 
+                        src="https://i.imgur.com/CyGI6FK.png" 
                         alt={t('instructions.steps.step1.title')} 
                         width={600}
                         height={300}
@@ -233,11 +238,11 @@ export default function ApiPage() {
                   <li className="text-sm">
                     <span className="font-medium">{t('instructions.steps.step2.title')}</span>
                     <p className="mt-1 text-muted-foreground">
-                      {t('instructions.steps.step2.description')}
+                      A continuación, aparecerá una ventana para aceptar los términos. Marca la casilla que dice "I consent to the Google APIs Terms of Service and the Gemini API Additional Terms of Service and acknowledge that I have read the Google Privacy Policy*" y luego haz clic en el botón "I accept".
                     </p>
                     <div className="mt-2 border rounded-md overflow-hidden">
                       <Image 
-                        src="/api-instructions/step2.png" 
+                        src="https://i.imgur.com/TXXVAyA.png" 
                         alt={t('instructions.steps.step2.title')} 
                         width={600}
                         height={300}
@@ -249,11 +254,11 @@ export default function ApiPage() {
                   <li className="text-sm">
                     <span className="font-medium">{t('instructions.steps.step3.title')}</span>
                     <p className="mt-1 text-muted-foreground">
-                      {t('instructions.steps.step3.description')}
+                      Serás dirigido a la página de "API Keys". Haz clic en el botón azul "+ Create API key" que se encuentra en la esquina superior derecha.
                     </p>
                     <div className="mt-2 border rounded-md overflow-hidden">
                       <Image 
-                        src="/api-instructions/step3.png" 
+                        src="https://i.imgur.com/0sfgHAi.png" 
                         alt={t('instructions.steps.step3.title')} 
                         width={600}
                         height={300}
@@ -265,11 +270,11 @@ export default function ApiPage() {
                   <li className="text-sm">
                     <span className="font-medium">{t('instructions.steps.step4.title')}</span>
                     <p className="mt-1 text-muted-foreground">
-                      {t('instructions.steps.step4.description')}
+                      Aparecerá una ventana emergente titulada "API key generated" mostrando tu nueva clave. Haz clic en el botón "Copy" para copiarla a tu portapapeles.
                     </p>
                     <div className="mt-2 border rounded-md overflow-hidden">
                       <Image 
-                        src="/api-instructions/step4.png" 
+                        src="https://i.imgur.com/USHmhXt.png" 
                         alt={t('instructions.steps.step4.title')} 
                         width={600}
                         height={300}
@@ -283,23 +288,17 @@ export default function ApiPage() {
           </Card>
         </motion.div>
         
-        {/* Botones de acción */}
-        <motion.div variants={itemVariants} className="flex justify-center gap-4">
-          <Button
-            variant="outline"
-            size="lg"
-            onClick={() => {
-              window.open("https://aistudio.google.com/app/apikey", "_blank")
-            }}
-          >
-            <ExternalLink className="mr-2 h-4 w-4" />
-            {t('actions.getApiKey')}
-          </Button>
-          
-          {isAvailable && (
-            <Button
-              variant="default"
-              size="lg"
+        {/* Se elimina el botón redundante - ya existe en el footer */}
+      </motion.div>
+      
+      {/* Fixed footer with appropriate button depending on API key status */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-sm border-t z-50">
+        <div className="flex justify-center gap-4" style={{ opacity: 1, transform: 'none' }}>
+          {isAvailable ? (
+            // Si la API key está configurada, mostrar botón para volver a la aplicación
+            <Button 
+              variant="default" 
+              className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-10 rounded-md px-6 has-[>svg]:px-4"
               onClick={() => {
                 const locale = pathname.split('/')[1]
                 router.push(`/${locale}/upload`)
@@ -307,9 +306,19 @@ export default function ApiPage() {
             >
               {t('actions.returnToApp')}
             </Button>
+          ) : (
+            // Si no hay API key configurada, mostrar botón para ir a Google AI Studio
+            <Button 
+              variant="outline" 
+              className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-10 rounded-md px-6 has-[>svg]:px-4"
+              onClick={() => window.open("https://aistudio.google.com/app/apikey", "_blank")}
+            >
+              <ExternalLink className="mr-2 h-4 w-4" aria-hidden="true" />
+              {t('actions.getApiKey')}
+            </Button>
           )}
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
     </div>
   )
 }

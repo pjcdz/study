@@ -34,8 +34,11 @@ type Props = {
 
 // Making this function async to properly handle params
 export default async function LocaleLayout({ children, params }: Props) {
-  // Now we can safely use params.locale since we're in an async function
-  const locale = getSafeLocale(params.locale);
+  // In Next.js 15+, params is a Promise that must be awaited
+  const { locale: rawLocale } = await Promise.resolve(params);
+  
+  // Now use the local copy which has been properly awaited
+  const locale = getSafeLocale(rawLocale);
   
   // Check if the requested locale is supported
   if (!supportedLocales.includes(locale)) {
@@ -45,6 +48,7 @@ export default async function LocaleLayout({ children, params }: Props) {
   // Access messages for the requested locale
   const localeMessages = messages[locale as keyof typeof messages];
 
+  // Return the JSX with properly awaited params
   return (
     <NextIntlClientProvider locale={locale} messages={localeMessages}>
       {/* Add script to initialize demo data */}
@@ -56,14 +60,32 @@ export default async function LocaleLayout({ children, params }: Props) {
                 // Wait for window to be fully loaded before initializing demo data
                 window.addEventListener('load', function() {
                   try {
-                    // Import and initialize demo data dynamically
-                    import('/lib/mock-data.js')
-                      .then(module => {
-                        if (typeof module.initDemoData === 'function') {
-                          module.initDemoData();
-                        }
-                      })
-                      .catch(err => console.error('Error loading demo data:', err));
+                    // Only try to import if we're not explicitly in non-demo mode
+                    const envDemoContent = '${process.env.USE_DEMO_CONTENT || 'undefined'}';
+                    const localStorageDemoContent = window.localStorage.getItem('USE_DEMO_CONTENT');
+                    
+                    // Check if we're explicitly NOT in demo mode
+                    if (envDemoContent === 'false') {
+                      // If localStorage has 'true', clear it to maintain consistency
+                      if (localStorageDemoContent === 'true') {
+                        window.localStorage.removeItem('USE_DEMO_CONTENT');
+                      }
+                      // Don't even try to import the module
+                      console.log('Demo mode explicitly disabled, skipping import');
+                      return;
+                    }
+                    
+                    // Only import if we might be in demo mode
+                    if (envDemoContent === 'true' || localStorageDemoContent === 'true') {
+                      // Import and initialize demo data dynamically with the correct path
+                      import('@/lib/mock-data.js')
+                        .then(module => {
+                          if (typeof module.initDemoData === 'function') {
+                            module.initDemoData();
+                          }
+                        })
+                        .catch(err => console.error('Error loading demo data:', err));
+                    }
                   } catch (e) {
                     console.error('Error initializing demo data:', e);
                   }

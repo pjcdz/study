@@ -4,7 +4,7 @@
 
 ## Descripción de la Actualización
 
-Esta actualización importante migra la aplicación Study Tool para utilizar el modelo **gemini-1.5-pro-latest** de Google, permitiendo el procesamiento multimodal nativo (texto, PDF, imágenes). El backend ahora actúa como un proxy inteligente, recibiendo el contenido del usuario y su API Key personal de Google AI Studio para realizar las solicitudes a la API de Gemini.
+Esta actualización importante migra la aplicación Study Tool para utilizar el modelo **gemini-1.5-pro** de Google, permitiendo el procesamiento multimodal nativo (texto, PDF, imágenes). El backend ahora actúa como un proxy inteligente, recibiendo el contenido del usuario y su API Key personal de Google AI Studio para realizar las solicitudes a la API de Gemini.
 
 ### Características Principales
 

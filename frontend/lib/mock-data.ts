@@ -159,9 +159,19 @@ import { useUploadStore } from '@/store/use-upload-store';
 export function initDemoData() {
   const store = useUploadStore.getState();
   
-  // Only initialize if we're in demo mode
-  const isDemoMode = process.env.USE_DEMO_CONTENT === 'true' || 
-                     (typeof window !== 'undefined' && window.localStorage.getItem('USE_DEMO_CONTENT') === 'true');
+  // Only initialize if we're in demo mode - prioritize env var if explicitly set to false
+  let isDemoMode;
+  
+  if (process.env.USE_DEMO_CONTENT === 'false') {
+    isDemoMode = false;
+    // Clear localStorage if needed
+    if (typeof window !== 'undefined' && window.localStorage.getItem('USE_DEMO_CONTENT') === 'true') {
+      window.localStorage.removeItem('USE_DEMO_CONTENT');
+    }
+  } else {
+    isDemoMode = process.env.USE_DEMO_CONTENT === 'true' || 
+                (typeof window !== 'undefined' && window.localStorage.getItem('USE_DEMO_CONTENT') === 'true');
+  }
   
   if (isDemoMode) {
     console.log('🧪 Initializing store with demo data');
