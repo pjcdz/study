@@ -3,7 +3,7 @@ import axios from 'axios';
 import sessionManager from './sessionManager.js';
 
 // Update to use the correct model name according to Google's documentation
-const MODEL_NAME = 'gemini-1.5-pro';
+const MODEL_NAME = 'gemini-1.5-flash';
 const API_URL = `https://generativelanguage.googleapis.com/v1/models/${MODEL_NAME}:generateContent`;
 
 // Error types - used for better frontend handling
@@ -259,34 +259,28 @@ export async function generateMultimodalContent(userApiKey, parts, systemInstruc
     
     const startTime = Date.now();
     
+    // Merge system instruction into the user parts
+    const userParts = systemInstructionText
+      ? [{ text: systemInstructionText }, ...parts]
+      : parts;
+    
     // Create contents array for the request
-    const contents = [];
-    
-    // Add system instruction as a system role if present
-    if (systemInstructionText) {
-      contents.push({
-        role: 'system',
-        parts: [{ text: systemInstructionText }]
-      });
-    }
-    
-    // Add user content
-    contents.push({ 
-      role: 'user', 
-      parts: parts 
-    });
-    
-    // Create request body - no separate systemInstruction field
+    const contents = [{
+      role: 'user',
+      parts: userParts
+    }];
+
+    // Create request body
     const body = {
-      contents: contents,
+      contents,
       generationConfig: {
-        temperature: 0.3,        // Lower temperature for more focused output
+        temperature: 1,        // Lower temperature for more focused output
         maxOutputTokens: 16384,  // Large token limit to allow detailed responses
         topP: 0.8,               // Sample from top 80% probability mass
         topK: 40                 // Sample from top 40 tokens
       }
     };
-    
+
     // Log the endpoint being used
     console.log(`Using API endpoint: ${API_URL}`);
     
