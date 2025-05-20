@@ -1,163 +1,116 @@
 # Study Tool
 
-Un sistema integral que transforma el contenido de documentos en notas estructuradas para Notion y tarjetas de estudio para Quizlet, impulsado por la inteligencia artificial de Google Gemini.
+A powerful tool for students that transforms PDF/document content into well-structured Notion notes and Quizlet flashcards using Google's Gemini AI.
 
-[![Nextjs](https://img.shields.io/badge/Next.js-19-black)](https://nextjs.org/)
-[![React](https://img.shields.io/badge/React-19-blue)](https://reactjs.org/)
-[![Express](https://img.shields.io/badge/Express-4.18-green)](https://expressjs.com/)
-[![Docker](https://img.shields.io/badge/Docker-Ready-blue)](https://www.docker.com/)
-[![Google Gemini](https://img.shields.io/badge/AI-Gemini%202.0%20Flash-orange)](https://ai.google.dev/)
+## Features
 
-## 📚 Características
+- **Document Transformation**: Convert document content into beautifully formatted Notion markdown
+- **Flashcard Generation**: Create Quizlet-compatible TSV flashcards from your notes
+- **AI-Powered**: Utilizes Google Gemini 2.0 Flash for intelligent content processing
+- **Simple Workflow**: Three-step process - Upload → Markdown → Flashcards
+- **One-Click Copy**: Easily copy generated content to clipboard for use in Notion and Quizlet
 
-- **Transformación Inteligente**: Convierte el contenido de documentos en markdown perfectamente formateado para Notion
-- **Generación de Flashcards**: Crea tarjetas de estudio en formato TSV compatibles con Quizlet
-- **Potenciado por IA**: Utiliza Google Gemini 2.0 Flash para un procesamiento de contenido inteligente
-- **Flujo de Trabajo Simple**: Proceso de tres pasos - Subir → Markdown → Tarjetas
-- **Copiar con Un Clic**: Copia fácilmente el contenido generado al portapapeles para su uso en Notion y Quizlet
-- **Soporte Multiidioma**: Interfaz disponible en español e inglés
-- **Diseño Adaptable**: Experiencia de usuario óptima en dispositivos móviles y de escritorio
+## Architecture
 
-## 🏗️ Arquitectura
+### Frontend (Next.js)
 
-El proyecto sigue una **Arquitectura Gritante** (Screaming Architecture) donde la estructura del código refleja el dominio de negocio, con una clara separación entre frontend y backend.
-
-### Diagrama de Arquitectura
+Implements a **Screaming Architecture** where the code structure reflects the business domain:
 
 ```
-┌────────────────────┐      ┌────────────────────┐      ┌────────────────────┐
-│                    │      │                    │      │                    │
-│   Cliente (Web)    │◄────►│   Next.js Server   │◄────►│   Express Server   │
-│                    │      │                    │      │                    │
-└────────────────────┘      └────────────────────┘      └────────────────────┘
-                                      │                          │
-                                      │                          ▼
-                              ┌───────▼──────────┐      ┌────────────────────┐
-                              │                  │      │                    │
-                              │  Zustand Store   │      │   Google Gemini    │
-                              │                  │      │        API         │
-                              └──────────────────┘      │                    │
-                                                        └────────────────────┘
+frontend/
+  app/            # Next.js app router structure
+    upload/       # Document upload functionality 
+    summary/      # Notion markdown generation
+    flashcards/   # Quizlet flashcard generation
+  components/     # Reusable React components
+  lib/            # Utilities and services
+    api-client.ts # Backend API integration
 ```
 
-### Componentes Principales
+### Backend (Node.js + Express)
 
-| Componente             | Descripción                                                                                    |
-|------------------------|------------------------------------------------------------------------------------------------|
-| **Frontend (Next.js)** | Interfaz de usuario con App Router, i18n, estado global con Zustand y componentes de ShadCN UI |
-| **Backend (Express)**  | API REST que integra con Google Gemini para procesamiento de texto                             |
-| **Docker**             | Contenedores para desarrollo local y despliegue en producción                                  |
-| **CI/CD**              | GitHub Actions para integración y despliegue continuo                                          |
+```
+backend/
+  src/
+    config/        # Prompts and configuration
+    controllers/   # Request handlers
+    services/      # Gemini API integration
+    app.js         # Express server setup
+```
 
-## 🖥️ Tecnologías
+## Technologies
 
 ### Frontend
-- **Next.js 15.3** con React 19
-- **Tailwind CSS** para estilos
-- **ShadCN UI** para componentes de interfaz
-- **Zustand** para gestión de estado
-- **Framer Motion** para animaciones
-- **Next-Intl** para internacionalización
+- Next.js with React 19
+- Tailwind CSS for styling
+- ShadCN UI components
 
 ### Backend
-- **Node.js** con Express 4.18
-- **Google Gemini AI API** para procesamiento de texto
-- **CORS** para seguridad en comunicación cross-origin
+- Node.js with Express
+- Google Gemini AI API integration
 
-### Infraestructura
-- **Docker** para contenedores de desarrollo y producción
-- **Docker Swarm** para orquestación
-- **GitHub Actions** para CI/CD
-- **Node.js v22.15.0**
+### Infrastructure
+- Docker containers for local development and production
+- Docker Swarm for orchestration
+- GitHub Actions for CI/CD
+- Node.js v22.15.0
 
-## ⚙️ Instalación y Configuración
+## Setup and Deployment
 
-### Requisitos Previos
+### Prerequisites
 
-- Cuenta de Google Cloud con acceso a la API de Gemini
-- `GEMINI_API_KEY` obtenida de Google AI Studio
-- Docker y Docker Compose instalados
+- Google Cloud account with access to Gemini API
+- `GEMINI_API_KEY` from Google AI Studio
+- Docker and Docker Compose installed
 
-### Desarrollo Local
+### Local Development
 
 ```bash
-# Clonar el repositorio
-git clone https://github.com/pjcdz/study.git
-cd study
+# Create a .env file with your API key
+echo "GEMINI_API_KEY=your_key_here" > .env
 
-# Crear archivo .env con tu clave de API
-echo "GEMINI_API_KEY=tu_clave_aqui" > .env
-
-# Ejecutar la aplicación con Docker Compose
+# Run the application with Docker Compose
 docker compose up --build
 ```
 
-La aplicación estará disponible en:
+The application will be available at:
 - Frontend: http://localhost:3000
-- API Backend: http://localhost:4000
+- Backend API: http://localhost:4000
 
-### Configuración sin Docker
+### Production Deployment
 
-#### Backend
-```bash
-cd backend
-npm install
-npm run dev
-```
+1. Set up the required GitHub secrets:
+   - `VPS_HOST`: Your server hostname
+   - `VPS_USER`: SSH username
+   - `DEPLOY_SSH_PRIVATE_KEY`: Private SSH key
+   - `GEMINI_API_KEY`: Your Google Gemini API key
 
-#### Frontend
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-## 🚀 Despliegue en Producción
-
-### Configuración de Secretos en GitHub
-
-1. Configura los secretos necesarios en GitHub:
-   - `VPS_HOST`: Hostname de tu servidor
-   - `VPS_USER`: Usuario SSH
-   - `DEPLOY_SSH_PRIVATE_KEY`: Clave SSH privada
-   - `GEMINI_API_KEY`: Tu clave de API de Google Gemini
-
-2. El despliegue se activa automáticamente al hacer push a la rama principal
+2. Push to the main branch to trigger automatic deployment
 
 ```bash
 git push origin main
 ```
 
-### Gestión de Docker Swarm
+## Docker Swarm Management
 
-Crear los secretos Docker necesarios:
+Create the necessary Docker secrets:
 
 ```bash
-echo "tu_clave_api_gemini" | docker secret create gemini_api_key -
+echo "your_gemini_api_key" | docker secret create gemini_api_key -
 ```
 
-Desplegar el stack:
+Deploy the stack:
 
 ```bash
 docker stack deploy --with-registry-auth -c docker-stack.yml study-tool
 ```
 
-## 📋 Flujo de Uso
+## Usage Flow
 
-1. **Subida**: Pega el contenido del documento en el área de texto de subida
-2. **Markdown**: Visualiza y copia el markdown generado compatible con Notion
-3. **Tarjetas**: Genera y copia contenido TSV para importar en Quizlet
+1. **Upload**: Paste document content in the upload text area
+2. **Markdown**: View and copy the generated Notion-compatible markdown
+3. **Flashcards**: Generate and copy TSV content for import into Quizlet
 
-## 📄 Documentación
+---
 
-- [Documentación del Frontend](./frontend/README.md)
-- [Documentación del Backend](./backend/docs/README.md)
-
-## 🤝 Contribución
-
-Las contribuciones son bienvenidas. Por favor, abre un issue o pull request para sugerir cambios o mejoras.
-
-## 📜 Licencia
-
-Este proyecto está licenciado bajo MIT License.
-
+Built with ❤️ using Google Gemini AI
