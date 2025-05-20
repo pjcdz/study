@@ -8,8 +8,6 @@ services:
     volumes:
       - ./frontend:/app
       - /app/.next
-      # Add a named volume for node_modules to prevent overwriting with host directory
-      - frontend-node-modules:/app/node_modules
     environment:
       - CHOKIDAR_USEPOLLING=true
       - NODE_ENV=development
@@ -38,10 +36,6 @@ services:
     networks:
       - study-network
     command: npm run dev
-
-# Define named volumes
-volumes:
-  frontend-node-modules:
 
 networks:
   study-network:
