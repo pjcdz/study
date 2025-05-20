@@ -35,15 +35,16 @@ const nextConfig: NextConfig = {
     unoptimized: true,
   },
   // Optimize fonts but use local fallbacks in development
-  optimizeFonts: true,
+  optimizeFonts: process.env.NODE_ENV === 'production',
   // Experimental features
   experimental: {
     // Add any experimental features here if needed
   },
   // Ensure fonts load properly in Docker container
   assetPrefix: process.env.NODE_ENV === 'development' ? undefined : '',
-  // Add basePath for the app if needed
-  // basePath: '',
+  // Fix for useSearchParams in 404 pages - prevent static generation
+  skipTrailingSlashRedirect: true,
+  skipMiddlewareUrlNormalize: true,
 };
 
 export default withSentryConfig(withNextIntl(nextConfig), {

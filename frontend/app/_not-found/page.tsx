@@ -1,15 +1,21 @@
 "use client";
 
 import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
-// NotFoundContent component that uses useSearchParams
+// Fallback content for 404 page
+function NotFoundFallback() {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[70vh]">
+      <h1 className="text-4xl font-bold mb-4">404</h1>
+      <p className="text-xl mb-6">Page Not Found</p>
+    </div>
+  );
+}
+
+// NotFoundContent component without useSearchParams
 function NotFoundContent() {
-  // Usamos useSearchParams() en un componente separado para envolverlo en Suspense
-  const searchParams = useSearchParams();
-  
   return (
     <div className="flex flex-col items-center justify-center min-h-[70vh] px-4">
       <h1 className="text-4xl font-bold mb-4">404</h1>
@@ -28,12 +34,7 @@ function NotFoundContent() {
 
 export default function NotFound() {
   return (
-    <Suspense fallback={
-      <div className="flex flex-col items-center justify-center min-h-[70vh]">
-        <h1 className="text-4xl font-bold mb-4">404</h1>
-        <p className="text-xl mb-6">Page Not Found</p>
-      </div>
-    }>
+    <Suspense fallback={<NotFoundFallback />}>
       <NotFoundContent />
     </Suspense>
   );
