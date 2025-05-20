@@ -3,21 +3,6 @@ import type { NextRequest } from 'next/server';
 
 export const GET = async (_request: NextRequest) => {
   try {
-    // Check if we're in demo mode
-    const useDemoContent = process.env.USE_DEMO_CONTENT === 'true';
-    
-    // Return mock health data if in demo mode
-    if (useDemoContent) {
-      console.log('🧪 API route: Using mock health data');
-      
-      return NextResponse.json({
-        frontend: { status: 'ok', message: 'Frontend is running in demo mode' },
-        backend: { status: 'ok', message: 'Mock backend is simulated as healthy' },
-        demoMode: true,
-        timestamp: new Date().toISOString()
-      });
-    }
-    
     // The backend URL from environment variable or fallback
     const backendUrl = process.env.BACKEND_URL || 'http://backend:4000';
     
@@ -39,19 +24,6 @@ export const GET = async (_request: NextRequest) => {
     });
   } catch (error) {
     console.error('Error in health API route:', error);
-    
-    // If we're in demo mode, still return healthy data even if there's an error
-    if (process.env.USE_DEMO_CONTENT === 'true') {
-      console.log('🧪 API route: Error occurred but returning mock health data');
-      
-      return NextResponse.json({
-        frontend: { status: 'ok', message: 'Frontend is running in demo mode' },
-        backend: { status: 'ok', message: 'Mock backend is simulated as healthy' },
-        demoMode: true,
-        timestamp: new Date().toISOString()
-      });
-    }
-    
     return NextResponse.json({
       frontend: { status: 'ok', message: 'Frontend is running' },
       backend: { status: 'error', message: `Failed to connect to backend: ${(error as Error).message}` },

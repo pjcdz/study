@@ -12,7 +12,6 @@
     "upload": "Subida",
     "summary": "Resumen",
     "flashcards": "Flashcards",
-    "settings": "Configuración",
     "restart": "Reiniciar",
     "restartConfirm": "¿Reiniciar el proceso?",
     "restartDescription": "Esta acción eliminará todos los archivos, resúmenes y flashcards generados.",
@@ -20,21 +19,14 @@
     "confirm": "Reiniciar"
   },
   "common": {
-    "cancel": "Cancelar",
-    "demoBanner": "Modo Demo: Usando contenido fijo para pruebas"
+    "cancel": "Cancelar"
   },
   "upload": {
     "textPlaceholder": "Escribe o pega tu texto aquí...",
     "process": "Procesar",
     "processing": "Procesando",
-    "processingLargeFile": "Procesando archivo grande",
     "title": "Añadir Material de Estudio",
     "description": "Sube archivos o ingresa texto para generar un resumen.",
-    "multimodalDescription": "Sube un archivo (PDF o imagen) y/o ingresa texto para generar un resumen.",
-    "apiKeyDialog": {
-      "title": "API Key Requerida",
-      "configure": "Configurar API Key"
-    },
     "dropzone": {
       "title": "Arrastra y suelta archivos aquí",
       "or": "o",
@@ -64,16 +56,9 @@
     "toast": {
       "success": "El resumen ha sido generado exitosamente",
       "error": "No se pudo generar el resumen: {message}",
-      "quotaExceeded": "Límite de uso de API excedido. Por favor, intenta más tarde.",
-      "networkError": "Error de conexión de red. Por favor, verifica tu internet e intenta de nuevo.",
-      "apiKeyError": "Error de autenticación de API. Por favor, verifica tu API key en Configuración.",
-      "processingPdf": "Procesando PDF: {name}",
-      "pdfProcessed": "PDF procesado exitosamente: {name}",
-      "pdfError": "Error procesando PDF: {name}",
-      "apiKeyMissing": "No puedes subir un archivo sin configurar tu API key primero",
-      "fileTooLarge": "El archivo es demasiado grande para procesar, incluso con la API de archivos.",
-      "fileProcessingFailed": "El procesamiento del archivo ha fallado en el servidor. Intenta con otro archivo o formato.",
-      "invalidApiKey": "API key inválida. Por favor, configura tu API key."
+      "quotaExceeded": "Se ha excedido el límite de uso de la API. Por favor, intente más tarde.",
+      "networkError": "Error de conexión. Por favor, verifique su internet e intente de nuevo.",
+      "apiKeyError": "Error de autenticación de la API. Por favor, contacte con soporte."
     }
   },
   "summary": {
@@ -83,25 +68,8 @@
       "edit": "Editar",
       "save": "Guardar",
       "copy": "Copiar",
-      "openNotion": "Abrir en Notion",
       "generateFlashcards": "Generar Flashcards",
-      "generating": "Generando...",
-      "condense": "Resumir más",
-      "condensing": "Resumiendo..."
-    },
-    "content": {
-      "ready": "✓ Tu resumen está listo para ser copiado"
-    },
-    "instructions": {
-      "title": "Cómo usar con Notion",
-      "steps": {
-        "1": "Haz clic en \"Abrir en Notion\" para abrir una nueva página de Notion",
-        "2": "Haz clic en \"Copiar\" para copiar todo el contenido del resumen",
-        "3": "Pega el contenido en tu página de Notion",
-        "4": "El formato Markdown se aplicará automáticamente",
-        "5": "Guarda tu página de Notion y organízala en tu espacio de trabajo"
-      },
-      "note": "Notion soporta Markdown de forma nativa, por lo que tu resumen mantendrá su formato al pegarlo."
+      "generating": "Generando..."
     },
     "toast": {
       "copied": "Resumen copiado al portapapeles",
@@ -110,8 +78,11 @@
       "error": "No se pudieron generar las flashcards: {message}",
       "quotaExceeded": "Se ha excedido el límite de uso de la API. Por favor, intente más tarde.",
       "networkError": "Error de conexión. Por favor, verifique su internet e intente de nuevo.",
-      "apiKeyError": "Error de autenticación de la API. Por favor, verifique su API Key en Configuración.",
-      "condensed": "Resumen condensado exitosamente"
+      "apiKeyError": "Error de autenticación de la API. Por favor, contacte con soporte."
+    },
+    "button": {
+      "generate": "Generar Flashcards",
+      "generating": "Generando..."
     },
     "tabs": {
       "editor": "Editor",
@@ -136,7 +107,7 @@
       "copyError": "Error al copiar al portapapeles",
       "quotaExceeded": "Se ha excedido el límite de uso de la API. Por favor, intente más tarde.",
       "networkError": "Error de conexión. Por favor, verifique su internet e intente de nuevo.",
-      "apiKeyError": "Error de autenticación de la API. Por favor, verifique su API Key en Configuración."
+      "apiKeyError": "Error de autenticación de la API. Por favor, contacte con soporte."
     },
     "instructions": {
       "title": "Instrucciones de importación para Quizlet",
@@ -150,109 +121,22 @@
       "note": "Nota: Las flashcards están en formato \"Término → Definición\""
     }
   },
-  "api": {
-    "title": "Clave de API de Google Gemini",
-    "description": "Configura tu clave de API para usar la aplicación",
-    "keyManagement": {
-      "title": "Configuración de API Key",
-      "description": "Esta aplicación requiere una clave de API de Google Gemini para funcionar",
-      "enterKey": "Ingresa tu API Key de Google AI Studio",
-      "saveKey": "Guardar API Key",
-      "showKey": "Mostrar API Key",
-      "hideKey": "Ocultar API Key",
-      "copyKey": "Copiar API Key",
-      "deleteKey": "Eliminar API Key",
-      "keyConfigured": "API Key configurada y lista para usar",
-      "noKeyConfigured": "No hay API Key configurada. Por favor, ingresa tu clave a continuación:",
-      "securityWarning": "Nunca compartas tu API key con nadie",
-      "storageNote": "Tu API Key se almacena solo en tu navegador y nunca se envía a nuestros servidores"
-    },
-    "instructions": {
-      "title": "Cómo obtener una API Key de Google Gemini",
-      "description": "Sigue estos pasos para obtener tu propia clave de API desde Google AI Studio",
-      "whatIs": "¿Qué es una API Key de Google Gemini?",
-      "apiDescription": "La API Key de Google Gemini te permite utilizar las capacidades de IA de Google para procesar tus documentos y generar resúmenes y flashcards. Cada usuario necesita su propia clave de API.",
-      "howToGet": "Instrucciones paso a paso",
-      "steps": {
-        "step1": {
-          "title": "Ve al sitio web de Google AI Studio",
-          "description": "Visita aistudio.google.com e inicia sesión con tu cuenta de Google"
-        },
-        "step2": {
-          "title": "Navega a API Keys",
-          "description": "En la barra lateral izquierda, haz clic en 'Get API key'"
-        },
-        "step3": {
-          "title": "Crea una nueva API key",
-          "description": "Haz clic en 'Create API key' y dale un nombre como 'Study App'"
-        },
-        "step4": {
-          "title": "Copia tu API key",
-          "description": "Copia tu nueva API key y pégala en el campo de arriba"
-        }
-      }
-    },
-    "actions": {
-      "getApiKey": "Abrir Google AI Studio",
-      "returnToApp": "Volver a la Aplicación"
-    },
-    "errors": {
-      "emptyKey": "La API Key no puede estar vacía",
-      "invalidKey": "Formato de API Key inválido",
-      "copyFailed": "No se pudo copiar la API key"
-    },
-    "success": {
-      "keySaved": "API Key guardada exitosamente",
-      "keyCleared": "API Key eliminada",
-      "keyCopied": "API Key copiada al portapapeles",
-      "savingKey": "Guardando API key..."
-    }
-  },
   "settings": {
-    "title": "Configuración",
-    "tabs": {
-      "general": "General",
-      "api": "API",
-      "appearance": "Apariencia"
-    },
+    "label": "Configuración",
     "language": {
-      "title": "Idioma",
-      "description": "Cambiar el idioma de la aplicación",
-      "label": "Seleccionar idioma:",
+      "label": "Idioma:",
       "options": {
         "es": "Español",
         "en": "English"
       }
     },
     "theme": {
-      "title": "Configuración de Tema",
-      "description": "Personaliza la apariencia de la aplicación",
-      "label": "Seleccionar tema:",
+      "label": "Tema",
       "options": {
         "light": "Claro",
         "dark": "Oscuro",
         "system": "Sistema"
       }
-    },
-    "apiKey": {
-      "title": "API Key",
-      "description": "Se requiere tu API Key de Google Gemini para usar las funciones de IA",
-      "placeholder": "Ingresa tu API Key de Google AI Studio",
-      "saveButton": "Guardar API Key",
-      "clearButton": "Borrar API Key",
-      "saved": "API Key guardada correctamente",
-      "missing": "Se requiere API Key para usar las funciones de IA",
-      "localStorageNote": "Tu API Key se almacena solo en tu navegador y nunca se envía a nuestros servidores."
-    },
-    "apiInfo": {
-      "title": "Acerca de la API de Gemini",
-      "geminiDescription": "Esta aplicación utiliza la API de Google Gemini 1.5 Pro para generar resúmenes y flashcards. Necesitas proporcionar tu propia API Key desde Google AI Studio.",
-      "howToGet": "Cómo obtener una API Key de Google Gemini:",
-      "step1": "Visita Google AI Studio (aistudio.google.com)",
-      "step2": "Inicia sesión con tu cuenta de Google",
-      "step3": "Ve a 'API Keys' en el menú izquierdo",
-      "step4": "Haz clic en 'Create API Key' y copia tu nueva clave",
-      "getApiKeyButton": "Ir a Google AI Studio"
     }
   },
   "toast": {
@@ -260,6 +144,6 @@
     "success": "¡Éxito!",
     "quotaExceeded": "Se ha excedido el límite de uso de la API. Por favor, intente más tarde.",
     "networkError": "Error de conexión. Por favor, verifique su internet e intente de nuevo.",
-    "apiKeyError": "Error de autenticación de la API. Por favor, verifique su API Key en Configuración."
+    "apiKeyError": "Error de autenticación de la API. Por favor, contacte con soporte."
   }
 }

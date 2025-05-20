@@ -12,7 +12,6 @@ env:
   IMAGE_NAME_FRONTEND: ${{ github.repository_owner }}/study_frontend
   IMAGE_NAME_BACKEND: ${{ github.repository_owner }}/study_backend
   REMOTE_DEPLOY_PATH: /home/deploy/study
-  SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
 jobs:
   build-and-push:
@@ -53,8 +52,6 @@ jobs:
           labels: ${{ steps.meta-frontend.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          build-args: |
-            SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
           
       - name: Extract metadata (tags, labels) for Backend image
         id: meta-backend
@@ -99,16 +96,17 @@ jobs:
             echo "   Git repository synchronized."
             # --- End of Git Synchronization ---
 
-            # Ya no se necesita configurar el secreto de GEMINI_API_KEY
-            # echo "🔐 Setting up secrets..."
-            # echo "${{ secrets.GEMINI_API_KEY }}" | docker secret create gemini_api_key - || true
+            # --- Setup Secrets ---
+            echo "🔐 Setting up secrets..."
+            echo "${{ secrets.GEMINI_API_KEY }}" | docker secret create gemini_api_key - || true
+            # --- End of Setup Secrets ---
 
             STACK_FILE="${{ env.REMOTE_DEPLOY_PATH }}/docker-stack.yml"
 
             echo "🚀 Deploying Docker Stack..."
+            GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" \
             GITHUB_USERNAME="${{ github.repository_owner }}" \
             TAG="latest" \
-            SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" \
             docker stack deploy --with-registry-auth -c ${STACK_FILE} study
 
             echo "✅ Deployment completed."

@@ -96,7 +96,6 @@ export function FileDropzone({ addFiles }: FileDropzoneProps) {
         <Button 
           onClick={handleOpenFileDialog}
           variant="secondary"
-          className="transition-all hover:border-primary hover:border-2 hover:shadow-[0_0_10px_rgba(var(--color-primary)/0.3)]"
         >
           <FileUp className="mr-2 h-4 w-4" />
           {t('button')}
