@@ -136,6 +136,7 @@
     "toast": {
       "copied": "TSV content copied to clipboard",
       "copyError": "Error copying to clipboard",
+      "resetSuccess": "All data cleared. Ready to start a new session.",
       "quotaExceeded": "API usage limit exceeded. Please try again later.",
       "networkError": "Network connection error. Please check your internet and try again.",
       "apiKeyError": "API authentication error. Please check your API key in Settings."

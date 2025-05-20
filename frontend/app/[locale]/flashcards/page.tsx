@@ -41,6 +41,14 @@ export default function FlashcardsPage() {
                     window.localStorage.getItem('USE_DEMO_CONTENT') === 'true';
     setIsDemoMode(demoMode)
     
+    // Log estado del store al entrar a la página de flashcards
+    console.log('FlashcardsPage - Estado inicial:', {
+      flashcardsExist: !!flashcards,
+      flashcardsLength: flashcards?.length || 0,
+      currentStep: useUploadStore.getState().currentStep,
+      isDemoMode: demoMode
+    });
+    
     // In demo mode, ensure we have flashcards data
     if (demoMode && !flashcards) {
       console.log('🧪 Demo mode: Setting default flashcards');
@@ -49,6 +57,7 @@ export default function FlashcardsPage() {
     
     // For normal mode, redirect if no flashcards
     if (!demoMode && !flashcards) {
+      console.log('No existen flashcards en el store, redirigiendo a summary');
       const pathParts = window.location.pathname.split('/');
       const locale = pathParts[1]; // Get the locale from the URL ('es' or 'en')
       router.push(`/${locale}/summary`);
@@ -215,18 +224,12 @@ export default function FlashcardsPage() {
                 <AlertDialogFooter>
                   <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
                   <AlertDialogAction onClick={() => {
-                    // Reset the app state
+                    // Use our enhanced reset function that now handles all localStorage cleanup
                     reset()
                     
-                    // Clear all summaries and flashcards from local storage
-                    if (typeof window !== 'undefined') {
-                      localStorage.removeItem('studyToolSummaries')
-                      localStorage.removeItem('studyToolFlashcards')
-                      localStorage.removeItem('studyToolCurrentStep')
-                      localStorage.removeItem('studyToolCurrentSummaryIndex')
-                    }
+                    // No need to manually remove items as that's now handled in the reset function
                     
-                    // Obtener el prefijo de idioma de la ruta actual
+                    // Obtain the language prefix from the current path
                     const localePrefix = pathname.split('/')[1];
                     router.push(`/${localePrefix}/upload`)
                     

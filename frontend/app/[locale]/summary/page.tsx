@@ -90,16 +90,59 @@ export default function SummaryPage() {
       setIsGeneratingFlashcards(true)
       startProcessing()
       
-      const response = await apiClient.postFlashcards(currentSummary)
+      // Siempre usar el primer resumen (versión no condensada) para generar flashcards
+      // independientemente de cuál sea el resumen actualmente seleccionado
+      const originalSummary = summaries[0];
       
-      // Handle response
-      let tsv = response.flashcardsTSV
+      // Log para verificar que se envía el resumen original
+      console.log('Enviando resumen original para generar flashcards:', originalSummary.slice(0, 100) + '...');
+      
+      // Usar el método recomendado en lugar del obsoleto
+      const response = await apiClient.processFlashcards(originalSummary)
+      
+      // Log para verificar la respuesta completa
+      console.log('Respuesta de la API de flashcards:', response);
+      
+      // Corregir la extracción de datos - la propiedad se llama 'flashcards' no 'flashcardsTSV'
+      let tsv = response.flashcards;
+      console.log('Flashcards recibidas:', tsv);
+      
       if (typeof tsv === 'object' && tsv.text) {
-        tsv = tsv.text
+        tsv = tsv.text;
+        console.log('TSV convertido a texto:', tsv);
       }
+      
+      // Limpiar el formato TSV (quitar marcadores de código)
+      if (typeof tsv === 'string' && tsv.startsWith('```tsv')) {
+        tsv = tsv.replace(/```tsv\n|\n```/g, '');
+        console.log('TSV limpiado de marcadores:', tsv);
+      }
+      
+      // Verificar si el TSV es válido
+      if (!tsv) {
+        console.error('No hay datos de flashcards válidos');
+        toast.error(t('toast.error', { message: 'No se pudieron generar las flashcards' }));
+        stopProcessing();
+        setIsGeneratingFlashcards(false);
+        return;
+      }
+      
+      // Guardar explícitamente en localStorage para persistir
+      localStorage.setItem('FLASHCARDS_DATA', JSON.stringify(tsv));
+      console.log('Guardando flashcards en el store. TSV length:', tsv.length);
       
       setFlashcards(tsv)
       setCurrentStep('flashcards')
+      
+      // Verificar el estado del store después de guardar
+      setTimeout(() => {
+        const storeAfterSave = useUploadStore.getState();
+        console.log('Estado del store después de guardar:', {
+          flashcardsExist: !!storeAfterSave.flashcards,
+          flashcardsLength: storeAfterSave.flashcards?.length || 0,
+          currentStep: storeAfterSave.currentStep
+        });
+      }, 10);
       
       toast.success(t('toast.success'))
       
@@ -109,11 +152,16 @@ export default function SummaryPage() {
         const locale = pathParts[1]; // Get locale from URL ('es' or 'en')
         
         // Navigate to flashcards page - keep timer running during navigation
-        router.push(`/${locale}/flashcards`);
+        console.log(`Navegando a /${locale}/flashcards`);
         
-        // Timer will be cleared on the next page after a brief transition
+        // Añadir un pequeño delay antes de navegar para asegurar que el store se actualiza
+        setTimeout(() => {
+          router.push(`/${locale}/flashcards`);
+          console.log('Navegación iniciada');
+        }, 200);
       }
     } catch (err: unknown) {
+      console.error('Error generando flashcards:', err);
       // Verificar si es un error de API y manejar según su tipo
       if (err instanceof ApiError) {
         switch(err.type) {
@@ -153,26 +201,49 @@ export default function SummaryPage() {
         return
       }
       
+      console.log('Before condensing - Current state:', {
+        summariesCount: summaries.length,
+        currentIndex: currentSummaryIndex,
+        currentSummary: currentSummary ? currentSummary.slice(0, 100) + '...' : 'No current summary'
+      });
+      
       // Use separate loading state for condensing
       setIsCondensing(true)
       startProcessing()
       
       // Make API call to condense the current summary
       const response = await apiClient.condenseSummary(currentSummary)
+      console.log('API response:', response);
+      
+      // Check if we have a valid response with condensedSummary
+      if (!response || !response.condensedSummary) {
+        console.error('Received invalid response from API:', response);
+        toast.error(t('toast.error', { message: 'No condensed summary received from API' }));
+        stopProcessing();
+        setIsCondensing(false);
+        return;
+      }
       
       // Get the condensed summary from the response
       const { condensedSummary } = response;
+      console.log('Received condensed summary with length:', condensedSummary.length);
       
-      // Add the new condensed summary and move to it
+      // Add the new condensed summary using the store method
       addSummary(condensedSummary);
-      setCurrentSummaryIndex(summaries.length); // This points to the newly added summary
       
+      console.log('After adding summary - Store state:', {
+        summariesCount: useUploadStore.getState().summaries.length,
+        currentIndex: useUploadStore.getState().currentSummaryIndex
+      });
+      
+      // Show success message
       toast.success(t('toast.condensed', { defaultValue: 'Summary condensed successfully' }))
       
       // Stop the timer and loading states
       stopProcessing()
       setIsCondensing(false)
     } catch (err: unknown) {
+      console.error('Error condensing summary:', err);
       // Error handling similar to generateFlashcards
       if (err instanceof ApiError) {
         switch(err.type) {

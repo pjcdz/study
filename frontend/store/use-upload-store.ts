@@ -78,10 +78,15 @@ export const useUploadStore = create<UploadState>()(
       setInputText: (text: string) => set({ inputText: text }),
       // New summary methods
       addSummary: (text: string) => 
-        set((state) => ({
-          summaries: [...state.summaries, text],
-          currentSummaryIndex: state.summaries.length
-        })),
+        set((state) => {
+          // First add the summary
+          const updatedSummaries = [...state.summaries, text];
+          // Then set the index to the last position
+          return {
+            summaries: updatedSummaries,
+            currentSummaryIndex: updatedSummaries.length - 1
+          };
+        }),
       setCurrentSummaryIndex: (index: number) => 
         set((state) => ({
           currentSummaryIndex: Math.max(0, Math.min(index, state.summaries.length - 1))
@@ -122,7 +127,8 @@ export const useUploadStore = create<UploadState>()(
         }
         return {};
       }),
-      reset: () =>
+      reset: () => {
+        // Reset state
         set({
           files: [],
           originalFiles: [],
@@ -134,7 +140,25 @@ export const useUploadStore = create<UploadState>()(
           isLoading: false,
           processingStartTime: null,
           elapsedTimeMs: 0,
-        }),
+        })
+        
+        // Clear localStorage keys
+        if (typeof window !== 'undefined') {
+          // Clear the main store
+          localStorage.removeItem('upload-store')
+          
+          // Clear flashcards data
+          localStorage.removeItem('FLASHCARDS_DATA')
+          
+          // Clear legacy keys for backward compatibility
+          localStorage.removeItem('studyToolSummaries')
+          localStorage.removeItem('studyToolFlashcards')
+          localStorage.removeItem('studyToolCurrentStep')
+          localStorage.removeItem('studyToolCurrentSummaryIndex')
+          
+          console.log('Estado completamente reiniciado: todas las claves eliminadas')
+        }
+      },
     }),
     {
       name: 'upload-store',

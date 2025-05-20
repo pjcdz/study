@@ -275,7 +275,7 @@ export async function generateMultimodalContent(userApiKey, parts, systemInstruc
       contents,
       generationConfig: {
         temperature: 1,        // Lower temperature for more focused output
-        maxOutputTokens: 16384,  // Large token limit to allow detailed responses
+        maxOutputTokens: 8192,  // Large token limit to allow detailed responses
         topP: 0.8,               // Sample from top 80% probability mass
         topK: 40                 // Sample from top 40 tokens
       }
@@ -473,9 +473,9 @@ export class GeminiClient {
   constructor(config = {}) {
     this.apiKey = null;
     this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
-    this.defaultModel = config.model || 'gemini-1.5-pro';
-    this.temperature = config.temperature || 0.7;
-    this.maxOutputTokens = config.maxOutputTokens || 2048;
+    this.defaultModel = config.model || 'gemini-1.5-flash';
+    this.temperature = config.temperature || 1;
+    this.maxOutputTokens = config.maxOutputTokens || 8192;
   }
   
   /**

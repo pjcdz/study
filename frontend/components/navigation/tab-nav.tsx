@@ -94,9 +94,11 @@ export function WorkflowTabs() {
               <AlertDialogFooter>
                 <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
                 <AlertDialogAction onClick={() => {
+                  // Use our enhanced reset function that now handles all localStorage cleanup
                   reset()
-                  // Obtener el prefijo de idioma de la ruta actual
-                  const localePrefix = pathname.split('/')[1]; // Obtiene 'es' o 'en', etc.
+                  
+                  // Obtain the language prefix from the current path
+                  const localePrefix = pathname.split('/')[1];
                   router.push(`/${localePrefix}/upload`)
                 }}>
                   {t('confirm')}

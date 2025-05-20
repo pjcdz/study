@@ -303,7 +303,14 @@ class ApiClient {
         throw new ApiError(errorData.error || errorData.message || `Error ${response.status}`, errorType as ApiErrorType);
       }
       
-      return await response.json();
+      // Get the response data
+      const responseData = await response.json();
+      
+      // Map notionMarkdown to condensedSummary for frontend consistency
+      return {
+        condensedSummary: responseData.notionMarkdown,
+        stats: responseData.stats
+      };
     } catch (error) {
       console.error('Error in condenseSummary:', error);
       
