@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
@@ -22,7 +22,8 @@ import {
   AlertDialogTrigger 
 } from "@/components/ui/alert-dialog"
 
-export default function FlashcardsPage() {
+// Create a content component to wrap in Suspense
+function FlashcardsContent() {
   const t = useTranslations('flashcards');
   const tNav = useTranslations('navigation');
   const tCommon = useTranslations('common');
@@ -207,4 +208,13 @@ export default function FlashcardsPage() {
       </div>
     </div>
   )
+}
+
+// Main component with Suspense boundary
+export default function FlashcardsPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center p-8">Loading flashcards...</div>}>
+      <FlashcardsContent />
+    </Suspense>
+  );
 }

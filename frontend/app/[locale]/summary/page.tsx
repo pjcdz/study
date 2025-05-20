@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -13,7 +13,8 @@ import apiClient, { ApiError, ApiErrorType } from "@/lib/api-client"
 import { useTranslations } from "next-intl"
 import { useProcessingTimer } from "@/lib/hooks/useProcessingTimer"
 
-export default function SummaryPage() {
+// Extract content component
+function SummaryContent() {
   const t = useTranslations('summary');
   const { 
     summary, 
@@ -220,4 +221,13 @@ export default function SummaryPage() {
       </footer>
     </div>
   )
+}
+
+// Main component with Suspense boundary
+export default function SummaryPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center p-8">Loading summary...</div>}>
+      <SummaryContent />
+    </Suspense>
+  );
 }

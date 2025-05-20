@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export const GET = async (request: NextRequest) => {
+export const GET = async (_request: NextRequest) => {
   try {
     // The backend URL from environment variable or fallback
     const backendUrl = process.env.BACKEND_URL || 'http://backend:4000';

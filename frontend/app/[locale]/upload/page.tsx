@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -15,7 +15,8 @@ import { FileList } from "@/components/upload/file-list"
 import { motion } from "framer-motion"
 import { useProcessingTimer } from "@/lib/hooks/useProcessingTimer"
 
-export default function UploadPage() {
+// Extract content component
+function UploadContent() {
   // Framer Motion variants for animation
   const containerVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -30,12 +31,11 @@ export default function UploadPage() {
   const router = useRouter()
   
   // Using the shared timer hook
-  const { isLoading, displayTime, startProcessing, stopProcessing } = useProcessingTimer()
+  const { isLoading, displayTime, startProcessing } = useProcessingTimer()
   
   const {
     files,
     inputText,
-    summary,
     addFiles,
     removeFile,
     setInputText,
@@ -329,4 +329,13 @@ export default function UploadPage() {
       </footer>
     </div>
   )
+}
+
+// Main component with Suspense boundary
+export default function UploadPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center p-8">Loading...</div>}>
+      <UploadContent />
+    </Suspense>
+  );
 }
