@@ -1,7 +1,22 @@
 import { NextResponse } from 'next/server';
+import { demoSummaryContent } from '@/lib/mock-data';
 
 export async function POST(request: Request) {
   try {
+    // Check if we're in demo mode
+    const useDemoContent = process.env.USE_DEMO_CONTENT === 'true';
+    
+    // Return mock data if in demo mode
+    if (useDemoContent) {
+      console.log('🧪 API route: Using mock processed files data');
+      // Add a small delay to simulate processing time
+      await new Promise(resolve => setTimeout(resolve, 800));
+      return NextResponse.json({
+        success: true,
+        summary: demoSummaryContent.substring(0, 1000) + "..." // Return a preview portion of the demo content
+      });
+    }
+    
     const body = await request.json();
     const { text, inputText } = body;
     
@@ -20,6 +35,16 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error('Error in process-files API route:', error);
+    
+    // If we're in demo mode, still return mock data even if there's an error
+    if (process.env.USE_DEMO_CONTENT === 'true') {
+      console.log('🧪 API route: Error occurred but returning mock processed files data');
+      return NextResponse.json({
+        success: true,
+        summary: demoSummaryContent.substring(0, 1000) + "..." 
+      });
+    }
+    
     return NextResponse.json(
       { success: false, error: 'Failed to process files' },
       { status: 500 }

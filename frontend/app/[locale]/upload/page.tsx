@@ -1,11 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
-import { Loader2 } from "lucide-react"
+import { Loader2, X, Zap, KeyRound } from "lucide-react"
 import { toast } from "sonner"
 import { useUploadStore } from '@/store/use-upload-store'
 import { useTranslations } from 'next-intl'
@@ -14,8 +14,107 @@ import { FileDropzone } from "@/components/upload/file-dropzone"
 import { FileList } from "@/components/upload/file-list"
 import { motion } from "framer-motion"
 import { useProcessingTimer } from "@/lib/hooks/useProcessingTimer"
+import { useApiKey } from "@/lib/hooks/useApiKey"
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from "@/components/ui/alert-dialog"
+import { Progress } from "@/components/ui/progress"
 
 export default function UploadPage() {
+  const { isAvailable, isLoading: isApiKeyLoading, isMounted } = useApiKey()
+  const router = useRouter()
+  const t = useTranslations()
+  const [showApiKeyDialog, setShowApiKeyDialog] = useState(false)
+  const [largeFileProcessing, setLargeFileProcessing] = useState(false);
+  const [largeFileMessage, setLargeFileMessage] = useState('');
+  const [processingStatus, setProcessingStatus] = useState<{[key: string]: string}>({});
+  const [processingProgress, setProcessingProgress] = useState(0);
+  const [statusCheckIntervalId, setStatusCheckIntervalId] = useState<NodeJS.Timeout | null>(null);
+
+  // Check API key on component mount and redirect if not available
+  useEffect(() => {
+    // Esperar a que termine de cargar el estado de la API key
+    if (isApiKeyLoading || !isMounted) {
+      return;
+    }
+    
+    if (!isAvailable) {
+      // Mostrar el diálogo modal en lugar de redireccionar inmediatamente
+      setShowApiKeyDialog(true)
+    }
+  }, [isAvailable, isApiKeyLoading, isMounted]);
+
+  // Check file processing status when large file processing is active
+  useEffect(() => {
+    if (largeFileProcessing) {
+      // Start periodic status checks
+      const intervalId = setInterval(async () => {
+        try {
+          // Get file status from API
+          const statusResponse = await apiClient.getFileProcessingStatus();
+          
+          if (statusResponse && statusResponse.fileStatus) {
+            setProcessingStatus(statusResponse.fileStatus);
+            
+            // Calculate progress based on processed files
+            const fileEntries = Object.entries(statusResponse.fileStatus);
+            if (fileEntries.length > 0) {
+              const processedCount = fileEntries.filter(([_, status]) => 
+                status === 'PROCESSED'
+              ).length;
+              
+              const newProgress = Math.round((processedCount / fileEntries.length) * 100);
+              setProcessingProgress(newProgress);
+              
+              // Update message based on the current status
+              const inProgressFiles = fileEntries
+                .filter(([_, status]) => status === 'PROCESSING')
+                .map(([filename]) => filename);
+                
+              if (inProgressFiles.length > 0) {
+                setLargeFileMessage(`Procesando: ${inProgressFiles.join(', ')} (${newProgress}%)`);
+              } else if (processedCount === fileEntries.length) {
+                setLargeFileMessage(`Procesamiento de archivo completado. Generando resumen...`);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error checking file status:', error);
+        }
+      }, 2000); // Check every 2 seconds
+      
+      setStatusCheckIntervalId(intervalId);
+      
+      // Clean up interval on unmount
+      return () => {
+        if (intervalId) {
+          clearInterval(intervalId);
+        }
+      };
+    } else {
+      // Clear interval when not processing large files
+      if (statusCheckIntervalId) {
+        clearInterval(statusCheckIntervalId);
+        setStatusCheckIntervalId(null);
+      }
+    }
+  }, [largeFileProcessing]);
+
+  // Clean up status check on component unmount
+  useEffect(() => {
+    return () => {
+      if (statusCheckIntervalId) {
+        clearInterval(statusCheckIntervalId);
+      }
+    };
+  }, [statusCheckIntervalId]);
+
   // Framer Motion variants for animation
   const containerVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -25,9 +124,6 @@ export default function UploadPage() {
     hidden: { opacity: 0, y: 20 },
     show: { opacity: 1, y: 0 },
   }
-
-  const t = useTranslations()
-  const router = useRouter()
   
   // Using the shared timer hook
   const { isLoading, displayTime, startProcessing, stopProcessing } = useProcessingTimer()
@@ -35,202 +131,213 @@ export default function UploadPage() {
   const {
     files,
     inputText,
-    summary,
     addFiles,
     removeFile,
     setInputText,
-    setSummary,
+    addSummary,
+    setCurrentStep,
+    reset
   } = useUploadStore()
 
-  // Function to process files
-  const processFiles = async () => {
+  const handleSubmit = async () => {
     try {
-      // Nota: No llamamos a startProcessing() aquí porque se llama en handleGenerateSummary
+      // Create FormData for better multimodal support
+      const formData = new FormData();
+      let contentAdded = false;
+      let hasLargeFile = false;
       
-      let extractedText = ''
-      const { files, originalFiles } = useUploadStore.getState()
+      // Validate input - at least one file or text content
+      if (files.length === 0 && !inputText.trim()) {
+        toast.error(t('upload.validation.noContent'));
+        return;
+      }
       
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i]
-        const originalFile = originalFiles[i]
+      // Check for API key availability before proceeding
+      if (!isAvailable) {
+        toast.error(t('upload.toast.apiKeyMissing') || 'No puedes subir un archivo sin configurar tu API primero');
         
-        // For images, use base64
-        if (file.type.includes('image/')) {
-          const base64 = await fileToBase64(originalFile)
-          extractedText += `[Image Content: ${file.name}]\n${base64}\n\n`
-        }
-        // For PDFs (basic information)
-        else if (file.type === 'application/pdf') {
-          extractedText += `[PDF Document: ${file.name}]\n`
-          extractedText += `This is a PDF document that contains information about "${file.name.replace('.pdf', '')}". `
-          extractedText += `Please analyze the content of the file that is related to this topic. `
-          extractedText += `The document has a size of ${Math.round(file.size / 1024)} KB.\n\n`
-          
-          if (inputText) {
-            extractedText += `Additional context provided by the user:\n${inputText}\n\n`
-          }
-        }
-        // For text files
-        else if (file.type.includes('text/') || file.type === 'application/json') {
-          const text = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader()
-            reader.onload = () => {
-              const result = reader.result
-              if (typeof result === 'string') {
-                resolve(result)
-              } else {
-                reject(new Error('Invalid file content'))
-              }
+        // Get the current locale from pathname
+        const pathParts = window.location.pathname.split('/');
+        const locale = pathParts[1]; // Get the locale from URL ('es' or 'en')
+        
+        // Redirect to API key page
+        router.push(`/${locale}/api`);
+        return;
+      }
+      
+      // Start processing and show timer
+      startProcessing();
+      setCurrentStep('upload');
+      
+      // ENVIAR TODOS LOS ARCHIVOS DIRECTAMENTE AL BACKEND
+      if (files && files.length > 0) {
+        console.log("Procesando archivos:", files.map(f => f.name).join(', '));
+        
+        // Verificar si hay archivos grandes (>20MB)
+        const MAX_INLINE_SIZE = 20 * 1024 * 1024; // 20MB
+        
+        // Enviar tanto PDFs como imágenes directamente al backend
+        files.forEach((file, index) => {
+          const originalFile = useUploadStore.getState().originalFiles.find(f => f.name === file.name);
+          if (originalFile) {
+            // Verificar si es un archivo grande
+            if (originalFile.size > MAX_INLINE_SIZE) {
+              hasLargeFile = true;
+              setLargeFileMessage(`Detectado archivo grande: ${originalFile.name} (${Math.round(originalFile.size / (1024 * 1024))}MB). El procesamiento puede tomar más tiempo.`);
+              toast.info(`Archivo grande detectado: ${originalFile.name}. El procesamiento puede tomar más tiempo.`, {
+                duration: 5000
+              });
             }
-            reader.onerror = reject
-            reader.readAsText(originalFile)
-          })
-          extractedText += `[Text Content: ${file.name}]\n${text}\n\n`
+            formData.append(`file${index}`, originalFile);
+            contentAdded = true;
+            console.log(`Añadido archivo: ${file.name} (${file.type}), tamaño: ${Math.round(originalFile.size / 1024)}KB`);
+          }
+        });
+        
+        // Mostrar mensaje de procesamiento adicional para archivos grandes
+        if (hasLargeFile) {
+          setLargeFileProcessing(true);
         }
       }
-
-      // Process the extracted text
-      const response = await fetch('/api/process-files', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ text: extractedText, inputText }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to process files')
+      
+      // Add text input if present
+      if (inputText && inputText.trim()) {
+        formData.append("textPrompt", inputText);
+        contentAdded = true;
+        console.log("Añadido texto de entrada");
       }
-
-      const data = await response.json()
-      setSummary(data.summary)
       
-      // No llamamos a stopProcessing() aquí para mantener el timer corriendo
-      // El timer solo debe detenerse en la página de summary
-    } catch (error: unknown) {
-      console.error('Error processing files:', error)
-      toast.error(t('upload.toast.error', { message: 'Error processing files' }))
+      // Verify something was added to process
+      if (!contentAdded) {
+        toast.error(t('upload.validation.noContent'));
+        stopProcessing();
+        return;
+      }
       
-      // No llamamos a stopProcessing() aquí para mantener el timer corriendo incluso en caso de error
-      // Esto permite al usuario ver cuánto tiempo ha pasado y decidir si intentar de nuevo
+      // Log FormData entries for debugging
+      console.log("FormData contents:");
+      for (const pair of formData.entries()) {
+        console.log(`- ${pair[0]}: ${pair[1] instanceof File ? pair[1].name : 'text content'}`);
+      }
+      
+      try {
+        // Send the request
+        const response = await apiClient.processSummary(formData);
+        
+        // Stop processing timer
+        stopProcessing();
+        setLargeFileProcessing(false);
+        
+        // Add the summary to our state
+        addSummary(response.notionMarkdown);
+        setCurrentStep('summary');
+        
+        // Show success message
+        toast.success(t('upload.toast.success'));
+        
+        // Navigate to the next step
+        router.push('./summary');
+      } catch (error) {
+        stopProcessing();
+        setLargeFileProcessing(false);
+        
+        let errorMessage: string;
+        if (error instanceof ApiError) {
+          errorMessage = error.message;
+          
+          // Handle different error types
+          switch (error.type) {
+            case ApiErrorType.QUOTA_EXCEEDED:
+              toast.error(t('upload.toast.quotaExceeded'));
+              break;
+            case ApiErrorType.INVALID_API_KEY:
+              toast.error(t('upload.toast.invalidApiKey') || 'Invalid API key. Please configure your API key.');
+              
+              // Get the current locale from pathname
+              const pathParts = window.location.pathname.split('/');
+              const locale = pathParts[1]; // Get the locale from URL ('es' or 'en')
+              
+              // Redirect to API key page
+              setTimeout(() => router.push(`/${locale}/api`), 1500);
+              break;
+            case ApiErrorType.FILE_TOO_LARGE:
+              toast.error(t('upload.toast.fileTooLarge') || 'El archivo es demasiado grande para procesar, incluso con la API de archivos.');
+              break;
+            case ApiErrorType.FILE_PROCESSING_FAILED:
+              toast.error(t('upload.toast.fileProcessingFailed') || 'El procesamiento del archivo ha fallado en el servidor. Intenta con otro archivo o formato.');
+              break;
+            case ApiErrorType.NETWORK_ERROR:
+              toast.error(t('upload.toast.networkError'));
+              break;
+            default:
+              toast.error(t('upload.toast.error', { message: errorMessage }));
+              break;
+          }
+        } else {
+          errorMessage = (error as Error).message;
+          toast.error(t('upload.toast.error', { message: errorMessage }));
+        }
+        
+        console.error('Error in upload process:', errorMessage);
+      }
+    } catch (error) {
+      stopProcessing();
+      setLargeFileProcessing(false);
+      
+      const errorMessage = (error as Error).message;
+      toast.error(t('upload.toast.error', { message: errorMessage }));
+      console.error('Unexpected error in upload process:', errorMessage);
     }
   }
 
-  // Helper to convert file to base64
-  const fileToBase64 = async (file: Blob): Promise<string> => {
-    return new Promise<string>((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => {
-        const result = reader.result
-        if (typeof result === 'string') {
-          resolve(result)
-        } else {
-          reject(new Error('Failed to convert file to base64'))
-        }
-      }
-      reader.onerror = reject
-      reader.readAsDataURL(file)
-    })
-  }
-  
-  const handleGenerateSummary = async () => {
-    if (!inputText && files.length === 0) {
-      toast.error(t('upload.validation.noContent'))
-      return
+  const handleCancel = () => {
+    // Detener el procesamiento si está en curso
+    if (isLoading) {
+      stopProcessing();
     }
     
-    try {
-      // Start processing timer (sets isLoading=true)
-      startProcessing()
-      
-      // Process uploaded files and ensure they generate content
-      if (files.length > 0) {
-        await processFiles(); // Call for side effects
-        // Wait a moment to ensure state has updated
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-      
-      // Get the current state after files are processed
-      const currentState = useUploadStore.getState();
-      
-      // Use direct input text if no files, otherwise use the processed summary
-      const combinedText = files.length > 0 
-        ? currentState.summary || inputText  // Use summary if available, fall back to input text
-        : inputText;
-      
-      if (!combinedText || combinedText.trim() === '') {
-        throw new Error('No content to process');
-      }
-      
-      console.log('Sending content to backend, length:', combinedText.length);
-      
-      // Send to backend - making sure we have actual content - and WAIT for complete response
-      // This is a long-running operation that may take 1-2 minutes with Gemini
-      const response = await apiClient.postSummary(combinedText)
-      
-      // Only proceed with redirect when we have a valid notionMarkdown response AND stats
-      // This ensures we got a complete response from Gemini including token usage info
-      if (!response || !response.notionMarkdown || !response.stats) {
-        throw new Error('Invalid or incomplete server response')
-      }
-      
-      // Log token usage information
-      console.log('Gemini API response received:');
-      console.log('- Generation time:', response.stats.generationTimeMs, 'ms');
-      if (response.stats.inputTokens) {
-        console.log('- Input tokens:', response.stats.inputTokens);
-        console.log('- Output tokens:', response.stats.outputTokens);
-        console.log('- Total tokens:', response.stats.inputTokens + response.stats.outputTokens);
-      }
-      
-      // Save the complete markdown response
-      setSummary(response.notionMarkdown)
-      
-      // Now that we have the complete summary with all token information, show success
-      toast.success(t('upload.toast.success'))
-      
-      // Navigate to the summary page - we keep timer running during navigation
-      router.push('./summary')
-      
-      // NOTE: We do NOT stop the timer here
-      // The timer will continue running until the user reaches the summary page
-      // The summary page component will be responsible for stopping the timer when it loads
-      
-    } catch (err: unknown) {
-      console.error('Error generating summary:', err);
-      
-      // Verificar si es un error de API y manejar según su tipo
-      if (err instanceof ApiError) {
-        switch(err.type) {
-          case ApiErrorType.QUOTA_EXCEEDED:
-            toast.error(t('upload.toast.quotaExceeded'));
-            break;
-          case ApiErrorType.NETWORK_ERROR:
-            toast.error(t('upload.toast.networkError'));
-            break;
-          case ApiErrorType.INVALID_API_KEY:
-            toast.error(t('upload.toast.apiKeyError'));
-            break;
-          default:
-            toast.error(t('upload.toast.error', { message: err.message }));
-        }
-      } else {
-        // Para errores genéricos
-        let message = 'Unknown error';
-        if (typeof err === 'object' && err && 'message' in err && typeof (err as { message?: string }).message === 'string') {
-          message = (err as { message: string }).message;
-        }
-        toast.error(t('upload.toast.error', { message }));
-      }
-      
-      // We don't stop the timer on error, it will continue running
-      // This ensures the timer continues even if there's an error
-      // The user can cancel or try again without the timer resetting
-    }
-  }
+    // Restablecer el estado
+    reset();
+    
+    // Obtener el prefijo de idioma de la ruta actual
+    const pathParts = window.location.pathname.split('/');
+    const locale = pathParts[1]; // Get the locale from URL ('es' or 'en')
+    
+    // Redireccionar a la página inicial
+    router.push(`/${locale}/`);
+  };
   
   return (
     <div className="flex flex-col min-h-screen">
+      {/* Diálogo modal para API Key no configurada */}
+      <AlertDialog open={showApiKeyDialog} onOpenChange={setShowApiKeyDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              <div className="flex items-center gap-2">
+                <KeyRound className="h-5 w-5 text-amber-500" />
+                {t('upload.apiKeyDialog.title', { defaultValue: 'API Key Requerida' })}
+              </div>
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('upload.toast.apiKeyMissing', { defaultValue: 'No puedes subir un archivo sin configurar tu API primero' })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => {
+              // Obtener el prefijo de idioma de la ruta actual
+              const pathParts = window.location.pathname.split('/');
+              const locale = pathParts[1]; // Get locale from URL ('es' or 'en')
+              
+              // Redireccionar a la página de API
+              router.push(`/${locale}/api`);
+            }}>
+              {t('upload.apiKeyDialog.configure', { defaultValue: 'Configurar API Key' })}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Main content with padding-bottom to ensure content doesn't get hidden under fixed footer */}
       <div className="flex-grow pb-20">
         <div className="container mx-auto py-8">
@@ -239,7 +346,7 @@ export default function UploadPage() {
               initial="hidden"
               animate="show"
               variants={containerVariants}
-              className="space-y-4"
+              className="space-y-6"
             >
               <motion.div 
                 variants={itemVariants}
@@ -250,49 +357,45 @@ export default function UploadPage() {
               </motion.div>
 
               <Card className="shadow-sm border-2 border-muted rounded-lg overflow-hidden">
-                <CardContent>
+                <CardContent className="p-6">
                   <motion.div 
                     variants={itemVariants}
                     className="space-y-6"
                   >
-                    <div className="grid gap-4">
-                      <motion.div 
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        className="relative"
-                      >
-                        <FileDropzone 
-                          addFiles={addFiles}
-                          className="border-2 border-dashed border-primary/50 rounded-lg p-8 text-center"
-                        />
-                      </motion.div>
-
+                    {/* File Upload */}
+                    <div className="space-y-4">
+                      <FileDropzone addFiles={addFiles} />
                       {files.length > 0 && (
-                        <motion.div 
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          className="space-y-2"
-                        >
-                          <FileList 
-                            files={files}
-                            onRemove={removeFile}
-                            className="space-y-2"
-                          />
-                        </motion.div>
+                        <FileList files={files} onRemove={removeFile} />
                       )}
                     </div>
-
-                    <motion.div 
-                      variants={itemVariants}
-                      className="relative"
-                    >
+                    
+                    {/* Text Input */}
+                    <div className="space-y-2">
+                      <label
+                        htmlFor="textContent"
+                        className="text-sm font-medium"
+                      >
+                        {files.length > 0 
+                          ? t('upload.textInput.labelWithFiles')
+                          : t('upload.textInput.labelWithoutFiles')}
+                      </label>
                       <Textarea
-                        placeholder={t('upload.textPlaceholder')}
+                        id="textContent"
+                        placeholder={files.length > 0 
+                          ? t('upload.textInput.placeholderWithFiles')
+                          : t('upload.textInput.placeholderWithoutFiles')
+                        }
                         value={inputText}
                         onChange={(e) => setInputText(e.target.value)}
-                        className="resize-none min-h-[100px]"
+                        className="min-h-[100px] resize-y"
                       />
-                    </motion.div>
+                      {files.length > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          {t('upload.textInput.helpWithFiles')}
+                        </p>
+                      )}
+                    </div>
                   </motion.div>
                 </CardContent>
               </Card>
@@ -303,29 +406,59 @@ export default function UploadPage() {
 
       {/* Fixed footer */}
       <footer className="fixed bottom-0 left-0 right-0 bg-background border-t border-border shadow-md py-4 z-10">
-        <div className="container max-w-4xl mx-auto flex justify-end gap-4">
+        <div className="container max-w-4xl mx-auto flex justify-center space-x-4">
           <Button 
-            onClick={() => router.push('/')}
+            onClick={handleCancel}
             variant="outline"
-            className="transition-all hover:scale-105"
+            size="lg"
+            className="transition-all hover:bg-primary/10 hover:border-secondary hover:border-2 hover:shadow-[0_0_15px_rgba(var(--color-secondary)/0.4)]"
           >
+            <X className="mr-2 h-4 w-4" />
             {t('common.cancel')}
           </Button>
+          
           <Button 
-            onClick={handleGenerateSummary}
-            disabled={isLoading || (!files.length && !inputText)}
-            className="transition-all hover:bg-primary/80"
+            onClick={handleSubmit}
+            disabled={isLoading || (files.length === 0 && !inputText.trim())}
+            size="lg"
+            className="transition-all hover:border-primary hover:border-2 hover:shadow-[0_0_15px_rgba(var(--color-primary)/0.5)]"
           >
             {isLoading ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {t('upload.button.generating')} ({displayTime})
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
+                {largeFileProcessing ? (
+                  <span>
+                    {t('upload.processingLargeFile')} {displayTime}
+                  </span>
+                ) : (
+                  <span>
+                    {t('upload.processing')} {displayTime}
+                  </span>
+                )}
               </>
             ) : (
-              t('upload.process')
+              <>
+                <Zap className="mr-2 h-4 w-4" />
+                {t('upload.process')}
+              </>
             )}
           </Button>
         </div>
+        {/* Mostrar mensaje informativo sobre archivos grandes */}
+        {largeFileProcessing && largeFileMessage && (
+          <div className="absolute bottom-20 left-0 right-0 bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-200 p-2 text-center text-sm">
+            <div className="flex items-center justify-center">
+              <Loader2 className="h-4 w-4 animate-spin mr-2" /> 
+              {largeFileMessage}
+            </div>
+            <p className="text-xs mt-1">Los archivos grandes requieren procesamiento adicional en el servidor</p>
+            {/* Add progress bar for file processing */}
+            <div className="mt-2 px-4">
+              <Progress value={processingProgress} className="h-2" />
+              <p className="text-xs mt-1 text-right">{processingProgress}%</p>
+            </div>
+          </div>
+        )}
       </footer>
     </div>
   )

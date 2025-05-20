@@ -10,6 +10,7 @@ import { toast } from "sonner"
 import { ClipboardCopy, Check, ExternalLink, RefreshCw } from "lucide-react"
 import { useUploadStore } from "@/store/use-upload-store"
 import { useTranslations } from "next-intl"
+import { demoFlashcardsTSV } from "@/lib/mock-data"
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -26,28 +27,54 @@ export default function FlashcardsPage() {
   const t = useTranslations('flashcards');
   const tNav = useTranslations('navigation');
   const tCommon = useTranslations('common');
-  const { flashcards, reset } = useUploadStore()
+  const { flashcards, setFlashcards, reset } = useUploadStore()
   const [isCopied, setIsCopied] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
   
+  // Check if we're in demo mode
+  const [isDemoMode, setIsDemoMode] = useState(false)
+  
   useEffect(() => {
-    // Only run on the client side
-    if (!flashcards) {
+    // Check if demo mode is enabled
+    const demoMode = process.env.USE_DEMO_CONTENT === 'true' || 
+                    window.localStorage.getItem('USE_DEMO_CONTENT') === 'true';
+    setIsDemoMode(demoMode)
+    
+    // Log estado del store al entrar a la página de flashcards
+    console.log('FlashcardsPage - Estado inicial:', {
+      flashcardsExist: !!flashcards,
+      flashcardsLength: flashcards?.length || 0,
+      currentStep: useUploadStore.getState().currentStep,
+      isDemoMode: demoMode
+    });
+    
+    // In demo mode, ensure we have flashcards data
+    if (demoMode && !flashcards) {
+      console.log('🧪 Demo mode: Setting default flashcards');
+      setFlashcards(demoFlashcardsTSV);
+    }
+    
+    // For normal mode, redirect if no flashcards
+    if (!demoMode && !flashcards) {
+      console.log('No existen flashcards en el store, redirigiendo a summary');
       const pathParts = window.location.pathname.split('/');
       const locale = pathParts[1]; // Get the locale from the URL ('es' or 'en')
       router.push(`/${locale}/summary`);
     }
-  }, [flashcards, router]);
+  }, [flashcards, router, setFlashcards]);
   
-  // Early return during server-side rendering or if there are no flashcards
-  if (typeof window === 'undefined' || !flashcards) {
+  // Early return during server-side rendering or if there are no flashcards (and not in demo mode)
+  if (typeof window === 'undefined' || (!flashcards && !isDemoMode)) {
     return null;
   }
   
+  // Use flashcards from store or demo flashcards if in demo mode and no store value
+  const displayFlashcards = flashcards || (isDemoMode ? demoFlashcardsTSV : '');
+  
   // Process TSV to clean markdown tags and code blocks if they exist
   const cleanTSV = (() => {
-    let cleaned = flashcards;
+    let cleaned = displayFlashcards;
     
     // Remover marcas de código al principio y al final (como estaba anteriormente)
     if (cleaned.startsWith('```markdown')) {
@@ -111,6 +138,7 @@ export default function FlashcardsPage() {
                 variant="outline"
                 size="sm"
                 onClick={handleCopyToClipboard}
+                className="transition-all hover:border-primary hover:border-2 hover:shadow-[0_0_10px_rgba(var(--color-primary)/0.3)]"
               >
                 {isCopied ? (
                   <Check className="mr-2 h-4 w-4" />
@@ -123,6 +151,7 @@ export default function FlashcardsPage() {
                 variant="outline"
                 size="sm"
                 asChild
+                className="transition-all hover:border-accent hover:border-2 hover:shadow-[0_0_10px_rgba(var(--color-accent)/0.3)]"
               >
                 <a 
                   href="https://quizlet.com/create-set"
@@ -176,7 +205,10 @@ export default function FlashcardsPage() {
             </p>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="outline" className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  className="flex items-center gap-2 transition-all hover:border-ring hover:border-2 hover:shadow-[0_0_10px_rgba(var(--color-ring)/0.4)]"
+                >
                   <RefreshCw className="h-4 w-4" />
                   {/* Usar traducciones en lugar de texto hardcodeado */}
                   {t('actions.startNewProject', { defaultValue: "Comenzar nuevo proyecto" })}
@@ -192,10 +224,17 @@ export default function FlashcardsPage() {
                 <AlertDialogFooter>
                   <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
                   <AlertDialogAction onClick={() => {
+                    // Use our enhanced reset function that now handles all localStorage cleanup
                     reset()
-                    // Obtener el prefijo de idioma de la ruta actual
+                    
+                    // No need to manually remove items as that's now handled in the reset function
+                    
+                    // Obtain the language prefix from the current path
                     const localePrefix = pathname.split('/')[1];
                     router.push(`/${localePrefix}/upload`)
+                    
+                    // Show confirmation toast
+                    toast.success(t('toast.resetSuccess', { defaultValue: 'All data cleared. Ready to start a new session.' }))
                   }}>
                     {tNav('confirm')}
                   </AlertDialogAction>
