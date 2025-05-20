@@ -44,13 +44,12 @@ services:
     ports:
       - "4000"
     environment:
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
       - NODE_ENV=production
     networks:
       - study-network
       - traefik_traefik-public
-    secrets:
-      - gemini_api_key
+    volumes:
+      - backend-uploads:/app/uploads
     deploy:
       replicas: 1  # Start with 1 replica for easier troubleshooting
       update_config:
@@ -84,6 +83,7 @@ networks:
   traefik_traefik-public:
     external: true
 
-secrets:
-  gemini_api_key:
-    external: true
+# Definir explícitamente los volúmenes nombrados para asegurar persistencia en Swarm
+volumes:
+  backend-uploads:
+    driver: local  # Especificar el driver de volumen explícitamente
