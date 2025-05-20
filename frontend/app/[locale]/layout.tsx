@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { NextIntlClientProvider } from 'next-intl';
 import { notFound } from 'next/navigation';
 import AppContainer from '@/components/app-container';
@@ -27,6 +28,18 @@ function getSafeLocale(locale: string | undefined): string {
   return locale;
 }
 
+// Loading fallback for the entire site
+function SiteLoadingFallback() {
+  return (
+    <div className="flex h-screen w-full items-center justify-center">
+      <div className="text-center">
+        <div className="h-16 w-16 border-4 border-t-primary border-r-transparent border-b-primary border-l-transparent rounded-full animate-spin mx-auto"></div>
+        <p className="mt-4 text-muted-foreground">Cargando aplicación...</p>
+      </div>
+    </div>
+  )
+}
+
 type Props = {
   children: React.ReactNode;
   params: { locale: string };
@@ -50,59 +63,63 @@ export default async function LocaleLayout({ children, params }: Props) {
 
   // Return the JSX with properly awaited params
   return (
-    <NextIntlClientProvider locale={locale} messages={localeMessages}>
-      {/* Add script to initialize demo data */}
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `
-            try {
-              if (typeof window !== 'undefined') {
-                // Wait for window to be fully loaded before initializing demo data
-                window.addEventListener('load', function() {
-                  try {
-                    // Only try to import if we're not explicitly in non-demo mode
-                    const envDemoContent = '${process.env.USE_DEMO_CONTENT || 'undefined'}';
-                    const localStorageDemoContent = window.localStorage.getItem('USE_DEMO_CONTENT');
-                    
-                    // Check if we're explicitly NOT in demo mode
-                    if (envDemoContent === 'false') {
-                      // If localStorage has 'true', clear it to maintain consistency
-                      if (localStorageDemoContent === 'true') {
-                        window.localStorage.removeItem('USE_DEMO_CONTENT');
+    <Suspense fallback={<SiteLoadingFallback />}>
+      <NextIntlClientProvider locale={locale} messages={localeMessages}>
+        {/* Add script to initialize demo data */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                if (typeof window !== 'undefined') {
+                  // Wait for window to be fully loaded before initializing demo data
+                  window.addEventListener('load', function() {
+                    try {
+                      // Only try to import if we're not explicitly in non-demo mode
+                      const envDemoContent = '${process.env.USE_DEMO_CONTENT || 'undefined'}';
+                      const localStorageDemoContent = window.localStorage.getItem('USE_DEMO_CONTENT');
+                      
+                      // Check if we're explicitly NOT in demo mode
+                      if (envDemoContent === 'false') {
+                        // If localStorage has 'true', clear it to maintain consistency
+                        if (localStorageDemoContent === 'true') {
+                          window.localStorage.removeItem('USE_DEMO_CONTENT');
+                        }
+                        // Don't even try to import the module
+                        console.log('Demo mode explicitly disabled, skipping import');
+                        return;
                       }
-                      // Don't even try to import the module
-                      console.log('Demo mode explicitly disabled, skipping import');
-                      return;
+                      
+                      // Only import if we might be in demo mode
+                      if (envDemoContent === 'true' || localStorageDemoContent === 'true') {
+                        // Import and initialize demo data dynamically with the correct path
+                        import('@/lib/mock-data.js')
+                          .then(module => {
+                            if (typeof module.initDemoData === 'function') {
+                              module.initDemoData();
+                            }
+                          })
+                          .catch(err => console.error('Error loading demo data:', err));
+                      }
+                    } catch (e) {
+                      console.error('Error initializing demo data:', e);
                     }
-                    
-                    // Only import if we might be in demo mode
-                    if (envDemoContent === 'true' || localStorageDemoContent === 'true') {
-                      // Import and initialize demo data dynamically with the correct path
-                      import('@/lib/mock-data.js')
-                        .then(module => {
-                          if (typeof module.initDemoData === 'function') {
-                            module.initDemoData();
-                          }
-                        })
-                        .catch(err => console.error('Error loading demo data:', err));
-                    }
-                  } catch (e) {
-                    console.error('Error initializing demo data:', e);
-                  }
-                });
+                  });
+                }
+              } catch (e) {
+                console.error('Error in demo data script:', e);
               }
-            } catch (e) {
-              console.error('Error in demo data script:', e);
-            }
-          `
-        }}
-      />
-      <DemoBanner />
-      <AppContainer>
-        {children}
-      </AppContainer>
-      <Toaster position="top-center" richColors />
-    </NextIntlClientProvider>
+            `
+          }}
+        />
+        <DemoBanner />
+        <AppContainer>
+          <Suspense fallback={<SiteLoadingFallback />}>
+            {children}
+          </Suspense>
+        </AppContainer>
+        <Toaster position="top-center" richColors />
+      </NextIntlClientProvider>
+    </Suspense>
   );
 }
 
