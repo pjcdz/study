@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -26,8 +26,95 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Progress } from "@/components/ui/progress"
 
-// Extract content component
-function UploadContent() {
+export default function UploadPage() {
+  const { isAvailable, isLoading: isApiKeyLoading, isMounted } = useApiKey()
+  const router = useRouter()
+  const t = useTranslations()
+  const [showApiKeyDialog, setShowApiKeyDialog] = useState(false)
+  const [largeFileProcessing, setLargeFileProcessing] = useState(false);
+  const [largeFileMessage, setLargeFileMessage] = useState('');
+  const [processingStatus, setProcessingStatus] = useState<{[key: string]: string}>({});
+  const [processingProgress, setProcessingProgress] = useState(0);
+  const [statusCheckIntervalId, setStatusCheckIntervalId] = useState<NodeJS.Timeout | null>(null);
+
+  // Check API key on component mount and redirect if not available
+  useEffect(() => {
+    // Esperar a que termine de cargar el estado de la API key
+    if (isApiKeyLoading || !isMounted) {
+      return;
+    }
+    
+    if (!isAvailable) {
+      // Mostrar el diálogo modal en lugar de redireccionar inmediatamente
+      setShowApiKeyDialog(true)
+    }
+  }, [isAvailable, isApiKeyLoading, isMounted]);
+
+  // Check file processing status when large file processing is active
+  useEffect(() => {
+    if (largeFileProcessing) {
+      // Start periodic status checks
+      const intervalId = setInterval(async () => {
+        try {
+          // Get file status from API
+          const statusResponse = await apiClient.getFileProcessingStatus();
+          
+          if (statusResponse && statusResponse.fileStatus) {
+            setProcessingStatus(statusResponse.fileStatus);
+            
+            // Calculate progress based on processed files
+            const fileEntries = Object.entries(statusResponse.fileStatus);
+            if (fileEntries.length > 0) {
+              const processedCount = fileEntries.filter(([_, status]) => 
+                status === 'PROCESSED'
+              ).length;
+              
+              const newProgress = Math.round((processedCount / fileEntries.length) * 100);
+              setProcessingProgress(newProgress);
+              
+              // Update message based on the current status
+              const inProgressFiles = fileEntries
+                .filter(([_, status]) => status === 'PROCESSING')
+                .map(([filename]) => filename);
+                
+              if (inProgressFiles.length > 0) {
+                setLargeFileMessage(`Procesando: ${inProgressFiles.join(', ')} (${newProgress}%)`);
+              } else if (processedCount === fileEntries.length) {
+                setLargeFileMessage(`Procesamiento de archivo completado. Generando resumen...`);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error checking file status:', error);
+        }
+      }, 2000); // Check every 2 seconds
+      
+      setStatusCheckIntervalId(intervalId);
+      
+      // Clean up interval on unmount
+      return () => {
+        if (intervalId) {
+          clearInterval(intervalId);
+        }
+      };
+    } else {
+      // Clear interval when not processing large files
+      if (statusCheckIntervalId) {
+        clearInterval(statusCheckIntervalId);
+        setStatusCheckIntervalId(null);
+      }
+    }
+  }, [largeFileProcessing]);
+
+  // Clean up status check on component unmount
+  useEffect(() => {
+    return () => {
+      if (statusCheckIntervalId) {
+        clearInterval(statusCheckIntervalId);
+      }
+    };
+  }, [statusCheckIntervalId]);
+
   // Framer Motion variants for animation
   const containerVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -39,7 +126,7 @@ function UploadContent() {
   }
   
   // Using the shared timer hook
-  const { isLoading, displayTime, startProcessing } = useProcessingTimer()
+  const { isLoading, displayTime, startProcessing, stopProcessing } = useProcessingTimer()
   
   const {
     files,
@@ -375,13 +462,4 @@ function UploadContent() {
       </footer>
     </div>
   )
-}
-
-// Main component with Suspense boundary
-export default function UploadPage() {
-  return (
-    <Suspense fallback={<div className="flex justify-center p-8">Loading...</div>}>
-      <UploadContent />
-    </Suspense>
-  );
 }
