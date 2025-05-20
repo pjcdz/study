@@ -32,8 +32,8 @@ services:
       - "4000:4000"
     volumes:
       - ./backend:/app
+      - ./backend/uploads:/app/uploads
     environment:
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
       - NODE_ENV=development
     networks:
       - study-network

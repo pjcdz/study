@@ -29,6 +29,12 @@ COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
+# Copy Sentry configuration files
+COPY --from=builder /app/sentry.edge.config.ts ./
+COPY --from=builder /app/sentry.server.config.ts ./
+# Copy instrumentation files
+COPY --from=builder /app/instrumentation.ts ./
+COPY --from=builder /app/instrumentation-client.ts ./
 
 # Expose the port that Next.js runs on
 EXPOSE 3000

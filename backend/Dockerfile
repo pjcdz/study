@@ -13,6 +13,9 @@ RUN npm ci --only=production
 # Copy the rest of the source code
 COPY . .
 
+# Create directory for file uploads
+RUN mkdir -p /app/uploads && chmod 777 /app/uploads
+
 # Expose port 4000
 EXPOSE 4000
 
