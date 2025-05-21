@@ -150,7 +150,8 @@
         "4": "Paste the copied content",
         "5": "Make sure to select \"Tab\" as the separator"
       },
-      "note": "Note: Flashcards are in the \"Term → Definition\" format"
+      "note": "Note: Flashcards are in the \"Term → Definition\" format",
+      "quizletImportDesktopOnly": "The import function in Quizlet is only available in the desktop version"
     }
   },
   "api": {

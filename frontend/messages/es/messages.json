@@ -149,7 +149,8 @@
         "4": "Pega el contenido copiado",
         "5": "Asegúrate de seleccionar \"Tab\" como separador"
       },
-      "note": "Nota: Las flashcards están en formato \"Término → Definición\""
+      "note": "Nota: Las flashcards están en formato \"Término → Definición\"",
+      "quizletImportDesktopOnly": "La función de importación en Quizlet solo está disponible en la versión de escritorio"
     }
   },
   "api": {

@@ -7,10 +7,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { toast } from "sonner"
-import { ClipboardCopy, Check, ExternalLink, RefreshCw } from "lucide-react"
+import { ClipboardCopy, Check, ExternalLink, RefreshCw, Info } from "lucide-react"
 import { useUploadStore } from "@/store/use-upload-store"
 import { useTranslations } from "next-intl"
 import { demoFlashcardsTSV } from "@/lib/mock-data"
+import { useIsMobile } from "@/lib/hooks/useIsMobile"
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +23,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger 
 } from "@/components/ui/alert-dialog"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { Badge } from "@/components/ui/badge"
 
 // Create a content component to wrap in Suspense
 function FlashcardsContent() {
@@ -32,6 +40,7 @@ function FlashcardsContent() {
   const [isCopied, setIsCopied] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
+  const isMobile = useIsMobile();
   
   // Check if we're in demo mode
   const [isDemoMode, setIsDemoMode] = useState(false)
@@ -182,8 +191,39 @@ function FlashcardsContent() {
             </div>
             
             <Alert>
-              <AlertTitle>{t('instructions.title')}</AlertTitle>
+              <AlertTitle className="flex items-center gap-2">
+                {t('instructions.title')}
+                {isMobile && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge variant="outline" className="cursor-help">
+                          <Info className="h-3 w-3 mr-1" />
+                          Desktop only
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{t('instructions.quizletImportDesktopOnly')}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </AlertTitle>
               <AlertDescription>
+                {isMobile && (
+                  <div className="rounded-md bg-yellow-50 p-3 mb-2 border border-yellow-200">
+                    <div className="flex">
+                      <div className="flex-shrink-0">
+                        <Info className="h-5 w-5 text-yellow-400" aria-hidden="true" />
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm text-yellow-700">
+                          {t('instructions.quizletImportDesktopOnly')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <ol className="list-decimal list-inside space-y-1 text-sm mt-2">
                   <li>{t('instructions.steps.1')}</li>
                   <li>{t('instructions.steps.2')}</li>
