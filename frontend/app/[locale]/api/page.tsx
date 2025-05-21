@@ -222,7 +222,7 @@ export default function ApiPage() {
                   <li className="text-sm">
                     <span className="font-medium">{t('instructions.steps.step1.title')}</span>
                     <p className="mt-1 text-muted-foreground">
-                      Si ves la ventana emergente "It's time to build", haz clic en el botón "Get API key".
+                      {t('instructions.steps.step1.description')}
                     </p>
                     <div className="mt-2 border rounded-md overflow-hidden">
                       <Image 
@@ -238,7 +238,7 @@ export default function ApiPage() {
                   <li className="text-sm">
                     <span className="font-medium">{t('instructions.steps.step2.title')}</span>
                     <p className="mt-1 text-muted-foreground">
-                      A continuación, aparecerá una ventana para aceptar los términos. Marca la casilla que dice "I consent to the Google APIs Terms of Service and the Gemini API Additional Terms of Service and acknowledge that I have read the Google Privacy Policy*" y luego haz clic en el botón "I accept".
+                      {t('instructions.steps.step2.description')}
                     </p>
                     <div className="mt-2 border rounded-md overflow-hidden">
                       <Image 
@@ -254,7 +254,7 @@ export default function ApiPage() {
                   <li className="text-sm">
                     <span className="font-medium">{t('instructions.steps.step3.title')}</span>
                     <p className="mt-1 text-muted-foreground">
-                      Serás dirigido a la página de "API Keys". Haz clic en el botón azul "+ Create API key" que se encuentra en la esquina superior derecha.
+                      {t('instructions.steps.step3.description')}
                     </p>
                     <div className="mt-2 border rounded-md overflow-hidden">
                       <Image 
@@ -270,7 +270,7 @@ export default function ApiPage() {
                   <li className="text-sm">
                     <span className="font-medium">{t('instructions.steps.step4.title')}</span>
                     <p className="mt-1 text-muted-foreground">
-                      Aparecerá una ventana emergente titulada "API key generated" mostrando tu nueva clave. Haz clic en el botón "Copy" para copiarla a tu portapapeles.
+                      {t('instructions.steps.step4.description')}
                     </p>
                     <div className="mt-2 border rounded-md overflow-hidden">
                       <Image 

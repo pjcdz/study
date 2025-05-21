@@ -134,6 +134,7 @@
     "toast": {
       "copied": "Contenido TSV copiado al portapapeles",
       "copyError": "Error al copiar al portapapeles",
+      "resetSuccess": "Datos eliminados. Listo para iniciar una nueva sesión.",
       "quotaExceeded": "Se ha excedido el límite de uso de la API. Por favor, intente más tarde.",
       "networkError": "Error de conexión. Por favor, verifique su internet e intente de nuevo.",
       "apiKeyError": "Error de autenticación de la API. Por favor, verifique su API Key en Configuración."
