@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Upload, FileUp } from "lucide-react"
 import { useUploadStore } from "@/store/use-upload-store"
 import { useTranslations } from "next-intl"
+import { toast } from "sonner"
 
 type FileDropzoneProps = {
   addFiles?: (files: File[]) => void;
@@ -14,9 +15,13 @@ type FileDropzoneProps = {
 
 export function FileDropzone({ addFiles }: FileDropzoneProps) {
   const t = useTranslations('upload.dropzone');
+  const tValidation = useTranslations('upload.validation');
   const { addFiles: storeAddFiles } = useUploadStore()
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  
+  // Límite de tamaño máximo: 20MB
+  const MAX_FILE_SIZE = 20 * 1024 * 1024;
   
   // Usa la función de validación personalizada si se proporciona, o la función por defecto del store
   const handleAddFiles = addFiles || storeAddFiles;
@@ -45,14 +50,39 @@ export function FileDropzone({ addFiles }: FileDropzoneProps) {
     
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const droppedFiles = Array.from(e.dataTransfer.files)
-      handleAddFiles(droppedFiles)
+      
+      // Validar tamaño máximo de archivos
+      const validFiles = droppedFiles.filter(file => {
+        if (file.size > MAX_FILE_SIZE) {
+          toast.error(tValidation('fileTooLarge', { maxSize: '20' }))
+          return false
+        }
+        return true
+      })
+      
+      if (validFiles.length > 0) {
+        handleAddFiles(validFiles)
+      }
     }
   }
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const selectedFiles = Array.from(e.target.files)
-      handleAddFiles(selectedFiles)
+      
+      // Validar tamaño máximo de archivos
+      const validFiles = selectedFiles.filter(file => {
+        if (file.size > MAX_FILE_SIZE) {
+          toast.error(tValidation('fileTooLarge', { maxSize: '20' }))
+          return false
+        }
+        return true
+      })
+      
+      if (validFiles.length > 0) {
+        handleAddFiles(validFiles)
+      }
+      
       e.target.value = '' // Reset para permitir seleccionar el mismo archivo
     }
   }
@@ -81,6 +111,7 @@ export function FileDropzone({ addFiles }: FileDropzoneProps) {
           className="hidden" 
           onChange={handleFileChange} 
           aria-label="Upload files"
+          accept=".pdf,image/jpeg,image/png,image/webp,image.heic,image.heif"
         />
         
         <Upload className="h-10 w-10 text-muted-foreground mb-4" />
@@ -101,6 +132,10 @@ export function FileDropzone({ addFiles }: FileDropzoneProps) {
           <FileUp className="mr-2 h-4 w-4" />
           {t('button')}
         </Button>
+        
+        <p className="mt-4 text-xs text-muted-foreground text-center">
+          {t('sizeLimit')}
+        </p>
       </div>
     </Card>
   )

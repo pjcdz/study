@@ -36,7 +36,8 @@
     "dropzone": {
       "title": "Drag and drop files here",
       "or": "or",
-      "button": "Select files"
+      "button": "Select files",
+      "sizeLimit": "Maximum 20MB per file. Supported formats: PDF and images"
     },
     "fileList": {
       "title": "Uploaded files ({count})",
@@ -73,8 +74,7 @@
       "fileProcessingFailed": "File processing failed on the server. Try with a different file or format.",
       "invalidApiKey": "Invalid API key. Please configure your API key."
     },
-    "processingLargeFile": "Processing large file",
-    "processing": "Processing"
+    "processingLargeFile": "Processing large file"
   },
   "summary": {
     "title": "Generated Summary",

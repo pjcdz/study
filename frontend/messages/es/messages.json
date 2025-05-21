@@ -38,7 +38,8 @@
     "dropzone": {
       "title": "Arrastra y suelta archivos aquí",
       "or": "o",
-      "button": "Seleccionar archivos"
+      "button": "Seleccionar archivos",
+      "sizeLimit": "Máximo 20MB por archivo. Formatos soportados: PDF e imágenes"
     },
     "fileList": {
       "title": "Archivos subidos ({count})",
