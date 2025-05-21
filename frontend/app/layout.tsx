@@ -3,7 +3,13 @@ import localFont from "next/font/local";
 import type { Metadata } from "next";
 import { ThemeProvider } from "@/components/theme-provider";
 import Script from "next/script";
-import { Analytics } from "@/components/analytics";
+import dynamic from 'next/dynamic';
+
+// Cargar Analytics dinámicamente con SSR desactivado
+const Analytics = dynamic(
+  () => import('@/components/analytics').then(mod => mod.Analytics),
+  { ssr: false }
+);
 
 // Load Geist font as a local font
 const geistSans = localFont({
