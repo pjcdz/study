@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, Suspense } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -10,6 +10,8 @@ import { toast } from "sonner"
 import { useUploadStore } from '@/store/use-upload-store'
 import { useTranslations } from 'next-intl'
 import apiClient, { ApiError, ApiErrorType } from "@/lib/api-client"
+import { FileDropzone } from "@/components/upload/file-dropzone"
+import { FileList } from "@/components/upload/file-list"
 import { motion } from "framer-motion"
 import { useProcessingTimer } from "@/lib/hooks/useProcessingTimer"
 import { useApiKey } from "@/lib/hooks/useApiKey"
@@ -23,26 +25,6 @@ import {
   AlertDialogTitle
 } from "@/components/ui/alert-dialog"
 import { Progress } from "@/components/ui/progress"
-import { FileDropzoneWithSuspense } from "@/components/upload/file-dropzone-with-suspense"
-import { FileListWithSuspense } from "@/components/upload/file-list-with-suspense"
-
-// Loading fallback for the main content area
-const ContentLoadingFallback = () => (
-  <div className="flex items-center justify-center p-12">
-    <div className="text-center">
-      <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
-      <p className="mt-2 text-muted-foreground">Cargando...</p>
-    </div>
-  </div>
-);
-
-// Loading fallback for buttons
-const ButtonsLoadingFallback = () => (
-  <div className="flex justify-center space-x-4 p-4">
-    <div className="w-32 h-10 bg-muted animate-pulse rounded-md"></div>
-    <div className="w-32 h-10 bg-muted animate-pulse rounded-md"></div>
-  </div>
-);
 
 export default function UploadPage() {
   const { isAvailable, isLoading: isApiKeyLoading, isMounted } = useApiKey()
@@ -327,161 +309,156 @@ export default function UploadPage() {
   
   return (
     <div className="flex flex-col min-h-screen">
-      {/* Suspense boundary for the API Key dialog */}
-      <Suspense fallback={null}>
-        <AlertDialog open={showApiKeyDialog} onOpenChange={setShowApiKeyDialog}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>
-                <div className="flex items-center gap-2">
-                  <KeyRound className="h-5 w-5 text-amber-500" />
-                  {t('upload.apiKeyDialog.title', { defaultValue: 'API Key Requerida' })}
-                </div>
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                {t('upload.toast.apiKeyMissing', { defaultValue: 'No puedes subir un archivo sin configurar tu API primero' })}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogAction onClick={() => {
-                const pathParts = window.location.pathname.split('/');
-                const locale = pathParts[1]; // Get locale from URL ('es' or 'en')
-                router.push(`/${locale}/api`);
-              }}>
-                {t('upload.apiKeyDialog.configure', { defaultValue: 'Configurar API Key' })}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </Suspense>
+      {/* Diálogo modal para API Key no configurada */}
+      <AlertDialog open={showApiKeyDialog} onOpenChange={setShowApiKeyDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              <div className="flex items-center gap-2">
+                <KeyRound className="h-5 w-5 text-amber-500" />
+                {t('upload.apiKeyDialog.title', { defaultValue: 'API Key Requerida' })}
+              </div>
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('upload.toast.apiKeyMissing', { defaultValue: 'No puedes subir un archivo sin configurar tu API primero' })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => {
+              // Obtener el prefijo de idioma de la ruta actual
+              const pathParts = window.location.pathname.split('/');
+              const locale = pathParts[1]; // Get locale from URL ('es' or 'en')
+              
+              // Redireccionar a la página de API
+              router.push(`/${locale}/api`);
+            }}>
+              {t('upload.apiKeyDialog.configure', { defaultValue: 'Configurar API Key' })}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
-      {/* Main content with Suspense boundary */}
+      {/* Main content with padding-bottom to ensure content doesn't get hidden under fixed footer */}
       <div className="flex-grow pb-20">
         <div className="container mx-auto py-8">
           <div className="max-w-4xl mx-auto">
-            <Suspense fallback={<ContentLoadingFallback />}>
+            <motion.div 
+              initial="hidden"
+              animate="show"
+              variants={containerVariants}
+              className="space-y-6"
+            >
               <motion.div 
-                initial="hidden"
-                animate="show"
-                variants={containerVariants}
-                className="space-y-6"
+                variants={itemVariants}
+                className="text-center"
               >
-                <motion.div 
-                  variants={itemVariants}
-                  className="text-center"
-                >
-                  <h1 className="text-2xl font-bold mb-2">{t('upload.title')}</h1>
-                  <p className="text-muted-foreground">{t('upload.description')}</p>
-                </motion.div>
-
-                <Card className="shadow-sm border-2 border-muted rounded-lg overflow-hidden">
-                  <CardContent className="p-6">
-                    <motion.div 
-                      variants={itemVariants}
-                      className="space-y-6"
-                    >
-                      {/* File Upload with Suspense */}
-                      <div className="space-y-4">
-                        <FileDropzoneWithSuspense addFiles={addFiles} />
-                        {files.length > 0 && (
-                          <FileListWithSuspense files={files} onRemove={removeFile} />
-                        )}
-                      </div>
-                      
-                      {/* Text Input */}
-                      <div className="space-y-2">
-                        <label
-                          htmlFor="textContent"
-                          className="text-sm font-medium"
-                        >
-                          {files.length > 0 
-                            ? t('upload.textInput.labelWithFiles')
-                            : t('upload.textInput.labelWithoutFiles')}
-                        </label>
-                        <Textarea
-                          id="textContent"
-                          placeholder={files.length > 0 
-                            ? t('upload.textInput.placeholderWithFiles')
-                            : t('upload.textInput.placeholderWithoutFiles')
-                          }
-                          value={inputText}
-                          onChange={(e) => setInputText(e.target.value)}
-                          className="min-h-[100px] resize-y"
-                        />
-                        {files.length > 0 && (
-                          <p className="text-xs text-muted-foreground">
-                            {t('upload.textInput.helpWithFiles')}
-                          </p>
-                        )}
-                      </div>
-                    </motion.div>
-                  </CardContent>
-                </Card>
+                <h1 className="text-2xl font-bold mb-2">{t('upload.title')}</h1>
+                <p className="text-muted-foreground">{t('upload.description')}</p>
               </motion.div>
-            </Suspense>
+
+              <Card className="shadow-sm border-2 border-muted rounded-lg overflow-hidden">
+                <CardContent className="p-6">
+                  <motion.div 
+                    variants={itemVariants}
+                    className="space-y-6"
+                  >
+                    {/* File Upload */}
+                    <div className="space-y-4">
+                      <FileDropzone addFiles={addFiles} />
+                      {files.length > 0 && (
+                        <FileList files={files} onRemove={removeFile} />
+                      )}
+                    </div>
+                    
+                    {/* Text Input */}
+                    <div className="space-y-2">
+                      <label
+                        htmlFor="textContent"
+                        className="text-sm font-medium"
+                      >
+                        {files.length > 0 
+                          ? t('upload.textInput.labelWithFiles')
+                          : t('upload.textInput.labelWithoutFiles')}
+                      </label>
+                      <Textarea
+                        id="textContent"
+                        placeholder={files.length > 0 
+                          ? t('upload.textInput.placeholderWithFiles')
+                          : t('upload.textInput.placeholderWithoutFiles')
+                        }
+                        value={inputText}
+                        onChange={(e) => setInputText(e.target.value)}
+                        className="min-h-[100px] resize-y"
+                      />
+                      {files.length > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          {t('upload.textInput.helpWithFiles')}
+                        </p>
+                      )}
+                    </div>
+                  </motion.div>
+                </CardContent>
+              </Card>
+            </motion.div>
           </div>
         </div>
       </div>
 
-      {/* Footer with Suspense */}
+      {/* Fixed footer */}
       <footer className="fixed bottom-0 left-0 right-0 bg-background border-t border-border shadow-md py-4 z-10">
-        <Suspense fallback={<ButtonsLoadingFallback />}>
-          <div className="container max-w-4xl mx-auto flex justify-center space-x-4">
-            <Button 
-              onClick={handleCancel}
-              variant="outline"
-              size="lg"
-              className="transition-all hover:bg-primary/10 hover:border-secondary hover:border-2 hover:shadow-[0_0_15px_rgba(var(--color-secondary)/0.4)]"
-            >
-              <X className="mr-2 h-4 w-4" />
-              {t('common.cancel')}
-            </Button>
-            
-            <Button 
-              onClick={handleSubmit}
-              disabled={isLoading || (files.length === 0 && !inputText.trim())}
-              size="lg"
-              className="transition-all hover:border-primary hover:border-2 hover:shadow-[0_0_15px_rgba(var(--color-primary)/0.5)]"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
-                  {largeFileProcessing ? (
-                    <span>
-                      {t('upload.processingLargeFile')} {displayTime}
-                    </span>
-                  ) : (
-                    <span>
-                      {t('upload.processing')} {displayTime}
-                    </span>
-                  )}
-                </>
-              ) : (
-                <>
-                  <Zap className="mr-2 h-4 w-4" />
-                  {t('upload.process')}
-                </>
-              )}
-            </Button>
-          </div>
-        </Suspense>
-        
-        {/* Progress indicator with Suspense */}
-        <Suspense fallback={null}>
-          {largeFileProcessing && largeFileMessage && (
-            <div className="absolute bottom-20 left-0 right-0 bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-200 p-2 text-center text-sm">
-              <div className="flex items-center justify-center">
-                <Loader2 className="h-4 w-4 animate-spin mr-2" /> 
-                {largeFileMessage}
-              </div>
-              <p className="text-xs mt-1">Los archivos grandes requieren procesamiento adicional en el servidor</p>
-              <div className="mt-2 px-4">
-                <Progress value={processingProgress} className="h-2" />
-                <p className="text-xs mt-1 text-right">{processingProgress}%</p>
-              </div>
+        <div className="container max-w-4xl mx-auto flex justify-center space-x-4">
+          <Button 
+            onClick={handleCancel}
+            variant="outline"
+            size="lg"
+            className="transition-all hover:bg-primary/10 hover:border-secondary hover:border-2 hover:shadow-[0_0_15px_rgba(var(--color-secondary)/0.4)]"
+          >
+            <X className="mr-2 h-4 w-4" />
+            {t('common.cancel')}
+          </Button>
+          
+          <Button 
+            onClick={handleSubmit}
+            disabled={isLoading || (files.length === 0 && !inputText.trim())}
+            size="lg"
+            className="transition-all hover:border-primary hover:border-2 hover:shadow-[0_0_15px_rgba(var(--color-primary)/0.5)]"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
+                {largeFileProcessing ? (
+                  <span>
+                    {t('upload.processingLargeFile')} {displayTime}
+                  </span>
+                ) : (
+                  <span>
+                    {t('upload.processing')} {displayTime}
+                  </span>
+                )}
+              </>
+            ) : (
+              <>
+                <Zap className="mr-2 h-4 w-4" />
+                {t('upload.process')}
+              </>
+            )}
+          </Button>
+        </div>
+        {/* Mostrar mensaje informativo sobre archivos grandes */}
+        {largeFileProcessing && largeFileMessage && (
+          <div className="absolute bottom-20 left-0 right-0 bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-200 p-2 text-center text-sm">
+            <div className="flex items-center justify-center">
+              <Loader2 className="h-4 w-4 animate-spin mr-2" /> 
+              {largeFileMessage}
             </div>
-          )}
-        </Suspense>
+            <p className="text-xs mt-1">Los archivos grandes requieren procesamiento adicional en el servidor</p>
+            {/* Add progress bar for file processing */}
+            <div className="mt-2 px-4">
+              <Progress value={processingProgress} className="h-2" />
+              <p className="text-xs mt-1 text-right">{processingProgress}%</p>
+            </div>
+          </div>
+        )}
       </footer>
     </div>
   )
