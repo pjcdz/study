@@ -1,18 +1,57 @@
 import "./globals.css";
-import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import type { Metadata } from "next";
 import { ThemeProvider } from "@/components/theme-provider";
 import Script from "next/script";
 import { Analytics } from "@/components/analytics";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+// Load Geist font as a local font
+const geistSans = localFont({
+  src: [
+    {
+      path: '../node_modules/geist/dist/fonts/geist-sans/Geist-Regular.woff2',
+      weight: '400',
+      style: 'normal',
+    },
+    {
+      path: '../node_modules/geist/dist/fonts/geist-sans/Geist-Medium.woff2',
+      weight: '500',
+      style: 'normal',
+    },
+    {
+      path: '../node_modules/geist/dist/fonts/geist-sans/Geist-SemiBold.woff2',
+      weight: '600',
+      style: 'normal',
+    },
+    {
+      path: '../node_modules/geist/dist/fonts/geist-sans/Geist-Bold.woff2',
+      weight: '700',
+      style: 'normal',
+    },
+  ],
+  variable: '--font-geist-sans',
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+// Load Geist Mono font as a local font
+const geistMono = localFont({
+  src: [
+    {
+      path: '../node_modules/geist/dist/fonts/geist-mono/GeistMono-Regular.woff2',
+      weight: '400',
+      style: 'normal',
+    },
+    {
+      path: '../node_modules/geist/dist/fonts/geist-mono/GeistMono-Medium.woff2',
+      weight: '500',
+      style: 'normal',
+    },
+    {
+      path: '../node_modules/geist/dist/fonts/geist-mono/GeistMono-Bold.woff2',
+      weight: '700',
+      style: 'normal',
+    },
+  ],
+  variable: '--font-geist-mono',
 });
 
 export const metadata: Metadata = {
@@ -63,7 +102,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased font-mono`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           {children}
         </ThemeProvider>

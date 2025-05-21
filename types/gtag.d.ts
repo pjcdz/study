@@ -1,13 +1,7 @@
-// Declaración global para asegurar que TypeScript reconozca gtag en window
-interface Window {
-  gtag: (
-    command: 'event' | 'config' | 'set' | 'js',
-    actionOrConfig: string | Date | { [key: string]: any },
-    params?: { [key: string]: any }
-  ) => void;
-}
+// To make this file a module, add an export statement
+export {};
 
-// Asegurar que la declaración se aplique globalmente
+// Declare global augmentation for window.gtag
 declare global {
   interface Window {
     gtag: (

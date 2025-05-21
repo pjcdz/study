@@ -1,6 +1,5 @@
 'use client';
 
-import * as Sentry from '@sentry/nextjs';
 import { toast } from 'sonner';
 import React from 'react';
 
@@ -24,7 +23,7 @@ type ApiErrorHandlerProps = {
 };
 
 /**
- * Maneja errores de API con integración de Sentry
+ * Maneja errores de API
  */
 export const captureAPIError = (
   error: Error | unknown,
@@ -36,17 +35,11 @@ export const captureAPIError = (
   // Mensaje amigable para el usuario
   toast.error(message);
   
-  // Captura el error en Sentry con contexto adicional
-  Sentry.captureException(error, {
-    extra: {
-      ...details?.extraContext,
-      componentName: details?.componentName,
-      operation: details?.operation,
-    },
-    tags: {
-      error_type: 'api_error',
-      ...(details?.componentName && { component: details.componentName }),
-    },
+  // Log error with additional context
+  console.error('API Error Details:', {
+    error,
+    message,
+    ...details
   });
 };
 
@@ -72,16 +65,11 @@ export const withErrorHandling = <T extends any[], R>(
         toast.error(message);
       }
       
-      Sentry.captureException(error, {
-        extra: {
-          functionName: fn.name,
-          args: JSON.stringify(args),
-          ...options,
-        },
-        tags: {
-          error_type: 'function_error',
-          component: options.componentName || 'unknown',
-        },
+      console.error('Function Error:', {
+        error,
+        functionName: fn.name,
+        args: JSON.stringify(args),
+        ...options
       });
       
       return undefined;
@@ -115,15 +103,10 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
-    Sentry.captureException(error, {
-      extra: {
-        componentStack: errorInfo.componentStack,
-        componentName: this.props.componentName,
-      },
-      tags: {
-        error_type: 'react_error',
-        component: this.props.componentName || 'unknown',
-      },
+    console.error('React Component Error:', {
+      error,
+      componentStack: errorInfo.componentStack,
+      componentName: this.props.componentName
     });
   }
 

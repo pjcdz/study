@@ -1,5 +1,4 @@
 import type { Config } from "tailwindcss"
-// Importar defaultTheme completo en lugar de solo fontFamily
 import defaultTheme from "tailwindcss/defaultTheme"
 
 const config = {
@@ -61,7 +60,8 @@ const config = {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        sans: ["var(--font-geist-sans)", ...defaultTheme.fontFamily.sans],
+        sans: ["var(--font-geist-mono)", ...defaultTheme.fontFamily.mono],
+        serif: ["var(--font-geist-mono)", ...defaultTheme.fontFamily.mono],
         mono: ["var(--font-geist-mono)", ...defaultTheme.fontFamily.mono],
       },
       keyframes: {
