@@ -1,11 +1,15 @@
 "use client";
 
 import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
-// Simplified NotFoundContent component without useSearchParams
+// NotFoundContent component that uses useSearchParams
 function NotFoundContent() {
+  // Usamos useSearchParams() en un componente separado para envolverlo en Suspense
+  const searchParams = useSearchParams();
+  
   return (
     <div className="flex flex-col items-center justify-center min-h-[70vh] px-4">
       <h1 className="text-4xl font-bold mb-4">404</h1>
