@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { DemoBanner } from '@/components/ui/demo-banner';
 // Import demo data initializer
 import { initDemoData } from '@/lib/mock-data';
+import type { Metadata } from 'next';
 
 // Import internationalization messages
 import es from '@/messages/es/messages.json';
@@ -30,6 +31,25 @@ function getSafeLocale(locale: string | undefined): string {
 type Props = {
   children: React.ReactNode;
   params: { locale: string };
+}
+
+// Generar metadatos dinámicos según el locale
+export async function generateMetadata({ params }: { params: { locale: string } }): Promise<Metadata> {
+  const { locale: rawLocale } = params;
+  const locale = getSafeLocale(rawLocale);
+
+  // Elegir el título y descripción según el idioma
+  if (locale === 'es') {
+    return {
+      title: 'StudyApp - Resúmenes y Flashcards',
+      description: 'Genera resúmenes y flashcards de tus documentos y textos',
+    };
+  } else {
+    return {
+      title: 'StudyApp - Summaries and Flashcards',
+      description: 'Generate summaries and flashcards from your documents and texts',
+    };
+  }
 }
 
 // Making this function async to properly handle params
@@ -105,12 +125,6 @@ export default async function LocaleLayout({ children, params }: Props) {
     </NextIntlClientProvider>
   );
 }
-
-// Static metadata
-export const metadata = {
-  title: 'StudyApp',
-  description: 'Upload files or text to generate summaries and flashcards automatically',
-};
 
 // Generate static routes for supported locales
 export function generateStaticParams() {

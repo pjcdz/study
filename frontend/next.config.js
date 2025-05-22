@@ -32,6 +32,7 @@ const nextConfig = {
   // Configure static assets to work with internationalization
   images: {
     unoptimized: true,
+    domains: ['study.cardozo.com.ar'],
   },
   // Optimize fonts but use local fallbacks in development
   optimizeFonts: true,

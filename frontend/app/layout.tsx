@@ -61,8 +61,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  // title: siteConfig.name,
-  title: "StudyApp - Resúmenes y Flashcards", // TODO: i18n
+  metadataBase: new URL('https://study.cardozo.com.ar'),
+  title: "StudyApp - Resúmenes y Flashcards", // Default title (Spanish)
   description: "Genera resúmenes y flashcards de tus documentos y textos",
   icons: {
     icon: [
