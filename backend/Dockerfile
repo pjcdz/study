@@ -4,6 +4,10 @@ FROM node:23-alpine
 # Set working directory
 WORKDIR /app
 
+# Add build argument for Sentry auth token
+ARG SENTRY_AUTH_TOKEN
+ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
+
 # Copy package.json and package-lock.json first for better caching
 COPY package.json package-lock.json ./
 

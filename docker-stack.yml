@@ -9,6 +9,7 @@ services:
       - CHOKIDAR_USEPOLLING=true
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=https://study.cardozo.com.ar/api
+      - SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}
     depends_on:
       - backend
     networks:
@@ -45,6 +46,7 @@ services:
       - "4000"
     environment:
       - NODE_ENV=production
+      - SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}
     networks:
       - study-network
       - traefik_traefik-public

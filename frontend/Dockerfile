@@ -4,6 +4,10 @@ FROM node:23-alpine AS builder
 # Set working directory
 WORKDIR /app
 
+# Add build argument for Sentry auth token
+ARG SENTRY_AUTH_TOKEN
+ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
+
 # Install dependencies
 COPY package*.json ./
 RUN npm ci
