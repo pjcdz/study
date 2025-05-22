@@ -6,10 +6,15 @@ import axios from 'axios';
  */
 class GeminiPdfClient {
   constructor() {
-    this.baseUrl = 'https://generativelanguage.googleapis.com/v1';
+    this.baseUrl = "https://generativelanguage.googleapis.com/v1beta";
+    this.generationConfig = {
+      temperature: 0.2,
+      maxOutputTokens: 4000
+    };
   }
 
   async processPdf(pdfBuffer, apiKey, options = {}) {
+    // const apiKey = process.env.GEMINI_API_KEY;
     try {
       // Convert buffer to base64
       const base64Data = pdfBuffer.toString('base64');
@@ -22,7 +27,7 @@ class GeminiPdfClient {
       
       // Call Gemini API with PDF data
       const response = await axios.post(
-        `${this.baseUrl}/models/gemini-1.5-pro:generateContent?key=${apiKey}`,
+        `${this.baseUrl}/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
         {
           contents: [
             { 

@@ -1,4 +1,4 @@
-name: Build and Deploy Study Tool
+name: Build and Deploy StudyApp
 
 on:
   push:

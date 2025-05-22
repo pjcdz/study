@@ -1,4 +1,4 @@
-# Frontend de Study Tool
+# Frontend de StudyApp
 
 [![Next.js](https://img.shields.io/badge/Next.js-15.3-black)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19-blue)](https://reactjs.org/)
@@ -6,7 +6,7 @@
 [![ShadCN UI](https://img.shields.io/badge/ShadCN-UI-gray)](https://ui.shadcn.com/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6)](https://www.typescriptlang.org/)
 
-Esta documentación detalla la interfaz de usuario de Studydo, una aplicación para transformar documentos en notas estructuradas y tarjetas de estudio.
+Esta documentación detalla la interfaz de usuario de StudyApp, una aplicación para transformar documentos en notas estructuradas y tarjetas de estudio.
 
 ## 📝 Índice
 
@@ -25,7 +25,7 @@ Esta documentación detalla la interfaz de usuario de Studydo, una aplicación p
 
 ## 🔍 Visión General
 
-El frontend de Study es una aplicación moderna basada en Next.js 15.3 y React 19, diseñada para ofrecer una experiencia de usuario fluida e intuitiva para:
+El frontend de StudyApp es una aplicación moderna basada en Next.js 14 y React 19, diseñada para ofrecer una experiencia de usuario fluida e intuitiva para:
 
 1. Subir y procesar documentos de estudio
 2. Transformar el contenido en notas estructuradas para Notion
@@ -276,11 +276,35 @@ La aplicación estará disponible en http://localhost:3000.
 
 ### Desarrollo con Docker
 
+CLI para construir y ejecutar la imagen Docker del frontend en modo de desarrollo:
+
 ```bash
-# Construir y ejecutar con Docker
-docker build -t study-tool-frontend -f Dockerfile.dev .
-docker run -p 3000:3000 -v $(pwd):/app study-tool-frontend
+# Construir la imagen de desarrollo
+docker build -t studyapp-frontend -f Dockerfile.dev .
+
+# Ejecutar el contenedor de desarrollo
+docker run -p 3000:3000 -v $(pwd):/app studyapp-frontend
 ```
+
+### Despliegue con Docker Swarm
+
+El despliegue se gestiona centralmente a través del archivo `docker-stack.yml` en la raíz del proyecto y el workflow de GitHub Actions. Asegúrate de que el servicio del frontend en `docker-stack.yml` utiliza la imagen correcta.
+
+### Construcción para Producción
+
+```bash
+# Construir la imagen de producción
+docker build -t studyapp-frontend:latest .
+```
+Esta imagen puede ser pusheada a un registro de contenedores y referenciada en `docker-stack.yml`.
+
+Ejemplo de ejecución local de la imagen de producción (si no se usa Swarm):
+```bash
+docker run -d -p 3000:3000 --name studyapp-frontend studyapp-frontend:latest
+```
+
+**Nota sobre Nombres de Imágenes en `deploy.yml`:**
+El workflow `deploy.yml` actual define `IMAGE_NAME_FRONTEND: ${{ github.repository_owner }}/study_frontend`. Si este nombre de imagen en el registro no cambia a `studyapp_frontend`, entonces los comandos `docker build -t studyapp-frontend...` son para construcción local y la imagen que Swarm usaría seguiría siendo `study_frontend`.
 
 ## 🚀 Construcción y Despliegue
 

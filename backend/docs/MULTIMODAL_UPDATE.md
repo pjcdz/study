@@ -1,16 +1,16 @@
-# Actualización Multimodal para Study Tool
+# Actualización Multimodal para StudyApp
 
-[![Google Gemini](https://img.shields.io/badge/AI-Gemini%201.5%20Pro-blue)](https://ai.google.dev/models/gemini)
+[![Google Gemini](https://img.shields.io/badge/AI-Gemini%201.5%20Flash-blue)](https://ai.google.dev/models/gemini)
 
 ## Descripción de la Actualización
 
-Esta actualización importante migra la aplicación Study Tool para utilizar el modelo **gemini-1.5-flash** de Google, permitiendo el procesamiento multimodal nativo (texto, PDF, imágenes). El backend ahora actúa como un proxy inteligente, recibiendo el contenido del usuario y su API Key personal de Google AI Studio para realizar las solicitudes a la API de Gemini.
+Esta actualización importante migra la aplicación StudyApp para utilizar el modelo **gemini-1.5-flash** de Google, permitiendo el procesamiento multimodal nativo (texto, PDF, imágenes). El backend ahora actúa como un proxy inteligente, recibiendo el contenido del usuario y su API Key personal de Google AI Studio para realizar las solicitudes a la API de Gemini.
 
 ### Características Principales
 
 - **Procesamiento Multimodal**: Capacidad para analizar PDFs e imágenes junto con texto
 - **API Key de Usuario**: Cada usuario proporciona su propia API Key de Google AI Studio
-- **Mayor Contexto**: Aprovecha la capacidad de Gemini 1.5 Pro para manejar hasta 2 millones de tokens
+- **Mayor Contexto**: Aprovecha la capacidad de Gemini 1.5 Flash para manejar hasta 2 millones de tokens
 - **Compatibilidad con Archivos**: Soporte para PDF, JPEG, PNG, WEBP, HEIC y HEIF
 
 ## Cambios en la Arquitectura
@@ -34,7 +34,7 @@ Frontend con API Key de Usuario
 Servicios (Construye payload multimodal)
         │
         ▼
-Google Gemini 1.5 Pro API
+Google Gemini 1.5 Flash API
         │
         ▼
    HTTP Response
@@ -57,7 +57,7 @@ Todas las solicitudes a los endpoints de IA ahora deben incluir:
   - `file`: (Opcional) Archivo PDF o imagen en formato multipart/form-data
   - `textPrompt`: (Opcional) Texto adicional o prompt principal
 
-## Integración con Google Gemini 1.5 Pro
+## Integración con Google Gemini 1.5 Flash
 
 ### Capacidades Multimodales
 

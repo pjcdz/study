@@ -1,4 +1,4 @@
-# Study Tool
+# StudyApp
 
 Un sistema integral que transforma el contenido de documentos en notas estructuradas para Notion y tarjetas de estudio para Quizlet, impulsado por la inteligencia artificial de Google Gemini.
 
@@ -6,13 +6,13 @@ Un sistema integral que transforma el contenido de documentos en notas estructur
 [![React](https://img.shields.io/badge/React-19-blue)](https://reactjs.org/)
 [![Express](https://img.shields.io/badge/Express-4.18-green)](https://expressjs.com/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue)](https://www.docker.com/)
-[![Google Gemini](https://img.shields.io/badge/AI-Gemini%202.0%20Flash-orange)](https://ai.google.dev/)
+[![Google Gemini](https://img.shields.io/badge/AI-gemini--1.5--flash-orange)](https://ai.google.dev/)
 
 ## 📚 Características
 
 - **Transformación Inteligente**: Convierte el contenido de documentos en markdown perfectamente formateado para Notion
 - **Generación de Flashcards**: Crea tarjetas de estudio en formato TSV compatibles con Quizlet
-- **Potenciado por IA**: Utiliza Google Gemini 2.0 Flash para un procesamiento de contenido inteligente
+- **Potenciado por IA**: Utiliza Google `gemini-1.5-flash` para un procesamiento de contenido inteligente
 - **Flujo de Trabajo Simple**: Proceso de tres pasos - Subir → Markdown → Tarjetas
 - **Copiar con Un Clic**: Copia fácilmente el contenido generado al portapapeles para su uso en Notion y Quizlet
 - **Soporte Multiidioma**: Interfaz disponible en español e inglés
@@ -20,7 +20,7 @@ Un sistema integral que transforma el contenido de documentos en notas estructur
 
 ## 🏗️ Arquitectura
 
-El proyecto sigue una **Arquitectura Gritante** (Screaming Architecture) donde la estructura del código refleja el dominio de negocio, con una clara separación entre frontend y backend.
+El proyecto sigue una **Screaming Architecture** donde la estructura del código refleja el dominio de negocio, con una clara separación entre frontend y backend.
 
 ### Diagrama de Arquitectura
 
@@ -52,7 +52,7 @@ El proyecto sigue una **Arquitectura Gritante** (Screaming Architecture) donde l
 ## 🖥️ Tecnologías
 
 ### Frontend
-- **Next.js 15.3** con React 19
+- **Next.js 14** con React 19
 - **Tailwind CSS** para estilos
 - **ShadCN UI** para componentes de interfaz
 - **Zustand** para gestión de estado
@@ -139,7 +139,7 @@ echo "tu_clave_api_gemini" | docker secret create gemini_api_key -
 Desplegar el stack:
 
 ```bash
-docker stack deploy --with-registry-auth -c docker-stack.yml study-tool
+docker stack deploy --with-registry-auth -c docker-stack.yml StudyApp
 ```
 
 ## 📋 Flujo de Uso

@@ -1,11 +1,11 @@
-# Backend de Study Tool
+# Backend de StudyApp
 
 [![Node.js](https://img.shields.io/badge/Node.js-v22.15-green)](https://nodejs.org/)
 [![Express](https://img.shields.io/badge/Express-4.18-lightgrey)](https://expressjs.com/)
-[![Google Gemini](https://img.shields.io/badge/AI-Gemini%201.5%20Pro-blue)](https://ai.google.dev/models/gemini)
+[![Google Gemini](https://img.shields.io/badge/AI-Gemini%201.5%20Flash-blue)](https://ai.google.dev/models/gemini)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue)](https://www.docker.com/)
 
-Este documento proporciona una visión detallada del backend de la aplicación Study Tool, incluyendo su arquitectura, componentes principales, flujo de datos y guía de configuración. Esta versión utiliza el modelo gemini-1.5-pro de Google, permitiendo el procesamiento multimodal nativo (texto, PDF, imágenes) y requiere que cada usuario proporcione su propia API Key de Google AI Studio para las operaciones de IA. Para más detalles sobre esta actualización, consulta [MULTIMODAL_UPDATE.md](./MULTIMODAL_UPDATE.md).
+Este documento proporciona una visión detallada del backend de la aplicación StudyApp, incluyendo su arquitectura, componentes principales, flujo de datos y guía de configuración. Esta versión utiliza el modelo gemini-1.5-flash de Google, permitiendo el procesamiento multimodal nativo (texto, PDF, imágenes) y requiere que cada usuario proporcione su propia API Key de Google AI Studio para las operaciones de IA. Para más detalles sobre esta actualización, consulta [MULTIMODAL_UPDATE.md](./MULTIMODAL_UPDATE.md).
 
 ## 📝 Índice
 
@@ -22,7 +22,7 @@ Este documento proporciona una visión detallada del backend de la aplicación S
 
 ## 🏗️ Arquitectura General
 
-El backend de Study Tool está construido utilizando Node.js y Express, siguiendo una arquitectura MVC (Modelo-Vista-Controlador) adaptada, donde:
+El backend de StudyApp está construido utilizando Node.js y Express, siguiendo una arquitectura MVC (Modelo-Vista-Controlador) adaptada, donde:
 
 - **Controladores**: Manejan las solicitudes HTTP y coordinan la lógica de negocio
 - **Servicios**: Encapsulan la lógica de integración con APIs externas (Gemini AI)
@@ -175,7 +175,7 @@ Endpoint para verificar el estado del servidor.
 }
 ```
 
-## 🤖 Integración con Google Gemini 1.5 Pro
+## 🤖 Integración con Google Gemini 1.5 Flash
 
 ### Configuración del Cliente Multimodal
 
@@ -200,7 +200,7 @@ async function generateMultimodalContent(userApiKey, parts, systemInstructionTex
   try {
     const genAI = new GoogleGenerativeAI(userApiKey);
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-pro-latest",
+      model: "gemini-1.5-flash",
       systemInstruction: systemInstructionText ? { parts: [{ text: systemInstructionText }] } : undefined,
       generationConfig: {
         temperature: 0.3,
@@ -230,7 +230,7 @@ El backend ahora puede procesar:
 - **PDFs**: Extracción y comprensión del contenido completo
 - **Imágenes**: Análisis visual y extracción de información
 
-Gemini 1.5 Pro soporta un gran contexto (hasta 2 millones de tokens), permitiendo analizar documentos extensos y múltiples imágenes en una sola solicitud.
+Gemini 1.5 Flash soporta un gran contexto (hasta 2 millones de tokens), permitiendo analizar documentos extensos y múltiples imágenes en una sola solicitud.
 
 ### Prompts y Configuración
 
@@ -268,35 +268,67 @@ npm run dev
 
 ### Desarrollo con Docker
 
+Utiliza la CLI para construir y ejecutar la imagen Docker del backend en modo de desarrollo:
+
 ```bash
-# Construir y ejecutar con Docker
-docker build -t study-tool-backend -f Dockerfile.dev .
-docker run -p 4000:4000 -v $(pwd):/app --env-file .env study-tool-backend
+# Construir la imagen de desarrollo
+docker build -t studyapp-backend -f Dockerfile.dev .
+
+# Ejecutar el contenedor de desarrollo
+docker run -p 4000:4000 -v $(pwd):/app --env-file .env studyapp-backend
 ```
 
-## 🚀 Despliegue
+### Despliegue con Docker Swarm
 
-### Con Docker Swarm
+Para desplegar la aplicación en un entorno de Docker Swarm, asegúrate de que los secretos necesarios estén configurados en el Swarm.
 
 ```bash
-# Crear secretos necesarios
-echo "tu_gemini_api_key" | docker secret create gemini_api_key -
+# Ejemplo de creación de secreto para la API Key de Gemini
+echo "tu_clave_api_gemini" | docker secret create gemini_api_key -
 
-# Desplegar el stack completo
-docker stack deploy --with-registry-auth -c docker-stack.yml study-tool
+# Desplegar el stack (asegúrate que docker-stack.yml esté configurado para usar la imagen correcta)
+docker stack deploy --with-registry-auth -c docker-stack.yml StudyApp
 ```
 
-### Despliegue Manual
+### Construcción para Producción
 
 ```bash
-# Construir para producción
-docker build -t study-tool-backend:latest .
+# Construir la imagen de producción
+docker build -t studyapp-backend:latest .
+```
 
-# Ejecutar en producción
-docker run -d -p 4000:4000 --name study-backend \
-  --env GEMINI_API_KEY=tu_api_key \
-  --env NODE_ENV=production \
-  study-tool-backend:latest
+Asegúrate de que tu `docker-stack.yml` o scripts de despliegue hagan referencia a la imagen correcta, por ejemplo `tu_registro/studyapp-backend:latest` o el nombre que uses en tu registro de contenedores.
+
+Si estás usando GitHub Actions y GitHub Container Registry (ghcr.io) como en el `deploy.yml` proporcionado, la imagen se llamaría algo como `ghcr.io/tu_usuario/studyapp_backend:latest` (asumiendo que `IMAGE_NAME_BACKEND` se actualiza correspondientemente si fuera necesario, aunque el workflow actual usa `study_backend`).
+
+El `docker-stack.yml` debería referenciar estas imágenes:
+```yaml
+services:
+  backend:
+    image: ghcr.io/${GITHUB_USERNAME}/study_backend:${TAG:-latest} # Esta línea usa study_backend como en el workflow
+    # ... resto de la configuración ...
+```
+
+Si la imagen en el registro es `studyapp_backend`, entonces la línea anterior debería ser:
+`image: ghcr.io/${GITHUB_USERNAME}/studyapp_backend:${TAG:-latest}`
+
+**Nota Importante sobre Nombres de Imágenes:**
+El workflow `deploy.yml` actual define `IMAGE_NAME_BACKEND: ${{ github.repository_owner }}/study_backend`. Si este nombre de imagen en el registro no cambia a `studyapp_backend`, entonces los comandos `docker build -t studyapp-backend...` son para construcción local y la imagen que Swarm usaría seguiría siendo `study_backend`. La consistencia es clave. Para este ejemplo, se asume que se quiere usar `studyapp-backend` localmente.
+
+### Comandos Útiles de Docker Swarm
+
+```bash
+# Listar servicios en el stack
+docker service ls
+
+# Ver logs de un servicio
+docker service logs StudyApp_backend
+
+# Escalar servicios
+docker service scale StudyApp_backend=3
+
+# Actualizar un servicio
+docker service update --image tu_imagen:latest StudyApp_backend
 ```
 
 ## 🔐 Variables de Entorno

@@ -2,12 +2,12 @@
 
 ## Resumen de Cambios
 
-Esta actualización migra Study Tool para utilizar gemini-1.5-pro-latest con capacidades multimodales y permite que cada usuario proporcione su propia API Key de Google AI Studio.
+Esta actualización migra StudyApp para utilizar gemini-1.5-flash con capacidades multimodales y permite que cada usuario proporcione su propia API Key de Google AI Studio.
 
 ## 1. Archivos Modificados
 
 ### geminiClient.js
-- Actualizado para usar el modelo "gemini-1.5-pro"
+- Actualizado para usar el modelo "gemini-1.5-flash"
 - Implementado soporte para contenido multimodal (texto + archivos)
 - Agregada función `fileToGenerativePart` para convertir archivos a formato base64
 - Implementada nueva función principal `generateMultimodalContent` que acepta API Key del usuario

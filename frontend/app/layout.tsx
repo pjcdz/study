@@ -61,7 +61,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "StudyApp - Resúmenes y Flashcards",
+  // title: siteConfig.name,
+  title: "StudyApp - Resúmenes y Flashcards", // TODO: i18n
   description: "Genera resúmenes y flashcards de tus documentos y textos",
   icons: {
     icon: [

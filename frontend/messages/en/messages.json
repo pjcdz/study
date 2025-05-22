@@ -250,7 +250,7 @@
     },
     "apiInfo": {
       "title": "About Gemini API",
-      "geminiDescription": "This application uses Google's Gemini 1.5 Pro API to generate summaries and flashcards. You need to provide your own API key from Google AI Studio.",
+      "geminiDescription": "This application uses Google's Gemini 1.5 Flash API to generate summaries and flashcards. You need to provide your own API key from Google AI Studio.",
       "howToGet": "How to get a Google Gemini API Key:",
       "step1": "Visit Google AI Studio (aistudio.google.com)",
       "step2": "Sign in with your Google account",

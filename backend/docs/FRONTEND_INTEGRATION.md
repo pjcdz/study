@@ -1,50 +1,59 @@
 # Guía de Integración Frontend para Actualización Multimodal
 
-Esta guía proporciona los pasos necesarios para integrar las nuevas funcionalidades multimodales de Study Tool en el frontend, permitiendo a los usuarios proporcionar su propia API Key de Google AI Studio y procesar tanto texto como archivos (PDF e imágenes).
+Esta guía proporciona los pasos necesarios para integrar las nuevas funcionalidades multimodales de StudyApp en el frontend, permitiendo a los usuarios proporcionar su propia API Key de Google AI Studio y procesar tanto texto como archivos (PDF e imágenes).
 
 ## Gestión de API Key de Usuario
 
 ### 1. Interfaz para Configuración de API Key
 
-Añadir un componente para que el usuario configure su API Key:
+Añadir un componente para que el usuario configure su API Key, preferiblemente dentro de una sección de ajustes de la aplicación. Este componente utilizaría claves de internacionalización para los textos.
 
 ```tsx
 // components/settings/api-key-manager.tsx
 import { useState, useEffect } from 'react';
+// Suponiendo que tienes una función t para internacionalización, ej: import { useTranslations } from 'next-intl';
 
 export function ApiKeyManager() {
+  // const t = useTranslations('settings'); // o el namespace apropiado
   const [apiKey, setApiKey] = useState<string>('');
-  const [saved, setSaved] = useState<boolean>(false);
+  const [isKeySaved, setIsKeySaved] = useState<boolean>(false);
   
-  // Cargar API Key guardada al montar el componente
   useEffect(() => {
     const savedKey = localStorage.getItem('studyToolUserApiKey');
     if (savedKey) {
       setApiKey(savedKey);
-      setSaved(true);
+      setIsKeySaved(true);
     }
   }, []);
   
   const handleSave = () => {
     if (apiKey.trim()) {
       localStorage.setItem('studyToolUserApiKey', apiKey);
-      setSaved(true);
+      setIsKeySaved(true);
+      // toast.success(t('apiKey.saved'));
     }
   };
   
   const handleClear = () => {
     localStorage.removeItem('studyToolUserApiKey');
     setApiKey('');
-    setSaved(false);
+    setIsKeySaved(false);
+    // toast.info(t('apiKey.cleared')); // Suponiendo que tienes una clave para esto
   };
   
   return (
     <div className="p-4 border rounded-lg bg-card">
-      <h3 className="text-lg font-medium mb-2">Configuración de API Key</h3>
+      {/* Título, ej: t('apiKey.title') que sería "API Key" */}
+      <h3 className="text-lg font-medium mb-2">{"API Key"}</h3>
+      {/* Descripción, ej: t('apiKey.description') */}
       <p className="text-sm text-muted-foreground mb-4">
-        Para utilizar las funciones de IA, necesitas proporcionar tu propia API Key de Google AI Studio.
+        {"Your Google Gemini API key is required to use AI features"}
+      </p>
+      {/* Nota sobre dónde obtener la clave, usando t('apiInfo.howToGet') y t('apiInfo.getApiKeyButton') */}
+      <p className="text-sm text-muted-foreground mb-4">
+        {"How to get a Google Gemini API Key:"}
         <a href="https://aistudio.google.com/" target="_blank" rel="noopener" className="text-primary ml-1">
-          Obtener una API Key
+          {"Go to Google AI Studio"}
         </a>
       </p>
       
@@ -53,54 +62,80 @@ export function ApiKeyManager() {
           type="password"
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
-          placeholder="Ingresa tu API Key de Google AI Studio"
+          // Placeholder, ej: t('apiKey.placeholder')
+          placeholder={"Enter your Google AI Studio API Key"}
           className="flex-1 px-3 py-2 border rounded"
         />
+        {/* Botón Guardar, ej: t('apiKey.saveButton') */}
         <button onClick={handleSave} className="px-4 py-2 bg-primary text-primary-foreground rounded">
-          Guardar
+          {"Save API Key"}
         </button>
-        {saved && (
+        {isKeySaved && (
+          // Botón Borrar, ej: t('apiKey.clearButton')
           <button onClick={handleClear} className="px-4 py-2 border rounded">
-            Borrar
+            {"Clear API Key"}
           </button>
         )}
       </div>
       
-      {saved && (
+      {isKeySaved && (
+        // Mensaje de clave guardada, ej: t('apiKey.saved')
         <p className="text-sm text-green-600">
-          ✓ API Key guardada localmente
+          {"API Key saved successfully"}
         </p>
       )}
+      {/* Nota sobre almacenamiento local, ej: t('apiKey.localStorageNote') */}
       <p className="text-xs text-muted-foreground mt-2">
-        La API Key se guarda solo en tu navegador y nunca se envía a nuestros servidores.
+        {"Your API Key is stored only in your browser and never sent to our servers."}
       </p>
+
+      {/* Sección de información adicional sobre la API podría usar t('apiInfo.title') y t('apiInfo.geminiDescription') */}
+      <div className="mt-4">
+        <h4 className="font-medium">{"About Gemini API"}</h4>
+        <p className="text-xs text-muted-foreground">
+          {"This application uses Google's Gemini 1.5 Flash API to generate summaries and flashcards. You need to provide your own API key from Google AI Studio."}
+        </p>
+        {/* Pasos para obtener la clave: t('apiInfo.step1'), t('apiInfo.step2'), etc. */}
+      </div>
     </div>
   );
 }
 ```
 
-### 2. Validación de API Key
+### 2. Validación de API Key (Hook)
 
 Crear un hook para verificar la disponibilidad de la API Key:
 
 ```tsx
 // lib/hooks/useApiKey.ts
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 export function useApiKey() {
   const [apiKey, setApiKey] = useState<string | null>(null);
+  const [isAvailable, setIsAvailable] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   
-  useEffect(() => {
+  const updateKeyState = useCallback(() => {
     const savedKey = localStorage.getItem('studyToolUserApiKey');
     setApiKey(savedKey);
+    setIsAvailable(!!savedKey);
     setIsLoading(false);
   }, []);
+
+  useEffect(() => {
+    updateKeyState();
+    // Opcional: Escuchar cambios en localStorage si la clave puede ser modificada desde otra pestaña/componente
+    window.addEventListener('storage', updateKeyState);
+    return () => {
+      window.removeEventListener('storage', updateKeyState);
+    };
+  }, [updateKeyState]);
   
   return {
     apiKey,
+    isAvailable,
     isLoading,
-    isAvailable: !!apiKey
+    refreshApiKey: updateKeyState // Función para recargar el estado si es necesario
   };
 }
 ```
@@ -111,129 +146,132 @@ export function useApiKey() {
 
 ```tsx
 // components/upload/multimodal-uploader.tsx
-import { useState } from 'react';
-import { useApiKey } from '@/lib/hooks/useApiKey';
+import { useState, ChangeEvent, FormEvent } from 'react';
+import { useApiKey } from '@/lib/hooks/useApiKey'; // Asegúrate que la ruta sea correcta
+// Suponiendo que tienes una función t para internacionalización
 
 type UploadProps = {
   onSuccess: (result: any) => void;
-  onError: (error: string) => void;
+  onError: (errorKey: string, params?: Record<string, string | number>) => void; // Pasar clave de error para i18n
   endpoint: 'summary' | 'flashcards';
 };
 
 export function MultimodalUploader({ onSuccess, onError, endpoint }: UploadProps) {
+  // const t = useTranslations('upload'); // o el namespace apropiado
   const [file, setFile] = useState<File | null>(null);
   const [textPrompt, setTextPrompt] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const { apiKey, isAvailable } = useApiKey();
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const { apiKey, isAvailable: isApiKeyAvailable } = useApiKey();
   
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
-      
-      // Verificar tipo de archivo
       const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
       if (!validTypes.includes(selectedFile.type)) {
-        onError(`Tipo de archivo no soportado: ${selectedFile.type}. Por favor, sube un PDF o una imagen.`);
+        // onError(t('validation.invalidFileType', { type: selectedFile.type }));
+        onError('validation.invalidFileType', { type: selectedFile.type });
         return;
       }
-      
-      // Verificar tamaño (límite de 20MB)
-      if (selectedFile.size > 20 * 1024 * 1024) {
-        onError('El archivo excede el límite de 20MB.');
+      if (selectedFile.size > 20 * 1024 * 1024) { // 20MB
+        // onError(t('validation.fileTooLarge', { maxSize: 20 }));
+        onError('validation.fileTooLarge', { maxSize: 20 });
         return;
       }
-      
       setFile(selectedFile);
     }
   };
   
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    
-    if (!apiKey) {
-      onError('API Key no configurada. Por favor, configura tu API Key de Google AI Studio en Ajustes.');
+    if (!isApiKeyAvailable) {
+      // onError(t('toast.apiKeyMissing'));
+      onError('toast.apiKeyMissing');
       return;
     }
-    
     if (!file && !textPrompt.trim()) {
-      onError('Por favor, sube un archivo o escribe un texto para procesar.');
+      // onError(t('validation.noContent'));
+      onError('validation.noContent');
       return;
     }
     
-    setIsLoading(true);
+    setIsSubmitting(true);
     
     try {
       const formData = new FormData();
-      
-      if (file) {
-        formData.append('file', file);
-      }
-      
-      if (textPrompt.trim()) {
-        formData.append('textPrompt', textPrompt);
-      }
+      if (file) formData.append('file', file);
+      if (textPrompt.trim()) formData.append('textPrompt', textPrompt);
       
       const response = await fetch(`/api/${endpoint}`, {
         method: 'POST',
-        headers: {
-          'X-User-API-Key': apiKey
-        },
+        headers: { 'X-User-API-Key': apiKey! },
         body: formData
       });
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || `Error ${response.status}: ${response.statusText}`);
+        // Utilizar una clave de error genérica o mapear códigos de estado a claves específicas
+        // onError(t('toast.error', { message: errorData.error || response.statusText }));
+        onError('toast.error', { message: errorData.error || response.statusText });
+        return;
       }
       
       const result = await response.json();
       onSuccess(result);
     } catch (error) {
-      onError(error instanceof Error ? error.message : 'Error desconocido al procesar la solicitud');
+      // onError(t('toast.networkError'));
+      onError('toast.networkError');
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
   
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium mb-1">Texto (opcional)</label>
+        {/* Label, ej: t('textInput.labelWithoutFiles') o t('textInput.labelWithFiles') */}
+        <label className="block text-sm font-medium mb-1">{"Text (optional)"}</label>
         <textarea 
           value={textPrompt}
           onChange={(e) => setTextPrompt(e.target.value)}
-          placeholder="Escribe tu texto o instrucciones aquí..."
+          // Placeholder, ej: t('textInput.placeholderWithoutFiles')
+          placeholder={"Type or paste your text here..."}
           className="w-full h-32 p-2 border rounded"
         />
       </div>
       
       <div>
-        <label className="block text-sm font-medium mb-1">Archivo (opcional)</label>
+        {/* Label, ej: t('dropzone.title') */}
+        <label className="block text-sm font-medium mb-1">{"File (optional)"}</label>
         <input 
           type="file" 
           onChange={handleFileChange}
           className="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-primary file:text-primary-foreground"
           accept=".pdf,image/jpeg,image/png,image/webp,image/heic,image/heif"
         />
+        {/* Info sobre archivo, ej: t('dropzone.sizeLimit') */}
+        <p className="text-xs text-muted-foreground mt-1">{"Maximum 20MB per file. Supported formats: PDF and images"}</p>
         {file && (
           <p className="mt-1 text-sm text-green-600">
-            Archivo seleccionado: {file.name} ({(file.size / 1024 / 1024).toFixed(2)}MB)
+            {/* Usar t('fileList.remove', { name: file.name }) si se muestra el nombre */}
+            {"Selected file:"} {file.name} ({(file.size / 1024 / 1024).toFixed(2)}MB)
           </p>
         )}
       </div>
       
-      {!isAvailable && (
+      {!isApiKeyAvailable && (
         <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-sm">
-          ⚠️ API Key no configurada. Por favor, configura tu API Key en Ajustes antes de continuar.
+          {/* Mensaje de API Key faltante, ej: t('upload.toast.apiKeyMissing') */}
+          {"API Key not configured. Please configure your API Key in Settings before continuing."}
         </div>
       )}
       
       <button
         type="submit"
-        disabled={isLoading || !isAvailable || (!file && !textPrompt.trim())}
+        disabled={isSubmitting || !isApiKeyAvailable || (!file && !textPrompt.trim())}
         className="w-full py-2 bg-primary text-primary-foreground rounded disabled:opacity-50"
       >
-        {isLoading ? 'Procesando...' : 'Procesar contenido'}
+        {/* Texto de botón, ej: isSubmitting ? t('processing') : t('process') */}
+        {isSubmitting ? "Processing..." : "Process Content"}
       </button>
     </form>
   );
@@ -242,25 +280,27 @@ export function MultimodalUploader({ onSuccess, onError, endpoint }: UploadProps
 
 ### 2. Actualización de Cliente API
 
+El `api-client.ts` debería permanecer estructuralmente similar, pero las funciones que lo llaman deben manejar los errores y pasar la API key.
+
 ```typescript
 // lib/api-client.ts
+
+// ... (processSummary, processFlashcards, condenseSummary como estaban, asegurándose que toman apiKey)
+// Ejemplo para processSummary:
 export async function processSummary(content: string | FormData, apiKey: string) {
   let body;
   let headers: Record<string, string> = {
     'X-User-API-Key': apiKey
   };
   
-  // Si content es string, enviarlo como JSON
   if (typeof content === 'string') {
-    body = JSON.stringify({ textPrompt: content });
+    body = JSON.stringify({ textPrompt: content }); // O la estructura que espere el backend
     headers['Content-Type'] = 'application/json';
   } else {
-    // Si es FormData, enviarlo como multipart/form-data
     body = content;
-    // No establecer Content-Type, el navegador lo hará automáticamente con el boundary correcto
   }
   
-  const response = await fetch('/api/summary', {
+  const response = await fetch('/api/summary', { // Asegúrate que el endpoint sea correcto
     method: 'POST',
     headers,
     body
@@ -268,57 +308,13 @@ export async function processSummary(content: string | FormData, apiKey: string)
   
   if (!response.ok) {
     const errorData = await response.json();
-    throw new Error(errorData.error || `Error ${response.status}`);
+    throw new Error(errorData.error || `Error ${response.status}`); // El llamador manejará esto para i18n
   }
   
   return response.json();
 }
 
-export async function processFlashcards(content: string | FormData, apiKey: string) {
-  // Similar a processSummary pero con el endpoint /flashcards
-  let body;
-  let headers: Record<string, string> = {
-    'X-User-API-Key': apiKey
-  };
-  
-  if (typeof content === 'string') {
-    body = JSON.stringify({ textPrompt: content });
-    headers['Content-Type'] = 'application/json';
-  } else {
-    body = content;
-  }
-  
-  const response = await fetch('/api/flashcards', {
-    method: 'POST',
-    headers,
-    body
-  });
-  
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || `Error ${response.status}`);
-  }
-  
-  return response.json();
-}
-
-export async function condenseSummary(markdownContent: string, condensationType: 'shorter' | 'clarity' | 'examples', apiKey: string) {
-  const response = await fetch('/api/summary/condense', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-User-API-Key': apiKey
-    },
-    body: JSON.stringify({ markdownContent, condensationType })
-  });
-  
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || `Error ${response.status}`);
-  }
-  
-  return response.json();
-}
+// ... (otras funciones como processFlashcards, condenseSummary)
 ```
 
 ## Integración en Páginas Existentes
@@ -326,63 +322,86 @@ export async function condenseSummary(markdownContent: string, condensationType:
 ### 1. Página de Subida (Upload)
 
 ```tsx
-// app/[locale]/upload/page.tsx
+// app/[locale]/upload/page.tsx (o la ruta correspondiente)
 'use client';
 
 import { useState } from 'react';
-import { MultimodalUploader } from '@/components/upload/multimodal-uploader';
-import { ApiKeyManager } from '@/components/settings/api-key-manager';
-import { useApiKey } from '@/lib/hooks/useApiKey';
+import { MultimodalUploader } from '@/components/upload/multimodal-uploader'; // Ajustar ruta
+import { ApiKeyManager } from '@/components/settings/api-key-manager'; // Ajustar ruta, si se muestra aquí
+import { useApiKey } from '@/lib/hooks/useApiKey'; // Ajustar ruta
+// Suponiendo que tienes una función t para internacionalización y un componente Toast
 
 export default function UploadPage() {
+  // const t = useTranslations(); // Namespace global o específico
   const [result, setResult] = useState<any | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const { isAvailable } = useApiKey();
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const { isAvailable: isApiKeyAvailable, isLoading: isApiKeyLoading } = useApiKey();
   
   const handleSuccess = (data: any) => {
     setResult(data);
-    setError(null);
+    setErrorMsg(null);
+    // toast.success(t('upload.toast.success'));
+    // Redirigir a la página de resumen, por ejemplo
   };
   
-  const handleError = (errorMsg: string) => {
-    setError(errorMsg);
+  const handleError = (errorKey: string, params?: Record<string, string | number>) => {
+    // const message = t(errorKey, params);
+    const message = `Error: ${errorKey}`; // Placeholder si t no está configurado aquí
+    setErrorMsg(message);
     setResult(null);
+    // toast.error(message);
   };
   
+  if (isApiKeyLoading) {
+    return <div>{"Loading API Key status..."}</div>; // Usar un componente Skeleton o loader
+  }
+
   return (
     <div className="container mx-auto p-4 max-w-4xl">
-      <h1 className="text-2xl font-bold mb-6">Subir Contenido</h1>
+      {/* Título, ej: t('upload.title') */}
+      <h1 className="text-2xl font-bold mb-6">{"Add Study Material"}</h1>
       
-      {!isAvailable && (
+      {!isApiKeyAvailable && (
         <div className="mb-6">
-          <h2 className="text-lg font-semibold mb-2">Configuración Necesaria</h2>
-          <ApiKeyManager />
+          {/* Título para sección de API Key, ej: t('upload.apiKeyDialog.title') */}
+          <h2 className="text-lg font-semibold mb-2">{"API Key Required"}</h2>
+          {/* Aquí se podría mostrar un mensaje o el ApiKeyManager directamente */}
+          <p className="text-red-500 mb-2">
+            {/* t('upload.toast.apiKeyMissing') */}
+            {"You cannot upload a file without configuring your API key first."}
+          </p>
+          {/* <ApiKeyManager /> */}
+          {/* Un botón para ir a la página de configuración de la API Key */}
+          {/* <Link href={`/${locale}/settings?tab=api`}>{t('upload.apiKeyDialog.configure')}</Link> */}
         </div>
       )}
       
       <div className="mb-6">
-        <h2 className="text-lg font-semibold mb-2">Procesar Contenido</h2>
+        {/* Título, ej: t('upload.multimodalDescription') */}
+        <h2 className="text-lg font-semibold mb-2">{"Process Content"}</h2>
         <p className="text-sm text-muted-foreground mb-4">
-          Sube un archivo (PDF o imagen) y/o proporciona texto para generar resúmenes o tarjetas de estudio.
+          {"Upload a file (PDF or image) and/or enter text to generate a summary."}
         </p>
         
         <MultimodalUploader 
-          endpoint="summary"
+          endpoint="summary" // o "flashcards" según sea necesario
           onSuccess={handleSuccess}
           onError={handleError}
         />
       </div>
       
-      {error && (
+      {errorMsg && (
         <div className="p-4 mb-6 bg-red-50 border border-red-200 rounded">
-          <h3 className="text-red-600 font-medium">Error</h3>
-          <p>{error}</p>
+          {/* Título de error, ej: t('toast.error', { message: '' }).split(':')[0] */}
+          <h3 className="text-red-600 font-medium">{"Error"}</h3>
+          <p>{errorMsg}</p>
         </div>
       )}
       
       {result && (
         <div className="p-4 border rounded bg-card">
-          <h3 className="font-medium mb-2">Resultado</h3>
+          {/* Título de resultado */}
+          <h3 className="font-medium mb-2">{"Result"}</h3>
           <pre className="whitespace-pre-wrap text-sm bg-muted p-2 rounded">
             {JSON.stringify(result, null, 2)}
           </pre>
@@ -395,37 +414,39 @@ export default function UploadPage() {
 
 ## Manejo de Errores
 
-Para gestionar adecuadamente los errores de API Key inválida o cuota excedida:
+Para gestionar adecuadamente los errores de API Key inválida o cuota excedida, el componente que muestra el error (podría ser un `ApiErrorHandler` o directamente en la página) debería usar las claves de i18n.
 
 ```tsx
-// components/error/api-error-handler.tsx
-export function ApiErrorHandler({ error }: { error: string }) {
-  // Determinar tipo de error y mostrar mensaje apropiado
-  if (error.includes('API Key inválida') || error.includes('401')) {
-    return (
-      <div className="p-4 bg-red-50 border border-red-200 rounded">
-        <h3 className="text-red-600 font-medium">Error de API Key</h3>
-        <p className="mb-2">La API Key proporcionada no es válida o no tiene permisos para acceder a la API de Gemini.</p>
-        <p className="text-sm">Solución: Verifica tu API Key en <a href="https://aistudio.google.com/" className="text-primary">Google AI Studio</a> y asegúrate de que esté correctamente configurada.</p>
-      </div>
-    );
+// components/error/api-error-handler.tsx (Ejemplo conceptual)
+// Suponiendo que tienes una función t para internacionalización
+
+export function ApiErrorHandler({ errorKey, errorParams }: { errorKey: string, errorParams?: Record<string, string | number> }) {
+  // const t = useTranslations(); // Namespace global o específico
+  // const message = t(errorKey, errorParams);
+  const message = `Error: ${errorKey}`; // Placeholder
+
+  // Determinar tipo de error basado en errorKey y mostrar mensaje apropiado
+  // Por ejemplo, si errorKey es 'toast.apiKeyError' o 'toast.quotaExceeded'
+  
+  let title = "Error"; // t('toast.error', { message: '' }).split(':')[0];
+  let specificMessage = message;
+  let solution = "";
+
+  if (errorKey === 'toast.apiKeyError' || errorKey.includes('apiKeyInvalid')) {
+    // title = t('settings.apiKey.title'); // o un título específico de error de API
+    specificMessage = "The provided API Key is invalid or does not have permissions."; // t('api.errors.invalidKey') o similar
+    // solution = t('api.errors.checkKeySolution'); // "Solution: Verify your API Key..."
+  } else if (errorKey === 'toast.quotaExceeded') {
+    // title = t('toast.quotaExceeded').split('.')[0]; // "API usage limit exceeded"
+    specificMessage = "You have exceeded the usage limit for your API Key.";
+    // solution = t('toast.quotaExceededSolution'); // "Solution: Wait or check your quota..."
   }
   
-  if (error.includes('cuota') || error.includes('429')) {
-    return (
-      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded">
-        <h3 className="text-yellow-600 font-medium">Límite de cuota excedido</h3>
-        <p className="mb-2">Has excedido el límite de uso para tu API Key.</p>
-        <p className="text-sm">Solución: Espera un tiempo antes de intentar nuevamente o revisa tus límites de cuota en Google Cloud Console.</p>
-      </div>
-    );
-  }
-  
-  // Error genérico
   return (
     <div className="p-4 bg-red-50 border border-red-200 rounded">
-      <h3 className="text-red-600 font-medium">Error</h3>
-      <p>{error}</p>
+      <h3 className="text-red-600 font-medium">{title}</h3>
+      <p className="mb-2">{specificMessage}</p>
+      {solution && <p className="text-sm">{solution}</p>}
     </div>
   );
 }
@@ -433,20 +454,16 @@ export function ApiErrorHandler({ error }: { error: string }) {
 
 ## Consideraciones de UI/UX
 
-1. **Indicadores de carga**: Implementar spinners o barras de progreso para solicitudes que pueden tomar tiempo (procesamiento de PDFs extensos)
-2. **Feedback visual**: Mostrar claramente cuando un archivo ha sido correctamente subido
-3. **Validaciones**: Verificar tipos de archivo y tamaño antes de enviar al backend
-4. **Información de ayuda**: Proporcionar tooltips o información sobre el propósito de la API Key y cómo obtenerla
-5. **Gestión de estados**: Manejar adecuadamente los estados de carga, éxito y error
+1.  **Indicadores de carga**: Usar componentes Skeleton o spinners durante cargas (ej. `isApiKeyLoading`, `isSubmitting`).
+2.  **Feedback visual**: Usar toasts (ej. Sonner) para notificaciones de éxito/error, utilizando claves de `messages.json` (ej. `t('toast.success')`, `t('toast.error', { message: ... })`).
+3.  **Validaciones**: Realizar validaciones en el cliente (tipos de archivo, tamaño) y mostrar mensajes usando i18n (ej. `t('upload.validation.fileTooLarge')`).
+4.  **Información de ayuda**: En la sección de configuración de API Key, incluir los pasos detallados de `settings.apiInfo.step1`, `step2`, etc. y el botón `settings.apiInfo.getApiKeyButton`.
+5.  **Gestión de estados**: Manejar adecuadamente los estados de carga, éxito y error en todos los componentes interactivos.
 
 ## Ejemplo de Integración Completa
 
-Puedes consultar un ejemplo completo de integración en los archivos de ejemplo incluidos en este repositorio:
-
-- `/examples/summary-page-integration.tsx`: Ejemplo de página de resúmenes con soporte multimodal
-- `/examples/flashcards-page-integration.tsx`: Ejemplo de página de tarjetas de estudio con soporte multimodal
-- `/examples/settings-page-integration.tsx`: Ejemplo de página de configuración con gestión de API Key
+Se recomienda que los ejemplos de integración en el frontend sigan la estructura de `messages.json` para los textos y se adapten a los componentes reales de la aplicación.
 
 ---
 
-Esta guía proporciona la base para integrar las nuevas funcionalidades multimodales en el frontend. Adapta el código según las necesidades específicas de tu aplicación y la estructura actual del frontend.
+Esta guía proporciona la base para integrar las nuevas funcionalidades multimodales en el frontend. Adapta el código según las necesidades específicas de tu aplicación y la estructura actual del frontend, utilizando las claves de internacionalización de tus archivos `messages.json`.

@@ -1,7 +1,7 @@
 {
-  "name": "study-tool-backend",
+  "name": "studyapp-backend",
   "version": "1.0.0",
-  "description": "Backend for Study Tool application",
+  "description": "Backend for StudyApp application",
   "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",

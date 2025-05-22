@@ -5,11 +5,11 @@
 2. [Requisitos Técnicos](#requisitos-técnicos)
 3. [Arquitectura](#arquitectura)
 4. [Flujo de Usuario](#flujo-de-usuario)
-   - [1. Acceso inicial a `/upload` y validación de API](#1-acceso-inicial-a-upload-y-validación-de-api)
-   - [2. Configuración de la API en `/api`](#2-configuración-de-la-api-en-api)
-   - [3. Subida y procesamiento de archivos en `/upload`](#3-subida-y-procesamiento-de-archivos-en-upload)
-   - [4. Pantalla de resumen en `/summary`](#4-pantalla-de-resumen-en-summary)
-   - [5. Generación de flashcards y reinicio en `/flashcards`](#5-generación-de-flashcards-y-reinicio-en-flashcards)
+   - [1. Acceso inicial y validación de API Key](#1-acceso-inicial-y-validación-de-api-key)
+   - [2. Configuración de la API Key](#2-configuración-de-la-api-key)
+   - [3. Subida y procesamiento de archivos](#3-subida-y-procesamiento-de-archivos)
+   - [4. Pantalla de resumen](#4-pantalla-de-resumen)
+   - [5. Generación de flashcards y reinicio](#5-generación-de-flashcards-y-reinicio)
 5. [Componentes Principales](#componentes-principales)
 6. [Almacenamiento de Estado](#almacenamiento-de-estado)
 7. [Internacionalización](#internacionalización)
@@ -18,474 +18,227 @@
 
 ## Introducción
 
-StudyApp es una aplicación que permite a los usuarios procesar documentos (PDF, imágenes) o texto para generar resúmenes y flashcards de estudio utilizando la API de Google Gemini. La aplicación está diseñada para ser multimodal, permitiendo el procesamiento de diferentes tipos de contenido.
+StudyApp es una aplicación que permite a los usuarios procesar documentos (PDF, imágenes) o texto para generar resúmenes y flashcards de estudio utilizando la API de Google Gemini 1.5 Flash. La aplicación está diseñada para ser multimodal.
 
-Esta documentación describe el flujo de trabajo completo de la aplicación, desde la configuración inicial hasta la generación de flashcards, para ayudar a desarrolladores a entender cómo funciona la aplicación y cómo pueden mantenerla o extenderla.
+Esta documentación describe el flujo de trabajo completo de la aplicación.
 
 ## Requisitos Técnicos
 
-- **Frontend**: Next.js 15.x, TypeScript, Tailwind CSS, ShadCN UI
+- **Frontend**: Next.js, TypeScript, Tailwind CSS, ShadCN UI
 - **Backend**: Node.js, Express.js
-- **API Externa**: Google Gemini 1.5 Pro para procesamiento de IA
+- **API Externa**: Google Gemini 1.5 Flash para procesamiento de IA
 - **Almacenamiento**: LocalStorage (frontend) para API keys y estado de la aplicación
 - **Contenedores**: Docker para desarrollo y producción
 
 ## Arquitectura
 
-La aplicación sigue una arquitectura cliente-servidor:
+- **Frontend** (Next.js): Gestiona la UI, navegación, y almacena la API key y estado en localStorage.
+- **Backend** (Express): Procesa solicitudes, se comunica con la API de Gemini.
 
-- **Frontend** (Next.js): Gestiona la interfaz de usuario, la navegación y almacena temporalmente los datos del usuario.
-- **Backend** (Express): Procesa las solicitudes, se comunica con la API de Gemini y devuelve los resultados al frontend.
-
-### Estructura de Directorios
+### Estructura de Directorios (Frontend relevante)
 
 ```
 frontend/
-├── app/                       # Páginas y rutas de Next.js
-│   └── [locale]/              # Rutas localizadas (es/en)
-│       ├── api/               # Página de configuración de API key
-│       ├── upload/            # Página de subida de archivos
+├── app/
+│   └── [locale]/
+│       ├── upload/            # Página de subida (ruta principal inicial)
 │       ├── summary/           # Página de resumen
-│       └── flashcards/        # Página de flashcards
-├── components/                # Componentes reutilizables
-├── lib/                       # Utilidades y hooks personalizados
-│   └── hooks/                 # Hooks como useApiKey, useProcessingTimer
-├── messages/                  # Archivos de internacionalización
+│       ├── flashcards/        # Página de flashcards
+│       └── settings/          # Página de configuración (incluye API y apariencia)
+├── components/
+├── lib/
+│   └── hooks/                 # useApiKey, useProcessingTimer
+├── messages/                  # Archivos de internacionalización (en.json, es.json)
 ├── store/                     # Gestión de estado (Zustand)
-└── docs/                      # Documentación (este archivo)
-
-backend/
-├── src/
-│   ├── controllers/           # Controladores para las diferentes funcionalidades
-│   ├── services/              # Servicios, incluido geminiClient.js
-│   └── config/                # Configuraciones, incluyendo prompts
-└── docs/                      # Documentación del backend
+└── docs/
 ```
 
 ## Flujo de Usuario
 
-### 1. Acceso inicial a `/upload` y validación de API
+(Los textos de UI deben usar la función `t` de `next-intl` con claves de `messages.json`)
 
-**User Story**:
+### 1. Acceso inicial y validación de API Key
 
-> **As a** new user  
-> **I want** to land on the upload page (`/upload`)  
-> **so that** I can immediately see dónde subir mi documento.
+**User Story**: Al acceder a la aplicación (ej. ruta `/upload` o raíz que redirige a `/upload`).
 
 **Comportamiento Esperado**:
-
-- Al entrar a `/upload`, el sistema comprueba si existe una API key guardada.
-- Si no hay API key configurada:
-  - Muestra un diálogo modal con el mensaje "No puedes subir un archivo sin configurar tu API primero".
-  - Al confirmar el diálogo, redirige a `/api`.
-- Si hay API key configurada:
-  - Permite permanecer en `/upload` sin interrupciones.
+- El sistema comprueba si existe una API key guardada en localStorage (`useApiKey` hook).
+- Si no hay API key:
+  - Muestra un diálogo o mensaje indicando la necesidad de configurar la API key (ej. usando `t('upload.apiKeyDialog.title')` y `t('settings.apiKey.missing')`).
+  - Ofrece un botón/link para ir a la página de configuración (ej. `t('upload.apiKeyDialog.configure')` que lleva a `/settings` con la pestaña de API seleccionada).
+  - Las funcionalidades de subida/procesamiento están deshabilitadas.
+- Si hay API key: Permite el uso normal de la aplicación.
 
 **Implementación Técnica**:
+- Hook `useApiKey` para verificar estado de la API key.
+- Componente condicional en la página de subida para mostrar el aviso y el enlace a configuración.
 
-```typescript
-// El hook useApiKey maneja la verificación de la API key
-const { isAvailable, isLoading, isMounted } = useApiKey()
+### 2. Configuración de la API Key
 
-// En la página de upload, verificamos si la API key está disponible
-useEffect(() => {
-  if (isApiKeyLoading || !isMounted) return;
-  
-  if (!isAvailable) {
-    setShowApiKeyDialog(true)
-  }
-}, [isAvailable, isApiKeyLoading, isMounted]);
-```
-
-### 2. Configuración de la API en `/api`
-
-**User Story**:
-
-> **As a** user without an API key  
-> **I want** to be redirigido a la página de configuración (`/api`)  
-> **so that** pueda ingresar y guardar mi clave.
+**User Story**: Usuario navega a la página de configuración (ej. `/settings`, pestaña API) para ingresar su clave.
 
 **Comportamiento Esperado**:
-
-- La ruta `/api` muestra un formulario para ingresar la API key.
-- Tras pulsar "Guardar" y validar la clave:
-  - Almacena la API key en local storage.
-  - Redirige a `/upload`.
-- Si el usuario intenta forzar manualmente `/upload` sin haber guardado la clave:
-  - Muestra un popup modal con el mensaje "No puedes subir un archivo sin configurar tu API primero".
-  - Impide la subida de archivos.
+- La página de configuración (ej. `app/[locale]/settings/page.tsx`) tiene una sección para la API Key.
+- Muestra campos y textos usando claves de `messages.json` (ej. `t('settings.apiKey.title')`, `t('settings.apiKey.placeholder')`, `t('settings.apiKey.saveButton')`).
+- Incluye información sobre cómo obtener una API key (ej. `t('settings.apiInfo.title')`, `t('settings.apiInfo.howToGet')`, `t('settings.apiInfo.step1')`, etc., y `t('settings.apiInfo.getApiKeyButton')`).
+- Al guardar, la clave se almacena en localStorage. Se muestra una notificación (ej. `toast.success(t('settings.apiKey.saved'))`).
+- El usuario puede borrar la clave (ej. `t('settings.apiKey.clearButton')`).
 
 **Implementación Técnica**:
+- Componente `ApiKeyManager` (o similar) dentro de la página de Settings.
+- Uso de `localStorage.setItem` y `localStorage.removeItem`.
+- El hook `useApiKey` se actualiza para reflejar el nuevo estado.
 
-```typescript
-// Guardar la API key
-const handleSaveApiKey = async () => {
-  if (!apiKey.trim()) {
-    toast.error(t('errors.emptyKey'))
-    return
-  }
-  
-  try {
-    // Guardar API key y mostrar estados de carga
-    await saveApiKey(apiKey)
-    toast.success(t('success.keySaved'))
-    
-    // Redireccionar a la página de upload
-    const locale = pathname.split('/')[1]
-    router.push(`/${locale}/upload`)
-  } catch (error) {
-    // Manejo de errores
-  }
-}
-```
+### 3. Subida y procesamiento de archivos
 
-### 3. Subida y procesamiento de archivos en `/upload`
-
-**User Story**:
-
-> **As a** user con API key configurada  
-> **I want** subir un PDF o imagen desde `/upload`  
-> **so that** el sistema procese el contenido y me muestre un resumen.
+**User Story**: Usuario en `/upload` con API key configurada, sube un archivo (PDF/imagen) y/o introduce texto.
 
 **Comportamiento Esperado**:
-
-- La UI de `/upload` permite seleccionar y subir un archivo.
-- Aparece un botón **Process** activado solo tras seleccionar un archivo válido.
-- Al clicar **Process**:
-  - Se envía el archivo al servidor.
-  - Durante el procesamiento, muestra un spinner o barra de progreso.
-  - Al completarse, redirige automáticamente a `/summary`.
+- UI permite seleccionar archivos y/o escribir texto (usando `t('upload.dropzone.title')`, `t('upload.textInput.labelWithoutFiles')`).
+- Botón "Process" (ej. `t('upload.process')`) se activa si hay contenido.
+- Al clicar "Process":
+  - Se envía el contenido al backend con la API Key en la cabecera `X-User-API-Key`.
+  - Muestra indicador de carga (ej. `t('upload.processing')`).
+  - Al completarse, se guarda el resultado y redirige a `/summary`.
+  - Notificaciones de éxito/error (ej. `toast.success(t('upload.toast.success'))` o `toast.error(t('upload.toast.error', { message: ... }))`).
 
 **Implementación Técnica**:
+- Componente `MultimodalUploader` o similar.
+- `FormData` para enviar archivos y texto.
+- `fetch` al endpoint del backend (ej. `/api/summary`).
+- `useUploadStore` (Zustand) para guardar el resultado.
+- `useRouter` de Next.js para la redirección.
 
-- Componente `FileDropzone` para la selección de archivos
-- Validaciones para tipos de archivo y tamaño máximo
-- Procesador para extraer texto de PDFs usando PDF.js
-- Manejo del estado de carga con `useProcessingTimer`
+### 4. Pantalla de resumen
 
-```typescript
-const handleSubmit = async () => {
-  try {
-    // Validaciones...
-    
-    // Iniciar procesamiento y mostrar timer
-    startProcessing();
-    setCurrentStep('upload');
-    
-    // Procesar archivos PDF si los hay
-    // Combinar texto y enviar la solicitud
-    const response = await apiClient.processSummary(contentToSend);
-    
-    // Guardar resumen y redirigir a summary
-    addSummary(response.notionMarkdown);
-    router.push('./summary');
-  } catch (error) {
-    // Manejo de errores...
-  }
-}
-```
-
-### 4. Pantalla de resumen en `/summary`
-
-**User Story**:
-
-> **As a** user que acaba de subir un documento  
-> **I want** ver una primera versión del resumen  
-> **so that** pueda decidir si quiero condensarlo más o generar flashcards.
+**User Story**: Usuario es redirigido a `/summary` después del procesamiento.
 
 **Comportamiento Esperado**:
-
-- Al llegar, muestra la **V1** del resumen sin indicador de paginación (`<1/1>`).
+- Muestra el resumen generado (ej. `t('summary.title')`).
 - Botones disponibles:
-  - **Condense more**
-  - **Generate flashcards**
-- **Condense more**:
-  1. Genera la **V2** y actualiza el indicador a `<2/2>`.
-  2. Pulsarlo de nuevo genera la **V3** con `<3/3>`.
-  3. Permite navegar retrospectivamente entre V1, V2 y V3.
-  4. Cada versión se guarda en local storage para persistencia.
-- **Generate flashcards**:
-  - No modifica el resumen.
-  - Inicia la creación de tarjetas y redirige a `/flashcards`.
+  - "Condense More" (ej. `t('summary.actions.condense')`).
+    - Genera nuevas versiones del resumen (hasta un límite, ej. 3).
+    - Permite navegar entre versiones.
+    - Notificaciones (ej. `toast.success(t('summary.toast.condensed'))`).
+  - "Generate Flashcards" (ej. `t('summary.actions.generateFlashcards')`).
+    - Envía el resumen actual al backend para generar flashcards.
+    - Redirige a `/flashcards`.
+    - Notificaciones (ej. `toast.success(t('summary.toast.success'))`).
+  - "Copy" (ej. `t('summary.actions.copy')`) para copiar el contenido del resumen.
 
 **Implementación Técnica**:
+- `useUploadStore` para obtener y actualizar resúmenes.
+- Llamadas al backend para condensar y generar flashcards.
+- Componente para mostrar el markdown (ej. `MarkdownPreview`).
 
-- Gestión de versiones múltiples en el estado
-- Controles de navegación para cambiar entre versiones
-- Límite de tres versiones de resumen
-- Persistencia en localStorage (useUploadStore)
+### 5. Generación de flashcards y reinicio
 
-```typescript
-// Condensar más el resumen
-const handleCondenseSummary = async () => {
-  try {
-    // Limitar a 3 versiones
-    if (summaries.length >= 3) {
-      toast.info(t('toast.maxVersionsReached'))
-      return
-    }
-    
-    // Procesar resumen...
-    const response = await apiClient.condenseSummary(currentSummary);
-    
-    // Añadir nueva versión y actualizar índice
-    addSummary(response.condensedSummary);
-    setCurrentSummaryIndex(summaries.length);
-  } catch (error) {
-    // Manejo de errores...
-  }
-}
-```
-
-### 5. Generación de flashcards y reinicio en `/flashcards`
-
-**User Story**:
-
-> **As a** user que desea repasar el contenido  
-> **I want** ver mis flashcards generadas  
-> **so that** pueda estudiar directamente sin salir de la app.
+**User Story**: Usuario en `/flashcards` revisa las flashcards y puede reiniciar el proceso.
 
 **Comportamiento Esperado**:
-
-- `/flashcards` muestra la lista de tarjetas generadas con título y contenido.
-- Incluye un botón **Start Over**:
-  - Al pulsarlo, elimina de local storage todos los resúmenes y flashcards previos.
-  - Redirige a `/upload` para iniciar un nuevo flujo de subida y procesamiento.
+- Muestra las flashcards generadas (ej. `t('flashcards.title')`).
+- Opciones para copiar en formato TSV (ej. `t('flashcards.actions.copy')`).
+- Botón "Restart" o "Start New Project" (ej. `t('navigation.restart')` o `t('flashcards.actions.startNewProject')`).
+  - Muestra diálogo de confirmación (ej. `t('navigation.restartConfirm')`, `t('navigation.restartDescription')`).
+  - Al confirmar, limpia el estado de `useUploadStore` y localStorage relacionado.
+  - Redirige a `/upload`.
+  - Notificación (ej. `toast.success(t('flashcards.toast.resetSuccess'))`).
 
 **Implementación Técnica**:
-
-- Formateo de flashcards para importación a Quizlet (formato TSV)
-- Botón de copia al portapapeles
-- Diálogo de confirmación antes de eliminar datos
-- Reinicio completo de estado y localStorage
-
-```typescript
-// En el diálogo de confirmación
-<AlertDialogAction onClick={() => {
-  // Reset app state
-  reset()
-  
-  // Limpiar localStorage
-  localStorage.removeItem('studyToolSummaries')
-  localStorage.removeItem('studyToolFlashcards')
-  localStorage.removeItem('studyToolCurrentStep')
-  localStorage.removeItem('studyToolCurrentSummaryIndex')
-  
-  // Redireccionar a upload
-  router.push(`/${locale}/upload`)
-}}>
-```
+- `useUploadStore` para obtener flashcards y para la función `reset()`.
+- `localStorage.removeItem` para limpiar datos persistidos.
+- Componente `AlertDialog` de ShadCN para la confirmación.
 
 ## Componentes Principales
 
 ### Hooks Personalizados
 
 #### useApiKey
+Gestiona la API key:
+- Carga/guarda/limpia la API key de `localStorage`.
+- Proporciona estado `isAvailable`, `isLoading`, `apiKey`.
+- (Ver `backend/docs/FRONTEND_INTEGRATION.md` para un ejemplo más detallado).
 
-Este hook gestiona la API key del usuario:
-- Carga la API key desde localStorage
-- Proporciona métodos para guardar, obtener y limpiar la API key
-- Verifica si la API key está disponible
-- Devuelve el estado de carga
+#### useProcessingTimer (si aún se usa)
+Maneja un temporizador visual durante operaciones largas.
 
-```typescript
-// lib/hooks/useApiKey.ts
-export function useApiKey() {
-  const [apiKey, setApiKey] = useState<string | null>(null)
-  const [isAvailable, setIsAvailable] = useState<boolean>(false)
-  const [isLoading, setIsLoading] = useState<boolean>(true)
-  
-  // Cargar la API key del localStorage
-  useEffect(() => {
-    // ...implementación...
-  }, [])
-
-  // Métodos para guardar, obtener y limpiar la API key
-  const saveApiKey = useCallback((key: string): Promise<boolean> => {
-    // ...implementación...
-  }, [])
-
-  const getApiKey = useCallback(() => {
-    // ...implementación...
-  }, [])
-
-  const clearApiKey = useCallback((): Promise<boolean> => {
-    // ...implementación...
-  }, [])
-
-  return { 
-    apiKey,
-    isAvailable,
-    isLoading,
-    saveApiKey,
-    getApiKey,
-    clearApiKey
-  }
-}
-```
-
-#### useProcessingTimer
-
-Este hook maneja el temporizador durante el procesamiento:
-- Muestra el tiempo transcurrido durante operaciones largas
-- Proporciona estados de carga
-- Permite iniciar y detener el temporizador
-
-```typescript
-// lib/hooks/useProcessingTimer.ts
-export function useProcessingTimer() {
-  const [isLoading, setIsLoading] = useState(false)
-  const [seconds, setSeconds] = useState(0)
-  // ...implementación...
-}
-```
-
-### Componentes de UI
-
-#### FileDropzone
-
-Permite arrastrar y soltar archivos o seleccionarlos desde el explorador.
-- Validación de tipos de archivo permitidos
-- Validación de tamaño máximo
-- Feedback visual durante el arrastre
-
-#### FileList
-
-Muestra la lista de archivos seleccionados y permite eliminarlos.
-
-#### Modal API Key
-
-Diálogo que se muestra cuando no hay API key configurada.
+### Componentes de UI (ShadCN y personalizados)
+- `FileDropzone`, `FileList`, `ApiKeyManager`, `MultimodalUploader`, `MarkdownPreview`.
+- Componentes de ShadCN como `Button`, `Dialog`, `AlertDialog`, `Input`, `Toast` (Sonner).
 
 ## Almacenamiento de Estado
 
-La aplicación utiliza Zustand para gestionar el estado global.
-
-### useUploadStore
-
-Este store maneja:
-- Los archivos seleccionados
-- El texto ingresado
-- Los resúmenes generados (múltiples versiones)
-- Las flashcards generadas
-- El paso actual del flujo (upload, summary, flashcards)
-- El índice del resumen actual
+### useUploadStore (Zustand)
+Gestiona el estado global del flujo de subida:
+- Archivos, texto de entrada.
+- Resúmenes (múltiples versiones), índice del resumen current.
+- Flashcards.
+- Paso actual del flujo (si es necesario).
+- Persistencia en `localStorage`.
 
 ```typescript
 // store/use-upload-store.ts
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+
+// ... (definición de la interfaz de estado)
+
 export const useUploadStore = create<UploadState>()(
   persist(
     (set, get) => ({
+      // ... (estado inicial y acciones como addSummary, addFlashcards, reset)
       files: [],
-      originalFiles: [],
       inputText: '',
-      summaries: [],
+      summaries: [], // Array de strings (markdowns)
       currentSummaryIndex: 0,
-      flashcards: null,
-      currentStep: 'upload',
-      
-      // Métodos para manipular el estado...
-      
+      flashcards: null, // String en formato TSV o un array de objetos flashcard
+
       reset: () => set({
         files: [],
-        originalFiles: [],
         inputText: '',
         summaries: [],
         currentSummaryIndex: 0,
         flashcards: null,
-        currentStep: 'upload'
-      })
+      }),
+      // ... otras acciones
     }),
     {
-      name: 'upload-store',
-      storage: createJSONStorage(() => localStorage)
+      name: 'StudyApp-upload-store', // Nombre único para localStorage
+      storage: createJSONStorage(() => localStorage),
     }
   )
-)
+);
 ```
 
 ## Internacionalización
 
-La aplicación soporta múltiples idiomas usando Next-Intl.
-
-### Estructura
-
-- `/messages/en/messages.json` - Traducciones en inglés
-- `/messages/es/messages.json` - Traducciones en español
-
-### Uso
-
-```typescript
-// En componentes
-const t = useTranslations('namespace')
-t('key.subkey')
-
-// En rutas dinámicas
-const locale = pathname.split('/')[1]
-router.push(`/${locale}/route`)
-```
+- Utiliza `next-intl`.
+- Archivos de mensajes en `/messages/{locale}/messages.json`.
+- Uso de `useTranslations()` hook en componentes.
+  ```typescript
+  // Ejemplo en un componente
+  import { useTranslations } from 'next-intl';
+  // ...
+  const t = useTranslations('upload'); // 'upload' es un namespace en messages.json
+  // ...
+  // <Button>{t('process')}</Button>
+  ```
 
 ## Manejo de Errores
-
-La aplicación maneja varios tipos de errores:
-
-### Errores de API Key
-
-- API key no configurada: redirección a `/api`
-- API key inválida: mensaje de error y opción para corregir
-
-### Errores de Procesamiento
-
-- Errores de red: mensajes específicos con recomendaciones
-- Cuotas excedidas: mensajes informativos
-- Errores de formato o tipo de archivo: validaciones preventivas
-
-### Implementación
-
-```typescript
-try {
-  // Operación que puede fallar
-} catch (error) {
-  if (error instanceof ApiError) {
-    switch(error.type) {
-      case 'QUOTA_EXCEEDED':
-        // Manejar error de cuota
-        break;
-      case 'INVALID_API_KEY':
-        // Manejar error de API key
-        break;
-      // Otros casos...
-    }
-  } else {
-    // Manejar errores genéricos
-  }
-}
-```
+- **Errores de API Key**:
+  - Clave no configurada: Mensaje y guía a Settings (ej. `t('settings.apiKey.missing')`).
+  - Clave inválida (detectada por el backend): Mensaje específico (ej. `t('upload.toast.invalidApiKey')` o `t('toast.apiKeyError')`).
+- **Errores de Procesamiento (Backend)**:
+  - Cuota excedida: `t('toast.quotaExceeded')`.
+  - Errores de red: `t('toast.networkError')`.
+  - Otros errores del API de Gemini: Mensaje genérico de error del servidor.
+- **Validaciones del Frontend**:
+  - Tipo/tamaño de archivo: `t('upload.validation.invalidFileType')`, `t('upload.validation.fileTooLarge')`.
+  - Contenido vacío: `t('upload.validation.noContent')`.
+- Notificaciones de error usando Toasts (Sonner) con mensajes internacionalizados.
 
 ## Mejores Prácticas y Consideraciones de Escalabilidad
-
-### Seguridad
-
-- La API key se almacena solo en el cliente (localStorage)
-- Se envía al backend en cada solicitud a través de headers
-- No se almacena en el backend
-
-### Rendimiento
-
-- Procesamiento asíncrono para archivos grandes
-- Indicadores visuales durante operaciones largas
-- Lazy loading de componentes pesados
-
-### Escalabilidad
-
-- Arquitectura modular para facilitar extensiones
-- Separación clara entre frontend y backend
-- Containerización para despliegue consistente
-
-### Futuras Mejoras
-
-- Autenticación de usuarios para guardar resúmenes y flashcards en la nube
-- Más opciones de exportación para flashcards
-- Soporte para más tipos de archivo
-- Mejoras en la extracción de texto de PDFs complejos
-- Opciones de personalización de resúmenes
+- **Seguridad**: API key solo en cliente (localStorage), transmitida por HTTPS.
+- **Rendimiento**: Indicadores de carga, procesamiento asíncrono.
+- **Escalabilidad**: Arquitectura modular.
+- **Futuras Mejoras**: Autenticación de usuarios, más opciones de exportación, etc.
