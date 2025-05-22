@@ -2,7 +2,7 @@
 
 Un sistema integral que transforma el contenido de documentos en notas estructuradas para Notion y tarjetas de estudio para Quizlet, impulsado por la inteligencia artificial de Google Gemini.
 
-[![Nextjs](https://img.shields.io/badge/Next.js-19-black)](https://nextjs.org/)
+[![Nextjs](https://img.shields.io/badge/Next.js-14-black)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19-blue)](https://reactjs.org/)
 [![Express](https://img.shields.io/badge/Express-4.18-green)](https://expressjs.com/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue)](https://www.docker.com/)
