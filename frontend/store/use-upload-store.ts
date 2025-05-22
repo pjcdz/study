@@ -267,10 +267,8 @@ export const useUploadStore = create<UploadState>()(
         currentSummaryIndex: state.currentSummaryIndex,
         flashcards: state.flashcards,
         currentStep: state.currentStep,
-        // We now persist timer state to keep it across pages
-        processingStartTime: state.processingStartTime,
-        elapsedTimeMs: state.elapsedTimeMs,
-        isLoading: state.isLoading,
+        // Don't persist timer state to prevent issues with stale timers
+        isLoading: false,
       }),
       // Version to ensure backward compatibility
       version: 2, // Increment version due to breaking changes

@@ -37,6 +37,21 @@ export default function UploadPage() {
   const [processingProgress, setProcessingProgress] = useState(0);
   const [statusCheckIntervalId, setStatusCheckIntervalId] = useState<NodeJS.Timeout | null>(null);
 
+  // Using the shared timer hook
+  const { isLoading, displayTime, startProcessing, stopProcessing } = useProcessingTimer()
+  
+  // Reset persisted timer if it was left from a previous session (browser close)
+  useEffect(() => {
+    const { isLoading, processingStartTime } = useUploadStore.getState();
+    
+    // Check if timer was left running from a previous session
+    // If processing for more than 30 minutes, it's likely from a previous session
+    if (isLoading && processingStartTime && Date.now() - processingStartTime > 30 * 60 * 1000) {
+      console.log('Detected stale timer from previous session, resetting');
+      stopProcessing(); // Reset the timer
+    }
+  }, []); // Run once on component mount
+
   // Check API key on component mount and redirect if not available
   useEffect(() => {
     // Esperar a que termine de cargar el estado de la API key
@@ -124,9 +139,6 @@ export default function UploadPage() {
     hidden: { opacity: 0, y: 20 },
     show: { opacity: 1, y: 0 },
   }
-  
-  // Using the shared timer hook
-  const { isLoading, displayTime, startProcessing, stopProcessing } = useProcessingTimer()
   
   const {
     files,
