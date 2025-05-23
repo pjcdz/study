@@ -17,6 +17,7 @@ Un sistema integral que transforma el contenido de documentos en notas estructur
 - **Copiar con Un Clic**: Copia fácilmente el contenido generado al portapapeles para su uso en Notion y Quizlet
 - **Soporte Multiidioma**: Interfaz disponible en español e inglés
 - **Diseño Adaptable**: Experiencia de usuario óptima en dispositivos móviles y de escritorio
+- **Monitoreo de Errores**: Integración con Sentry para seguimiento de errores en tiempo real
 
 ## 🏗️ Arquitectura
 
@@ -58,6 +59,7 @@ El proyecto sigue una **Screaming Architecture** donde la estructura del código
 - **Zustand** para gestión de estado
 - **Framer Motion** para animaciones
 - **Next-Intl** para internacionalización
+- **Sentry** para monitoreo de errores y performance
 
 ### Backend
 - **Node.js** con Express 4.18
@@ -85,9 +87,6 @@ El proyecto sigue una **Screaming Architecture** donde la estructura del código
 git clone https://github.com/pjcdz/study.git
 cd study
 
-# Crear archivo .env con tu clave de API
-echo "GEMINI_API_KEY=tu_clave_aqui" > .env
-
 # Ejecutar la aplicación con Docker Compose
 docker compose up --build
 ```
@@ -95,6 +94,8 @@ docker compose up --build
 La aplicación estará disponible en:
 - Frontend: http://localhost:3000
 - API Backend: http://localhost:4000
+
+**Configuración de la API Key**: La aplicación no requiere configuración de variables de entorno para la API key. En su lugar, al acceder por primera vez, se te solicitará ingresar tu clave de Google Gemini a través de la interfaz de usuario (página de configuración). La clave se almacena de forma segura en el navegador y se envía con cada solicitud al backend.
 
 ### Configuración sin Docker
 
@@ -120,9 +121,11 @@ npm run dev
    - `VPS_HOST`: Hostname de tu servidor
    - `VPS_USER`: Usuario SSH
    - `DEPLOY_SSH_PRIVATE_KEY`: Clave SSH privada
-   - `GEMINI_API_KEY`: Tu clave de API de Google Gemini
+   - `SENTRY_AUTH_TOKEN`: Token de autenticación de Sentry para monitoreo de errores
 
 2. El despliegue se activa automáticamente al hacer push a la rama principal
+
+**Nota**: No es necesario configurar `GEMINI_API_KEY` como secreto de GitHub ya que la aplicación permite que cada usuario ingrese su propia API key a través de la interfaz web.
 
 ```bash
 git push origin main
@@ -130,7 +133,7 @@ git push origin main
 
 ### Gestión de Docker Swarm
 
-Crear los secretos Docker necesarios:
+**Nota**: Para despliegues en producción que requieran la API key como secreto de Docker, crear el secreto necesario:
 
 ```bash
 echo "tu_clave_api_gemini" | docker secret create gemini_api_key -
@@ -144,12 +147,18 @@ docker stack deploy --with-registry-auth -c docker-stack.yml StudyApp
 
 ## 📋 Flujo de Uso
 
-1. **Subida**: Pega el contenido del documento en el área de texto de subida
-2. **Markdown**: Visualiza y copia el markdown generado compatible con Notion
-3. **Tarjetas**: Genera y copia contenido TSV para importar en Quizlet
+Para una descripción detallada del flujo de trabajo de la aplicación, consulta la [documentación del flujo de trabajo](./frontend/docs/WORKFLOW.md).
+
+### Resumen del flujo:
+
+1. **Configuración inicial**: Al acceder por primera vez, configura tu API key de Google Gemini en la página de configuración
+2. **Subida**: Sube documentos (PDF/imágenes) o pega texto directamente en el área de subida
+3. **Resumen**: Visualiza y copia el resumen generado en formato markdown compatible con Notion
+4. **Flashcards**: Genera y copia tarjetas de estudio en formato TSV para importar en Quizlet
 
 ## 📄 Documentación
 
+- [Flujo de Trabajo Detallado](./frontend/docs/WORKFLOW.md) - Documentación completa del funcionamiento de la aplicación
 - [Documentación del Frontend](./frontend/README.md)
 - [Documentación del Backend](./backend/docs/README.md)
 
