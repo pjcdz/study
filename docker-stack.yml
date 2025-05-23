@@ -16,7 +16,7 @@ services:
       - study-network
       - traefik_traefik-public
     deploy:
-      replicas: 1  # Start with 1 replica for easier troubleshooting
+      replicas: 5  
       update_config:
         parallelism: 1
         delay: 10s
@@ -53,7 +53,7 @@ services:
     volumes:
       - backend-uploads:/app/uploads
     deploy:
-      replicas: 1  # Start with 1 replica for easier troubleshooting
+      replicas: 8
       update_config:
         parallelism: 1
         delay: 10s
