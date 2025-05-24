@@ -7,20 +7,40 @@ services:
       - "3000:3000"
     volumes:
       - ./frontend:/app
+      - /app/node_modules
       - /app/.next
+      # Exclude heavy directories from sync to speed up
+      - /app/public
     environment:
-      - CHOKIDAR_USEPOLLING=true
+      # Disable file watching polling for better performance
+      - CHOKIDAR_USEPOLLING=false
       - NODE_ENV=development
-      - WATCHPACK_POLLING=true
+      - WATCHPACK_POLLING=false
       - NEXT_TELEMETRY_DISABLED=1
-      # Set the backend URL for server-side API routes
-      - BACKEND_URL=http://backend:4000
+      # Use the correct variable name that next.config.js expects
+      - NEXT_PUBLIC_API_URL=http://backend:4000
       # Demo mode with fixed content for development/testing
       - USE_DEMO_CONTENT=false
+      # Disable Sentry in development to speed up compilation
+      - SENTRY_DSN=""
+      - SENTRY_ORG=pjcdz
+      - SENTRY_PROJECT=studyapp
+      - CI=false
+      - NEXT_DISABLE_SENTRY=true
+      # Optimize Next.js for development
+      - NEXT_PRIVATE_STANDALONE=true
+      - NEXT_PRIVATE_LOCAL_WEBPACK=true
     depends_on:
       - backend
     networks:
       - study-network
+    # Add resource limits to prevent memory issues
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
 
   backend:
     build:
@@ -36,6 +56,12 @@ services:
     networks:
       - study-network
     command: npm run dev
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
 
 networks:
   study-network:
