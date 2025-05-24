@@ -54,6 +54,17 @@ const sessionManager = {
     
     console.log(`Tracking file processing: ${filename} (${fileId})`);
   },
+
+  /**
+   * Add file tracking (alias for trackFileProcessing for backward compatibility)
+   * @param {string} apiKey - User's API key
+   * @param {string} fileId - ID of the file in Gemini's system
+   * @param {string} filename - Original filename (optional)
+   * @returns {void}
+   */
+  addFileTracking: (apiKey, fileId, filename = fileId) => {
+    sessionManager.trackFileProcessing(apiKey, fileId, filename);
+  },
   
   /**
    * Update the status of a processed file
