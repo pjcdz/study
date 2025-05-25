@@ -38,28 +38,87 @@ const nextConfig = {
   },
   // Optimize fonts but use local fallbacks in development
   optimizeFonts: true,
-  // Experimental features
+  // Experimental features for maximum performance
   experimental: {
     // Add any experimental features here if needed
     missingSuspenseWithCSRBailout: false,
     // Disable instrumentation hook in development for faster startup
     instrumentationHook: process.env.NODE_ENV === 'production',
+    // Enable SWC minify for faster builds
+    swcMinify: true,
+    // Enable new App Router optimizations
+    appDir: true,
+    // Enable server components optimizations
+    serverComponentsExternalPackages: ['@next/font'],
+    // Enable faster refresh
+    turbo: {
+      loaders: {
+        '.svg': ['@svgr/webpack'],
+      },
+    },
   },
   // Ensure fonts load properly in Docker container
   assetPrefix: process.env.NODE_ENV === 'development' ? undefined : '',
   // Add basePath for the app if needed
   // basePath: '',
   
-  // Development optimizations
+  // Development optimizations for high-performance MacBook
   ...(process.env.NODE_ENV === 'development' && {
-    webpack: (config) => {
-      // Optimize webpack for development
+    webpack: (config, { dev, isServer }) => {
+      // Optimize webpack for development with more resources
       config.watchOptions = {
-        poll: 1000,
-        aggregateTimeout: 300,
+        poll: false, // Disable polling for better performance on macOS
+        aggregateTimeout: 100, // Faster response time
+        ignored: /node_modules/,
       };
+      
+      // Enable more aggressive caching
+      config.cache = {
+        type: 'filesystem',
+        maxMemoryGenerations: 5,
+        cacheDirectory: '.next/cache/webpack',
+      };
+      
+      // Optimize chunk splitting for faster HMR
+      if (dev && !isServer) {
+        config.optimization = {
+          ...config.optimization,
+          splitChunks: {
+            chunks: 'all',
+            cacheGroups: {
+              vendor: {
+                test: /[\\/]node_modules[\\/]/,
+                name: 'vendors',
+                chunks: 'all',
+              },
+            },
+          },
+        };
+      }
+      
+      // Enable faster builds with more workers
+      config.parallelism = 8;
+      
       return config;
     },
+    
+    // Enable faster compilation with more memory
+    onDemandEntries: {
+      maxInactiveAge: 60 * 1000, // Keep pages in memory longer
+      pagesBufferLength: 10, // Keep more pages in buffer
+    },
+    
+    // Optimize for faster startup
+    compiler: {
+      styledComponents: true,
+    },
+  }),
+  
+  // Production optimizations
+  ...(process.env.NODE_ENV === 'production' && {
+    compress: true,
+    poweredByHeader: false,
+    generateEtags: false,
   }),
 };
 

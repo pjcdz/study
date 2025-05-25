@@ -1,4 +1,16 @@
 {
+  "name": "study-app",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "docker-compose up --build",
+    "dev:turbo": "DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker-compose up --build --parallel",
+    "dev:performance": "./optimize-docker.sh && DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker-compose up --build --parallel --remove-orphans",
+    "dev:clean": "docker-compose down -v && docker system prune -f && npm run dev:performance",
+    "stop": "docker-compose down",
+    "clean": "docker-compose down -v && docker system prune -f",
+    "logs": "docker-compose logs -f",
+    "restart": "docker-compose restart"
+  },
   "dependencies": {
     "@radix-ui/react-tooltip": "^1.2.7"
   }

@@ -4,7 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "dev:turbo": "next dev --turbopack",
+    "dev:turbo": "next dev --turbo",
+    "dev:performance": "next dev --turbo --port 3000",
+    "dev:warmup": "next dev --turbo & sleep 15 && npm run warmup:routes",
+    "warmup:routes": "node scripts/warmup-routes.js",
     "build": "next build",
     "build:docker": "node build.js",
     "start": "next start",
