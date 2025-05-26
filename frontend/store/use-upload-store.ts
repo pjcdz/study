@@ -35,6 +35,9 @@ interface UploadState {
   // Timer state
   processingStartTime: number | null
   elapsedTimeMs: number
+  // Streaming state
+  isStreaming: boolean
+  streamingSummary: string
   // Actions
   addFiles: (newFiles: File[]) => void
   removeFile: (index: number) => void
@@ -43,6 +46,11 @@ interface UploadState {
   addSummary: (text: string) => void
   setCurrentSummaryIndex: (index: number) => void
   getCurrentSummary: () => string
+  // Streaming summary methods
+  startStreamingSummary: () => void
+  appendToStreamingSummary: (chunk: string) => void
+  finishStreamingSummary: () => void
+  resetStreamingSummary: () => void
   setFlashcards: (tsv: string) => void
   setCurrentStep: (step: 'upload' | 'summary' | 'flashcards') => void
   setIsLoading: (loading: boolean) => void
@@ -68,6 +76,9 @@ export const useUploadStore = create<UploadState>()(
       // Timer state
       processingStartTime: null,
       elapsedTimeMs: 0,
+      // Streaming state
+      isStreaming: false,
+      streamingSummary: '',
       // Actions
       addFiles: (newFiles: File[]) => {
         // Track file uploads
@@ -166,6 +177,49 @@ export const useUploadStore = create<UploadState>()(
         return summaries[currentSummaryIndex] || '';
       },
       
+      // Streaming summary methods
+      startStreamingSummary: () => {
+        trackEvent('streaming_summary_started');
+        set((state) => {
+          // Add a new empty summary to the array and set it as current
+          const updatedSummaries = [...state.summaries, ''];
+          return {
+            summaries: updatedSummaries,
+            currentSummaryIndex: updatedSummaries.length - 1,
+            isStreaming: true,
+            streamingSummary: ''
+          };
+        });
+      },
+      
+      appendToStreamingSummary: (chunk: string) => {
+        set((state) => {
+          const updatedSummaries = [...state.summaries];
+          // Append chunk to the current summary being streamed
+          updatedSummaries[state.currentSummaryIndex] = 
+            (updatedSummaries[state.currentSummaryIndex] || '') + chunk;
+          return { summaries: updatedSummaries, streamingSummary: state.streamingSummary + chunk };
+        });
+      },
+      
+      finishStreamingSummary: () => {
+        const currentSummary = get().getCurrentSummary();
+        trackEvent('streaming_summary_completed', {
+          char_count: currentSummary.length,
+          token_estimate: Math.ceil(currentSummary.length / 4),
+          file_count: get().originalFiles.length,
+          summary_version: get().currentSummaryIndex,
+          summary_type: get().currentSummaryIndex === 0 ? 'original' : 
+                       get().currentSummaryIndex === 1 ? 'condensed' : 
+                       `condensed_level_${get().currentSummaryIndex}`
+        });
+        set({ isStreaming: false });
+      },
+
+      resetStreamingSummary: () => {
+        set({ streamingSummary: '', isStreaming: false });
+      },
+      
       setFlashcards: (tsv: string) => {
         // Count cards by counting non-empty lines
         const cardCount = tsv.split('\n').filter(line => line.trim().length > 0).length;
@@ -237,6 +291,8 @@ export const useUploadStore = create<UploadState>()(
           isLoading: false,
           processingStartTime: null,
           elapsedTimeMs: 0,
+          isStreaming: false,
+          streamingSummary: ''
         });
         
         // Clear localStorage keys

@@ -93,7 +93,7 @@ const validateApiKey = (req, res, next) => {
 // Routes
 // Actualizado: soporte para múltiples archivos (any) en lugar de solo uno (single)
 app.post('/summary', validateApiKey, upload.any(), summaryController.getSummary);
-app.post('/summary/condense', validateApiKey, summaryController.condenseExistingSummary);
+app.post('/summary/condense', validateApiKey, summaryController.condenseSummary);
 app.post('/flashcards', validateApiKey, upload.single('file'), flashcardsController.getFlashcards);
 app.get('/files/status', validateApiKey, fileController.getFileStatus);
 

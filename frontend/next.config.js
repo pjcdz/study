@@ -1,5 +1,6 @@
 const createNextIntlPlugin = require('next-intl/plugin');
 const { withSentryConfig } = require("@sentry/nextjs");
+const path = require('path');
 
 const withNextIntl = createNextIntlPlugin();
 
@@ -46,10 +47,8 @@ const nextConfig = {
     instrumentationHook: process.env.NODE_ENV === 'production',
     // Enable SWC minify for faster builds
     swcMinify: true,
-    // Enable new App Router optimizations
-    appDir: true,
-    // Enable server components optimizations
-    serverComponentsExternalPackages: ['@next/font'],
+    // Note: appDir is deprecated in Next.js 14+ as it's now the default
+    // serverComponentsExternalPackages: ['@next/font'], // Also deprecated
     // Enable faster refresh
     turbo: {
       loaders: {
@@ -72,11 +71,11 @@ const nextConfig = {
         ignored: /node_modules/,
       };
       
-      // Enable more aggressive caching
+      // Enable more aggressive caching with absolute path
       config.cache = {
         type: 'filesystem',
         maxMemoryGenerations: 5,
-        cacheDirectory: '.next/cache/webpack',
+        cacheDirectory: path.resolve(__dirname, '.next/cache/webpack'),
       };
       
       // Optimize chunk splitting for faster HMR

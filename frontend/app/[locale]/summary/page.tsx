@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react"
+import { useState, useEffect, Suspense, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -58,6 +58,84 @@ const LoadingContent = () => (
   </div>
 );
 
+// Componente TypewriterText para efecto de máquina de escribir natural
+function TypewriterText({ text, isStreaming }: { text: string; isStreaming: boolean }) {
+  const [displayedText, setDisplayedText] = useState('');
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (!isStreaming) {
+      // Si no está streaming, mostrar todo el texto inmediatamente
+      setDisplayedText(text);
+      setCurrentIndex(text.length);
+      return;
+    }
+
+    // Limpiar intervalo previo
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+
+    // Si el texto nuevo es más largo que el mostrado, continuar escribiendo
+    if (text.length > displayedText.length) {
+      intervalRef.current = setInterval(() => {
+        setCurrentIndex((prevIndex) => {
+          if (prevIndex >= text.length) {
+            if (intervalRef.current) {
+              clearInterval(intervalRef.current);
+            }
+            return prevIndex;
+          }
+
+          const nextIndex = prevIndex + 1;
+          setDisplayedText(text.slice(0, nextIndex));
+          
+          // Velocidad 5x más rápida: dividiendo todos los delays por 5
+          const currentChar = text[prevIndex];
+          const delay = currentChar === ' ' ? 6 : 
+                       ['.', '!', '?', '\n'].includes(currentChar) ? 40 : 
+                       [',', ';', ':'].includes(currentChar) ? 20 : 10;
+          
+          // Ajustar el próximo intervalo
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = setInterval(() => {
+              setCurrentIndex(prev => prev + 1);
+            }, delay);
+          }
+          
+          return nextIndex;
+        });
+      }, 10); // Velocidad base 5x más rápida (era 50ms, ahora 10ms)
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [text, isStreaming]);
+
+  // Limpiar interval al desmontar componente
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, []);
+
+  return (
+    <>
+      {displayedText}
+      {isStreaming && (
+        <span className="inline-block w-2 h-5 bg-primary ml-1 animate-pulse">|</span>
+      )}
+    </>
+  );
+}
+
 // Navigation-aware content component that uses hooks requiring Suspense
 function NavigationAwareSummaryContent() {
   const router = useRouter();
@@ -70,7 +148,9 @@ function NavigationAwareSummaryContent() {
     addSummary,
     getCurrentSummary,
     setFlashcards, 
-    setCurrentStep
+    setCurrentStep,
+    isStreaming,
+    streamingSummary
   } = useUploadStore();
 
   const { isLoading, displayTime, startProcessing, stopProcessing } = useProcessingTimer();
@@ -83,25 +163,33 @@ function NavigationAwareSummaryContent() {
     if ((!summaries || summaries.length === 0) && typeof window !== 'undefined') {
       const pathParts = window.location.pathname.split('/');
       const locale = pathParts[1]; // Get locale from URL ('es' or 'en')
+      
+      // Redirect to upload if no summary
+      console.log('No summary found, redirecting to upload');
       router.push(`/${locale}/upload`);
       return;
     }
 
     // When we arrive at this page from upload, the timer should be running
-    // Stop it after a brief delay for a smooth visual transition
-    const timer = setTimeout(() => {
-      stopProcessing();
-    }, 500);
+    // Stop it after a brief delay for a smooth visual transition (unless streaming)
+    if (!isStreaming) {
+      const timer = setTimeout(() => {
+        stopProcessing();
+      }, 500);
 
-    return () => clearTimeout(timer);
-  }, [summaries, router, stopProcessing]);
+      return () => clearTimeout(timer);
+    }
+  }, [summaries, router, stopProcessing, isStreaming]);
   
-  // Early return during server-side rendering or if there's no summary
-  if (typeof window === 'undefined' || !summaries || summaries.length === 0) {
+  // Early return during server-side rendering or if there's no summary and not streaming
+  if (typeof window === 'undefined' || ((!summaries || summaries.length === 0) && !isStreaming)) {
     return null;
   }
 
-  const currentSummary = getCurrentSummary();
+  // Get current summary - prioritize streaming content if streaming is active
+  const currentSummary = isStreaming 
+    ? (summaries[currentSummaryIndex] || '') 
+    : getCurrentSummary();
   
   const handleCopyToClipboard = () => {
     navigator.clipboard.writeText(currentSummary)
@@ -396,12 +484,21 @@ function NavigationAwareSummaryContent() {
                   <ScrollArea className="h-[300px] rounded-md border p-4 bg-muted">
                     <div className="flex justify-center">
                       <pre className="font-mono text-sm whitespace-pre-wrap max-w-[90%]">
-                        {currentSummary}
+                        <TypewriterText text={currentSummary} isStreaming={isStreaming} />
                       </pre>
                     </div>
+                    {isStreaming && (
+                      <div className="absolute top-2 right-2 flex items-center bg-primary/10 text-primary text-xs px-2 py-1 rounded-full">
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        Streaming...
+                      </div>
+                    )}
                   </ScrollArea>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {t('content.ready', { defaultValue: 'Your summary is ready to be copied' })}
+                    {isStreaming 
+                      ? t('content.streaming', { defaultValue: 'Generating content in real-time...' })
+                      : t('content.ready', { defaultValue: 'Your summary is ready to be copied' })
+                    }
                   </p>
                 </div>
                 

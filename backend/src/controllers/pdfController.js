@@ -47,7 +47,7 @@ const pdfController = {
         }
         
         // Get API key from headers
-        const apiKey = req.headers['x-api-key'];
+        const apiKey = req.headers['x-user-api-key'];
         if (!apiKey) {
           return res.status(401).json({ 
             success: false, 

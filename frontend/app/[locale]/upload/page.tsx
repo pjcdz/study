@@ -148,7 +148,11 @@ export default function UploadPage() {
     setInputText,
     addSummary,
     setCurrentStep,
-    reset
+    reset,
+    startStreamingSummary,
+    appendToStreamingSummary,
+    finishStreamingSummary,
+    resetStreamingSummary
   } = useUploadStore()
 
   const handleSubmit = async () => {
@@ -180,6 +184,9 @@ export default function UploadPage() {
       // Start processing and show timer
       startProcessing();
       setCurrentStep('upload');
+      
+      // Initialize streaming
+      resetStreamingSummary();
       
       // ENVIAR TODOS LOS ARCHIVOS DIRECTAMENTE AL BACKEND
       if (files && files.length > 0) {
@@ -233,25 +240,45 @@ export default function UploadPage() {
       }
       
       try {
-        // Send the request
-        const response = await apiClient.processSummary(formData);
+        // Start streaming summary
+        startStreamingSummary();
+
+        // Navigate to summary page immediately to show streaming
+        const pathParts = window.location.pathname.split('/');
+        const locale = pathParts[1];
+        router.push(`/${locale}/summary`);
+        
+        // Process with streaming - using the better streaming method for FormData
+        await apiClient.processSummaryStreaming(formData, (chunk: string) => {
+          console.log('Received chunk:', chunk); // Debug log
+          appendToStreamingSummary(chunk);
+        });
+        
+        // Finish streaming
+        finishStreamingSummary();
         
         // Stop processing timer
         stopProcessing();
         setLargeFileProcessing(false);
         
-        // Add the summary to our state
-        addSummary(response.notionMarkdown);
+        // Set current step to summary
         setCurrentStep('summary');
         
         // Show success message
         toast.success(t('upload.toast.success'));
         
-        // Navigate to the next step
-        router.push('./summary');
       } catch (error) {
         stopProcessing();
         setLargeFileProcessing(false);
+        finishStreamingSummary();
+        resetStreamingSummary(); // Clear any partial streaming content
+        
+        // Navigate back to upload on error
+        const pathParts = window.location.pathname.split('/');
+        const locale = pathParts[1];
+        if (window.location.pathname.includes('/summary')) {
+          router.push(`/${locale}/upload`);
+        }
         
         let errorMessage: string;
         if (error instanceof ApiError) {
@@ -295,6 +322,7 @@ export default function UploadPage() {
     } catch (error) {
       stopProcessing();
       setLargeFileProcessing(false);
+      finishStreamingSummary();
       
       const errorMessage = (error as Error).message;
       toast.error(t('upload.toast.error', { message: errorMessage }));

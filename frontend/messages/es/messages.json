@@ -91,7 +91,8 @@
       "condensing": "Resumiendo..."
     },
     "content": {
-      "ready": "✓ Tu resumen está listo para ser copiado"
+      "ready": "✓ Tu resumen está listo para ser copiado",
+      "streaming": "✍️ Generando tu resumen..."
     },
     "instructions": {
       "title": "Cómo usar con Notion",

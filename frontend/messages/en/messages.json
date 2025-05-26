@@ -88,7 +88,8 @@
       "condensing": "Condensing..."
     },
     "content": {
-      "ready": "✓ Your summary is ready to be copied"
+      "ready": "✓ Your summary is ready to be copied",
+      "streaming": "✍️ Generating your summary..."
     },
     "instructions": {
       "title": "How to use with Notion",

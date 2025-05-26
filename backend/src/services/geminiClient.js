@@ -72,15 +72,17 @@ export async function largeFileToGenerativePart(buffer, mimeType, apiKey) {
 
 /**
  * Process a file for Gemini API, automatically using the appropriate method based on size
- * @param {Buffer} buffer - The file buffer
- * @param {string} mimeType - The MIME type of the file
+ * @param {Object} file - The multer file object with buffer, mimetype, and originalname
  * @param {string} apiKey - The user's Gemini API key
- * @param {string} filename - Original filename (optional)
  * @returns {Promise<object>} - The file part to use with Gemini API
  */
-export async function processFileForGemini(buffer, mimeType, apiKey, filename = `file-${Date.now()}`) {
+export async function processFileForGemini(file, apiKey) {
   try {
+    const buffer = file.buffer;
+    const mimeType = file.mimetype;
+    const filename = file.originalname || `file-${Date.now()}`;
     const fileSize = buffer.length;
+    
     console.log(`Processing file: ${Math.round(fileSize / (1024 * 1024))}MB, type: ${mimeType}, name: ${filename}`);
     
     // If file is small enough for inline data
@@ -106,20 +108,20 @@ export async function processFileForGemini(buffer, mimeType, apiKey, filename = 
     const fileBlob = new Blob([buffer], { type: mimeType });
     
     // Upload file using Files API
-    const file = await genAI.files.upload({
+    const uploadResult = await genAI.files.upload({
       file: fileBlob,
       config: {
         displayName: filename
       }
     });
     
-    console.log(`File uploaded successfully with ID: ${file.name}`);
+    console.log(`File uploaded successfully with ID: ${uploadResult.file.name}`);
     
     // Start tracking this file for status updates
-    sessionManager.trackFileProcessing(apiKey, file.name, filename);
+    sessionManager.trackFileProcessing(apiKey, uploadResult.file.name, filename);
     
     // Wait for file processing
-    let getFile = await genAI.files.get({ name: file.name });
+    let getFile = await genAI.files.get({ name: uploadResult.file.name });
     let attempts = 0;
     const maxAttempts = 30; // Maximum 60 seconds wait (30 * 2s)
     
@@ -129,12 +131,12 @@ export async function processFileForGemini(buffer, mimeType, apiKey, filename = 
       
       // Wait 2 seconds before checking again
       await new Promise(resolve => setTimeout(resolve, 2000));
-      getFile = await genAI.files.get({ name: file.name });
+      getFile = await genAI.files.get({ name: uploadResult.file.name });
     }
     
     if (getFile.state === 'FAILED') {
       // Update status in session manager
-      sessionManager.updateFileStatus(apiKey, file.name, sessionManager.FILE_STATUS.FAILED);
+      sessionManager.updateFileStatus(apiKey, uploadResult.file.name, sessionManager.FILE_STATUS.FAILED);
       
       const fileError = new Error('File processing failed in the Files API');
       fileError.type = ERROR_TYPES.FILE_PROCESSING_FAILED;
@@ -144,7 +146,7 @@ export async function processFileForGemini(buffer, mimeType, apiKey, filename = 
     
     if (attempts >= maxAttempts) {
       // Update status in session manager
-      sessionManager.updateFileStatus(apiKey, file.name, sessionManager.FILE_STATUS.FAILED);
+      sessionManager.updateFileStatus(apiKey, uploadResult.file.name, sessionManager.FILE_STATUS.FAILED);
       
       const timeoutError = new Error('Timeout waiting for file processing');
       timeoutError.type = ERROR_TYPES.FILE_PROCESSING_FAILED;
@@ -154,15 +156,15 @@ export async function processFileForGemini(buffer, mimeType, apiKey, filename = 
     console.log(`File processed successfully: ${getFile.name}`);
     
     // Update status to processed
-    sessionManager.updateFileStatus(apiKey, file.name, sessionManager.FILE_STATUS.PROCESSED);
+    sessionManager.updateFileStatus(apiKey, uploadResult.file.name, sessionManager.FILE_STATUS.PROCESSED);
     
     // Return the part with file URI and store the file ID for potential cleanup
     const result = {
       type: 'file',
-      data: file.uri,
+      data: uploadResult.file.uri,
       mimeType: mimeType,
     };
-    result.fileId = file.name; // Store file ID for later cleanup
+    result.fileId = uploadResult.file.name; // Store file ID for later cleanup
     return result;
   } catch (error) {
     console.error('Error processing file for Gemini:', error);
