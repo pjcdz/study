@@ -1,5 +1,15 @@
-# Development Dockerfile for Next.js frontend
-FROM node:23-alpine
+# Development Dockerfile for Next.js frontend - Optimized for high-performance MacBook
+FROM node:20-slim
+
+# Install necessary dependencies for Next.js SWC with optimization flags
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
 # Set working directory
 WORKDIR /app
@@ -7,8 +17,8 @@ WORKDIR /app
 # Copy package files for dependency installation
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies with optimizations for speed
+RUN npm ci --prefer-offline --no-audit --progress=false --silent
 
 # Copy the rest of the application
 COPY . .
@@ -17,8 +27,44 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=development
 
+# Environment variables needed for next.config.js configuration
+ENV USE_DEMO_CONTENT=false
+ENV NEXT_PUBLIC_API_URL=http://backend:4000
+
+# Disable Sentry in development to speed up compilation
+ENV SENTRY_DSN=""
+ENV SENTRY_ORG=pjcdz
+ENV SENTRY_PROJECT=studyapp
+ENV SENTRY_AUTH_TOKEN=""
+ENV CI=false
+ENV NEXT_DISABLE_SENTRY=true
+
+# Optimize Next.js for development with high-performance settings
+ENV NEXT_PRIVATE_STANDALONE=true
+ENV NEXT_PRIVATE_LOCAL_WEBPACK=true
+ENV NEXT_PRIVATE_SKIP_SIZE_LIMIT_CHECK=true
+ENV NEXT_BUILD_WORKERS=8
+
+# Optimize Node.js performance for development
+ENV NODE_OPTIONS="--max-old-space-size=4096 --max-semi-space-size=256 --experimental-modules --experimental-specifier-resolution=node"
+ENV UV_THREADPOOL_SIZE=16
+
+# Enable faster file watching and compilation
+ENV WATCHPACK_POLLING=false
+ENV CHOKIDAR_USEPOLLING=false
+
+# Optimize SWC compiler
+ENV NEXT_PRIVATE_TURBOPACK=true
+ENV TURBOPACK=true
+
+# Create uploads directory that might be needed
+RUN mkdir -p public/uploads
+
+# Create cache directories with proper permissions
+RUN mkdir -p .next/cache && chmod 777 .next/cache
+
 # Expose the development port
 EXPOSE 3000
 
-# Start the development server
-CMD ["npm", "run", "dev"]
+# Start the development server with Turbopack and route warmup for maximum performance
+CMD ["sh", "-c", "npm run dev -- --turbo & sleep 15 && npm run warmup:routes && wait"]

@@ -3,40 +3,99 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev
+      args:
+        # Enable BuildKit for faster builds
+        BUILDKIT_INLINE_CACHE: 1
     ports:
       - "3000:3000"
     volumes:
       - ./frontend:/app
+      - /app/node_modules
       - /app/.next
+      # Exclude heavy directories from sync to speed up
+      - /app/public
+    tmpfs:
+      # Use tmpfs for faster compilation
+      - /app/.next/cache:rw,noexec,nosuid,size=2g
+      - /tmp:rw,noexec,nosuid,size=1g
     environment:
-      - CHOKIDAR_USEPOLLING=true
+      # Disable file watching polling for better performance
+      - CHOKIDAR_USEPOLLING=false
       - NODE_ENV=development
-      - WATCHPACK_POLLING=true
+      - WATCHPACK_POLLING=false
       - NEXT_TELEMETRY_DISABLED=1
-      # Set the backend URL for server-side API routes
-      - BACKEND_URL=http://backend:4000
+      # Use the correct variable name that next.config.js expects
+      - NEXT_PUBLIC_API_URL=http://backend:4000
       # Demo mode with fixed content for development/testing
       - USE_DEMO_CONTENT=false
+      # Disable Sentry in development to speed up compilation
+      - SENTRY_DSN=""
+      - SENTRY_ORG=pjcdz
+      - SENTRY_PROJECT=studyapp
+      - CI=false
+      - NEXT_DISABLE_SENTRY=true
+      # Optimize Next.js for development with more resources
+      - NEXT_PRIVATE_STANDALONE=true
+      - NEXT_PRIVATE_LOCAL_WEBPACK=true
+      # Enable SWC optimizations
+      - NEXT_PRIVATE_SKIP_SIZE_LIMIT_CHECK=true
+      # Increase Node.js memory limit and optimize V8
+      - NODE_OPTIONS=--max-old-space-size=4096 --max-semi-space-size=256
+      # Enable faster file watching
+      - WATCHPACK_POLLING=false
+      # Optimize compilation
+      - NEXT_BUILD_WORKERS=8
+      - UV_THREADPOOL_SIZE=16
     depends_on:
       - backend
     networks:
       - study-network
+    # Dramatically increase resource limits for better performance
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+          cpus: '6'
+        reservations:
+          memory: 4G
+          cpus: '2'
+    # Add shared memory for better IPC performance
+    shm_size: 2g
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
+      args:
+        BUILDKIT_INLINE_CACHE: 1
     ports:
       - "4000:4000"
     volumes:
       - ./backend:/app
       - ./backend/uploads:/app/uploads
+    tmpfs:
+      # Add tmpfs for temporary files
+      - /tmp:rw,noexec,nosuid,size=512m
     environment:
       - NODE_ENV=development
+      # Optimize Node.js for backend
+      - NODE_OPTIONS=--max-old-space-size=2048
+      - UV_THREADPOOL_SIZE=8
     networks:
       - study-network
     command: npm run dev
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2'
+        reservations:
+          memory: 1G
+          cpus: '1'
+    shm_size: 512m
 
 networks:
   study-network:
     driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: 1500

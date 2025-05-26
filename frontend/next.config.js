@@ -1,4 +1,5 @@
 const createNextIntlPlugin = require('next-intl/plugin');
+const { withSentryConfig } = require("@sentry/nextjs");
 
 const withNextIntl = createNextIntlPlugin();
 
@@ -37,54 +38,127 @@ const nextConfig = {
   },
   // Optimize fonts but use local fallbacks in development
   optimizeFonts: true,
-  // Experimental features
+  // Experimental features for maximum performance
   experimental: {
     // Add any experimental features here if needed
     missingSuspenseWithCSRBailout: false,
+    // Disable instrumentation hook in development for faster startup
+    instrumentationHook: process.env.NODE_ENV === 'production',
+    // Enable SWC minify for faster builds
+    swcMinify: true,
+    // Enable new App Router optimizations
+    appDir: true,
+    // Enable server components optimizations
+    serverComponentsExternalPackages: ['@next/font'],
+    // Enable faster refresh
+    turbo: {
+      loaders: {
+        '.svg': ['@svgr/webpack'],
+      },
+    },
   },
   // Ensure fonts load properly in Docker container
   assetPrefix: process.env.NODE_ENV === 'development' ? undefined : '',
   // Add basePath for the app if needed
   // basePath: '',
+  
+  // Development optimizations for high-performance MacBook
+  ...(process.env.NODE_ENV === 'development' && {
+    webpack: (config, { dev, isServer }) => {
+      // Optimize webpack for development with more resources
+      config.watchOptions = {
+        poll: false, // Disable polling for better performance on macOS
+        aggregateTimeout: 100, // Faster response time
+        ignored: /node_modules/,
+      };
+      
+      // Enable more aggressive caching
+      config.cache = {
+        type: 'filesystem',
+        maxMemoryGenerations: 5,
+        cacheDirectory: '.next/cache/webpack',
+      };
+      
+      // Optimize chunk splitting for faster HMR
+      if (dev && !isServer) {
+        config.optimization = {
+          ...config.optimization,
+          splitChunks: {
+            chunks: 'all',
+            cacheGroups: {
+              vendor: {
+                test: /[\\/]node_modules[\\/]/,
+                name: 'vendors',
+                chunks: 'all',
+              },
+            },
+          },
+        };
+      }
+      
+      // Enable faster builds with more workers
+      config.parallelism = 8;
+      
+      return config;
+    },
+    
+    // Enable faster compilation with more memory
+    onDemandEntries: {
+      maxInactiveAge: 60 * 1000, // Keep pages in memory longer
+      pagesBufferLength: 10, // Keep more pages in buffer
+    },
+    
+    // Optimize for faster startup
+    compiler: {
+      styledComponents: true,
+    },
+  }),
+  
+  // Production optimizations
+  ...(process.env.NODE_ENV === 'production' && {
+    compress: true,
+    poweredByHeader: false,
+    generateEtags: false,
+  }),
 };
 
-module.exports = withNextIntl(nextConfig);
+// Only apply Sentry in production or when explicitly enabled
+const shouldUseSentry = process.env.NODE_ENV === 'production' && !process.env.NEXT_DISABLE_SENTRY;
 
-// Injected content via Sentry wizard below
+// Compose configurations properly
+module.exports = shouldUseSentry 
+  ? withSentryConfig(
+      withNextIntl(nextConfig),
+      {
+        // For all available options, see:
+        // https://www.npmjs.com/package/@sentry/webpack-plugin#options
 
-const { withSentryConfig } = require("@sentry/nextjs");
+        org: "pjcdz",
+        project: "studyapp",
 
-module.exports = withSentryConfig(
-  module.exports,
-  {
-    // For all available options, see:
-    // https://www.npmjs.com/package/@sentry/webpack-plugin#options
+        // Only print logs for uploading source maps in CI
+        silent: !process.env.CI,
 
-    org: "pjcdz",
-    project: "studyapp",
+        // For all available options, see:
+        // https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
 
-    // Only print logs for uploading source maps in CI
-    silent: !process.env.CI,
+        // Upload a larger set of source maps for prettier stack traces (increases build time)
+        widenClientFileUpload: true,
 
-    // For all available options, see:
-    // https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
+        // Route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
+        // This can increase your server load as well as your hosting bill.
+        // Note: Check that the configured route will not match with your Next.js middleware, otherwise reporting of client-
+        // side errors will fail.
+        tunnelRoute: "/monitoring",
 
-    // Upload a larger set of source maps for prettier stack traces (increases build time)
-    widenClientFileUpload: true,
+        // Automatically tree-shake Sentry logger statements to reduce bundle size
+        disableLogger: true,
 
-    // Route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
-    // This can increase your server load as well as your hosting bill.
-    // Note: Check that the configured route will not match with your Next.js middleware, otherwise reporting of client-
-    // side errors will fail.
-    tunnelRoute: "/monitoring",
-
-    // Automatically tree-shake Sentry logger statements to reduce bundle size
-    disableLogger: true,
-
-    // Enables automatic instrumentation of Vercel Cron Monitors. (Does not yet work with App Router route handlers.)
-    // See the following for more information:
-    // https://docs.sentry.io/product/crons/
-    // https://vercel.com/docs/cron-jobs
-    automaticVercelMonitors: true,
-  }
-);
+        // Enables automatic instrumentation of Vercel Cron Monitors. (Does not yet work with App Router route handlers.)
+        // See the following for more information:
+        // https://docs.sentry.io/product/crons/
+        // https://vercel.com/docs/cron-jobs
+        automaticVercelMonitors: true,
+      }
+    )
+  : withNextIntl(nextConfig);

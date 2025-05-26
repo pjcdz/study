@@ -1,10 +1,9 @@
-import fetch from 'node-fetch';
-import axios from 'axios';
+import { google } from '@ai-sdk/google';
+import { generateText } from 'ai';
 import sessionManager from './sessionManager.js';
 
 // Update to use the correct model name according to Google's documentation
 const MODEL_NAME = 'gemini-1.5-flash';
-const API_URL = `https://generativelanguage.googleapis.com/v1/models/${MODEL_NAME}:generateContent`;
 
 // Error types - used for better frontend handling
 export const ERROR_TYPES = {
@@ -19,22 +18,17 @@ export const ERROR_TYPES = {
 // Límite para el uso de inlineData vs Files API (20MB)
 export const MAX_INLINE_FILE_SIZE = 20 * 1024 * 1024;
 
-// Estimated input tokens - this variable was missing
-const estimatedInputTokens = 100; // Default estimate
-
 /**
  * Convierte un buffer de archivo (PDF, JPG, PNG, etc.) en una parte de contenido
- * para la API de Gemini.
- * @param {Buffer} buffer El buffer del archivo.
- * @param {string} mimeType El tipo MIME del archivo (ej. "application/pdf", "image/jpeg").
- * @returns {object} Objeto de parte de contenido para la API.
+ * @param {Buffer} buffer - El buffer del archivo
+ * @param {string} mimeType - El tipo MIME del archivo
+ * @returns {object} - Objeto con data base64 y mimeType para usar con AI SDK
  */
 export function fileToGenerativePart(buffer, mimeType) {
   return {
-    inlineData: {
-      data: buffer.toString("base64"),
-      mimeType,
-    },
+    type: 'file',
+    data: buffer,
+    mimeType: mimeType,
   };
 }
 
@@ -49,56 +43,30 @@ export async function largeFileToGenerativePart(buffer, mimeType, apiKey) {
   try {
     console.log(`Procesando archivo grande (${Math.round(buffer.length / (1024 * 1024))}MB) usando Files API`);
     
-    // Importar GoogleGenerativeAI de la biblioteca oficial
-    const { GoogleGenerativeAI, createPartFromUri } = await import('@google/generative-ai');
-    
-    // Crear cliente de la API de Gemini
+    // For large files, we'll still need to use the Google Generative AI library directly
+    const { GoogleGenerativeAI } = await import('@google/generative-ai');
     const genAI = new GoogleGenerativeAI(apiKey);
     
-    // Crear un Blob del buffer
     const fileBlob = new Blob([buffer], { type: mimeType });
     
-    // Subir archivo usando Files API
-    const file = await genAI.files.upload({
+    const uploadResult = await genAI.files.upload({
       file: fileBlob,
-      config: {
-        displayName: `upload-${Date.now()}`
-      }
+      displayName: `upload-${Date.now()}`,
     });
     
-    console.log(`Archivo subido exitosamente con ID: ${file.name}`);
+    console.log(`Archivo subido con URI: ${uploadResult.file.uri}`);
     
-    // Esperar a que se procese el archivo
-    let getFile = await genAI.files.get({ name: file.name });
-    let attempts = 0;
-    const maxAttempts = 30; // Máximo 60 segundos de espera (30 * 2s)
+    // Track the file for cleanup
+    sessionManager.addFileTracking(apiKey, uploadResult.file.name);
     
-    while (getFile.state === 'PROCESSING' && attempts < maxAttempts) {
-      attempts++;
-      console.log(`Intento ${attempts}: Estado del archivo: ${getFile.state}`);
-      
-      // Esperar 2 segundos antes de comprobar de nuevo
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      getFile = await genAI.files.get({ name: file.name });
-    }
-    
-    if (getFile.state === 'FAILED') {
-      throw new Error('El procesamiento del archivo falló en la Files API');
-    }
-    
-    if (attempts >= maxAttempts) {
-      throw new Error('Tiempo de espera agotado para el procesamiento del archivo');
-    }
-    
-    console.log(`Archivo procesado correctamente: ${getFile.name}`);
-    
-    // Devolver un objeto de parte compatible con la API de Gemini
-    return createPartFromUri(file.uri, mimeType);
+    return {
+      type: 'file',
+      data: uploadResult.file.uri,
+      mimeType: mimeType,
+    };
   } catch (error) {
-    console.error('Error en largeFileToGenerativePart:', error);
-    const fileApiError = new Error(`Error procesando archivo grande: ${error.message}`);
-    fileApiError.type = ERROR_TYPES.FILE_TOO_LARGE;
-    throw fileApiError;
+    console.error('Error uploading large file:', error);
+    throw new Error(`Failed to upload large file: ${error.message}`);
   }
 }
 
@@ -119,10 +87,9 @@ export async function processFileForGemini(buffer, mimeType, apiKey, filename = 
     if (fileSize <= MAX_INLINE_FILE_SIZE) {
       console.log(`Using inline data for file (${Math.round(fileSize / (1024 * 1024))}MB)`);
       return {
-        inlineData: {
-          data: buffer.toString("base64"),
-          mimeType,
-        }
+        type: 'file',
+        data: buffer,
+        mimeType,
       };
     }
     
@@ -130,7 +97,7 @@ export async function processFileForGemini(buffer, mimeType, apiKey, filename = 
     console.log(`Using Files API for large file (${Math.round(fileSize / (1024 * 1024))}MB)`);
     
     // Import required modules from Gemini
-    const { GoogleGenerativeAI, createPartFromUri } = await import('@google/generative-ai');
+    const { GoogleGenerativeAI } = await import('@google/generative-ai');
     
     // Create client
     const genAI = new GoogleGenerativeAI(apiKey);
@@ -190,7 +157,11 @@ export async function processFileForGemini(buffer, mimeType, apiKey, filename = 
     sessionManager.updateFileStatus(apiKey, file.name, sessionManager.FILE_STATUS.PROCESSED);
     
     // Return the part with file URI and store the file ID for potential cleanup
-    const result = createPartFromUri(file.uri, mimeType);
+    const result = {
+      type: 'file',
+      data: file.uri,
+      mimeType: mimeType,
+    };
     result.fileId = file.name; // Store file ID for later cleanup
     return result;
   } catch (error) {
@@ -211,16 +182,10 @@ export async function cleanupFile(fileName, apiKey) {
   try {
     console.log(`Cleaning up file: ${fileName}`);
     
-    // Import GoogleGenerativeAI from the library
     const { GoogleGenerativeAI } = await import('@google/generative-ai');
-    
-    // Create client
     const genAI = new GoogleGenerativeAI(apiKey);
     
-    // Delete the file
     await genAI.files.delete({ name: fileName });
-    
-    // Remove from tracking
     sessionManager.removeFileTracking(apiKey, fileName);
     
     console.log(`Successfully deleted file: ${fileName}`);
@@ -241,7 +206,7 @@ export function shouldUseFilesAPI(buffer) {
 }
 
 /**
- * Call Gemini API with a user's API key and multimodal content
+ * Call Gemini API with a user's API key and multimodal content using AI SDK
  * @param {string} userApiKey - The user's Gemini API key
  * @param {Array<object>} parts - Array of parts (text and/or files)
  * @param {string} systemInstructionText - Optional system instruction
@@ -253,138 +218,93 @@ export async function generateMultimodalContent(userApiKey, parts, systemInstruc
       throw new Error('API Key no proporcionada');
     }
     
-    console.log('Sending request to Gemini API...');
-    console.log(`Using API key: ${userApiKey.substring(0, 3)}...${userApiKey.substring(userApiKey.length - 3)}`); // Log partial key for debugging
+    console.log('Sending request to Gemini API using AI SDK...');
+    console.log(`Using API key: ${userApiKey.substring(0, 3)}...${userApiKey.substring(userApiKey.length - 3)}`);
     console.log(`Using model: ${MODEL_NAME}`);
     
     const startTime = Date.now();
     
-    // Merge system instruction into the user parts
-    const userParts = systemInstructionText
-      ? [{ text: systemInstructionText }, ...parts]
-      : parts;
+    // Check if we have any file URIs that require fallback to original SDK
+    const hasFileUris = parts.some(part => 
+      (part.fileData && part.fileData.fileUri) || 
+      (part.type === 'file' && typeof part.data === 'string' && part.data.startsWith('https://'))
+    );
     
-    // Create contents array for the request
-    const contents = [{
-      role: 'user',
-      parts: userParts
-    }];
-
-    // Create request body
-    const body = {
-      contents,
-      generationConfig: {
-        temperature: 1,        // Lower temperature for more focused output
-        maxOutputTokens: 8192,  // Large token limit to allow detailed responses
-        topP: 0.8,               // Sample from top 80% probability mass
-        topK: 40                 // Sample from top 40 tokens
+    if (hasFileUris) {
+      console.log('Detected file URIs, falling back to original Google SDK implementation');
+      return await generateMultimodalContentFallback(userApiKey, parts, systemInstructionText);
+    }
+    
+    // For AI SDK, we need to set the API key as an environment variable or pass it directly
+    // The AI SDK reads from GOOGLE_GENERATIVE_AI_API_KEY environment variable
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY = userApiKey;
+    
+    // Create the model instance - AI SDK will use the environment variable
+    const model = google(MODEL_NAME);
+    
+    // Prepare the messages array
+    const messages = [];
+    
+    // Add system instruction if provided
+    if (systemInstructionText) {
+      messages.push({
+        role: 'system',
+        content: systemInstructionText,
+      });
+    }
+    
+    // Convert parts to AI SDK format
+    const content = parts.map(part => {
+      if (part.text) {
+        return {
+          type: 'text',
+          text: part.text,
+        };
+      } else if (part.inlineData) {
+        // For inline data, convert base64 to buffer for AI SDK
+        return {
+          type: 'file',
+          data: Buffer.from(part.inlineData.data, 'base64'),
+          mimeType: part.inlineData.mimeType,
+        };
+      } else if (part.type === 'file' && part.data instanceof Buffer) {
+        // Already in correct AI SDK format with Buffer data
+        return part;
       }
-    };
-
-    // Log the endpoint being used
-    console.log(`Using API endpoint: ${API_URL}`);
-    
-    const response = await fetch(`${API_URL}?key=${userApiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      return part;
     });
-
-    // Calculate API response time
+    
+    messages.push({
+      role: 'user',
+      content: content,
+    });
+    
+    // Generate content using AI SDK
+    const result = await generateText({
+      model,
+      messages,
+      maxTokens: 8192,
+      temperature: 1,
+      topP: 0.8,
+      topK: 40,
+    });
+    
+    // Clean up the environment variable for security
+    delete process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    
     const apiResponseTime = Date.now() - startTime;
     console.log(`API response time: ${apiResponseTime}ms`);
-
-    // Log response status and headers
-    console.log(`Gemini API response status: ${response.status} ${response.statusText}`);
-    console.log('Response headers:', Object.fromEntries([...response.headers.entries()]));
-
-    // Get the response text first
-    const responseText = await response.text();
-    console.log('Raw response text length:', responseText.length);
-    console.log('Response preview:', responseText.substring(0, 100) + (responseText.length > 100 ? '...' : ''));
     
-    if (!response.ok) {
-      // Try to parse as JSON, but handle case where it's not valid JSON
-      try {
-        const errorData = JSON.parse(responseText);
-        const errorMessage = errorData.error?.message || 'Unknown Gemini API error';
-        const errorCode = errorData.error?.code || response.status;
-        
-        // Detect quota exceeded errors
-        if (
-          (errorCode === 429 && errorMessage.includes('quota')) || 
-          errorMessage.toLowerCase().includes('quota exceeded') ||
-          errorMessage.toLowerCase().includes('resource exhausted') ||
-          errorMessage.toLowerCase().includes('rate limit')
-        ) {
-          const quotaError = new Error(`Gemini API quota exceeded: ${errorMessage}`);
-          quotaError.type = ERROR_TYPES.QUOTA_EXCEEDED;
-          throw quotaError;
-        }
-        
-        // Detect invalid API key
-        if (errorCode === 401 || (errorCode === 400 && errorMessage.toLowerCase().includes('api key'))) {
-          const authError = new Error(`Gemini API authentication error: ${errorMessage}`);
-          authError.type = ERROR_TYPES.INVALID_API_KEY;
-          throw authError;
-        }
-        
-        // General error
-        const generalError = new Error(`Gemini API error (${errorCode}): ${errorMessage}`);
-        generalError.type = ERROR_TYPES.UNKNOWN_ERROR;
-        throw generalError;
-      } catch (parseError) {
-        // If parsing failed, but the original error had error type property, preserve it
-        if (parseError.type) {
-          throw parseError;
-        }
-        
-        // If we can't parse as JSON, return the response text
-        console.error('Error parsing error response:', parseError);
-        const responseError = new Error(`Gemini API error: ${responseText || response.statusText}`);
-        responseError.type = ERROR_TYPES.UNKNOWN_ERROR;
-        throw responseError;
-      }
-    }
-
-    // Total time including parsing
-    const totalTime = Date.now() - startTime;
-
-    // Try to parse the successful response
-    let data;
-    try {
-      data = JSON.parse(responseText);
-    } catch (parseError) {
-      console.error('Error parsing successful response:', parseError);
-      console.error('Raw response:', responseText);
-      const parseResponseError = new Error('Failed to parse Gemini API response');
-      parseResponseError.type = ERROR_TYPES.UNKNOWN_ERROR;
-      throw parseResponseError;
-    }
-    
-    // Extract usage statistics if available
-    let usageMetrics = {
-      inputTokens: estimatedInputTokens,
-      outputTokens: 0,
-      totalTokens: estimatedInputTokens,
+    // Extract usage statistics
+    const usageMetrics = {
+      inputTokens: result.usage?.promptTokens || 100,
+      outputTokens: result.usage?.completionTokens || 0,
+      totalTokens: result.usage?.totalTokens || 100,
       apiResponseTimeMs: apiResponseTime,
-      totalProcessingTimeMs: totalTime,
+      totalProcessingTimeMs: apiResponseTime,
       model: MODEL_NAME
     };
     
-    // If response includes usage data, use it instead of estimates
-    if (data.usageMetadata) {
-      usageMetrics.inputTokens = data.usageMetadata.promptTokenCount || usageMetrics.inputTokens;
-      usageMetrics.outputTokens = data.usageMetadata.candidatesTokenCount || 0;
-      usageMetrics.totalTokens = usageMetrics.inputTokens + usageMetrics.outputTokens;
-    } else {
-      // If no usage data, estimate output tokens
-      const outputText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      usageMetrics.outputTokens = Math.ceil(outputText.length / 4);
-      usageMetrics.totalTokens = usageMetrics.inputTokens + usageMetrics.outputTokens;
-    }
-    
-    // Log all usage statistics
     console.log('===== GEMINI API USAGE STATISTICS =====');
     console.log(`Model: ${usageMetrics.model}`);
     console.log(`Input tokens: ${usageMetrics.inputTokens}`);
@@ -393,30 +313,29 @@ export async function generateMultimodalContent(userApiKey, parts, systemInstruc
     console.log(`API response time: ${usageMetrics.apiResponseTimeMs}ms`);
     console.log(`Total processing time: ${usageMetrics.totalProcessingTimeMs}ms`);
     console.log('======================================');
-      // Extract the text from the response
-    if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-      const generatedText = data.candidates[0].content.parts[0].text;
-      // Return both the text and the usage metrics
-      return {
-        generatedText,
-        stats: {
-          promptTokens: usageMetrics.inputTokens,
-          candidatesTokens: usageMetrics.outputTokens, 
-          totalTokens: usageMetrics.totalTokens
-        }
-      };
-    }
     
-    console.error('Unexpected response format:', JSON.stringify(data, null, 2));
-    const formatError = new Error('Unexpected response format from Gemini API');
-    formatError.type = ERROR_TYPES.UNKNOWN_ERROR;
-    throw formatError;
+    return {
+      generatedText: result.text,
+      stats: {
+        promptTokens: usageMetrics.inputTokens,
+        candidatesTokens: usageMetrics.outputTokens,
+        totalTokens: usageMetrics.totalTokens
+      }
+    };
+    
   } catch (error) {
-    // Log the full error details
+    // Clean up the environment variable in case of error
+    delete process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    
     console.error('Error calling Gemini API:', error);
     
-    // Handle specific errors based on response
-    if (error.message && error.message.includes('API key not valid')) {
+    // Handle AI SDK specific errors
+    if (error.name === 'LoadAPIKeyError' || error.message?.includes('API key is missing')) {
+      const authError = new Error('API Key inválida o sin permisos. Por favor, verifica tu API Key de Google AI Studio.');
+      authError.type = ERROR_TYPES.INVALID_API_KEY;
+      authError.status = 401;
+      throw authError;
+    } else if (error.message && error.message.includes('API key not valid')) {
       const authError = new Error('API Key inválida o sin permisos. Por favor, verifica tu API Key de Google AI Studio.');
       authError.type = ERROR_TYPES.INVALID_API_KEY;
       authError.status = 401;
@@ -426,11 +345,6 @@ export async function generateMultimodalContent(userApiKey, parts, systemInstruc
       quotaError.type = ERROR_TYPES.QUOTA_EXCEEDED;
       quotaError.status = 429;
       throw quotaError;
-    } 
-    
-    // Preserve error type if already set
-    if (error.type) {
-      throw error;
     }
     
     // Check if this is a network error
@@ -444,6 +358,102 @@ export async function generateMultimodalContent(userApiKey, parts, systemInstruc
     error.type = ERROR_TYPES.UNKNOWN_ERROR;
     throw error;
   }
+}
+
+/**
+ * Fallback implementation using the original Google SDK for large files with URIs
+ * @param {string} userApiKey - The user's Gemini API key
+ * @param {Array<object>} parts - Array of parts (text and/or files)
+ * @param {string} systemInstructionText - Optional system instruction
+ * @returns {Promise<object>} - The generated text response and usage statistics
+ */
+async function generateMultimodalContentFallback(userApiKey, parts, systemInstructionText) {
+  const { GoogleGenerativeAI } = await import('@google/generative-ai');
+  
+  const genAI = new GoogleGenerativeAI(userApiKey);
+  const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+  
+  const startTime = Date.now();
+  
+  // Convert parts to original SDK format
+  const convertedParts = parts.map(part => {
+    if (part.text) {
+      return { text: part.text };
+    } else if (part.type === 'file' && part.data instanceof Buffer) {
+      // Convert buffer to base64 for original SDK
+      return {
+        inlineData: {
+          data: part.data.toString('base64'),
+          mimeType: part.mimeType,
+        }
+      };
+    } else if (part.type === 'file' && typeof part.data === 'string') {
+      // File URI case
+      return {
+        fileData: {
+          fileUri: part.data,
+          mimeType: part.mimeType,
+        }
+      };
+    }
+    return part; // Already in correct format
+  });
+  
+  // Merge system instruction into the user parts
+  const userParts = systemInstructionText
+    ? [{ text: systemInstructionText }, ...convertedParts]
+    : convertedParts;
+  
+  // Create contents array for the request
+  const contents = [{
+    role: 'user',
+    parts: userParts
+  }];
+  
+  const result = await model.generateContent({
+    contents,
+    generationConfig: {
+      temperature: 1,
+      maxOutputTokens: 8192,
+      topP: 0.8,
+      topK: 40
+    }
+  });
+  
+  const apiResponseTime = Date.now() - startTime;
+  console.log(`Fallback API response time: ${apiResponseTime}ms`);
+  
+  const response = await result.response;
+  const text = response.text();
+  
+  // Extract usage statistics
+  const usageMetadata = response.usageMetadata || {};
+  const usageMetrics = {
+    inputTokens: usageMetadata.promptTokenCount || 100,
+    outputTokens: usageMetadata.candidatesTokenCount || 0,
+    totalTokens: usageMetadata.totalTokenCount || 100,
+    apiResponseTimeMs: apiResponseTime,
+    totalProcessingTimeMs: apiResponseTime,
+    model: MODEL_NAME
+  };
+  
+  console.log('===== GEMINI API USAGE STATISTICS (FALLBACK) =====');
+  console.log(`Model: ${usageMetrics.model}`);
+  console.log(`Input tokens: ${usageMetrics.inputTokens}`);
+  console.log(`Output tokens: ${usageMetrics.outputTokens}`);
+  console.log(`Total tokens: ${usageMetrics.totalTokens}`);
+  console.log(`API response time: ${usageMetrics.apiResponseTimeMs}ms`);
+  console.log(`Total processing time: ${usageMetrics.totalProcessingTimeMs}ms`);
+  console.log('==================================================');
+  
+  return {
+    generatedText: text,
+    stats: {
+      promptTokens: usageMetrics.inputTokens,
+      candidatesTokens: usageMetrics.outputTokens,
+      totalTokens: usageMetrics.totalTokens
+    }
+  };
 }
 
 // Legacy function for backward compatibility
@@ -466,175 +476,100 @@ export async function callGemini(prompt) {
 }
 
 /**
- * Service for interacting with Google's Gemini API
+ * Service for interacting with Google's Gemini API using AI SDK
  * This includes support for text generation and multimodal (text+image) processing
  */
 export class GeminiClient {
   constructor(config = {}) {
     this.apiKey = null;
-    this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
-    this.defaultModel = config.model || 'gemini-1.5-flash';
+    this.defaultModel = config.model || MODEL_NAME;
     this.temperature = config.temperature || 1;
     this.maxOutputTokens = config.maxOutputTokens || 8192;
   }
   
-  /**
-   * Set the API key for Gemini API requests
-   * @param {string} apiKey - The API key to use
-   */
   setApiKey(apiKey) {
     this.apiKey = apiKey;
   }
 
-  /**
-   * Get the configured API key
-   * @returns {string} The current API key
-   */
   getApiKey() {
     return this.apiKey;
   }
 
-  /**
-   * Process a PDF document using Gemini's document understanding capabilities
-   * @param {Buffer} fileBuffer - The PDF file buffer
-   * @param {Object} options - Processing options
-   * @returns {Promise<Object>} Processed text content from the PDF
-   */
   async processPdfFile(fileBuffer, options = {}) {
     if (!this.apiKey) {
       throw new Error('API key not configured for Gemini client');
     }
     
     try {
-      // First upload the file to Gemini's file API
-      const uploadResponse = await this._uploadFile(fileBuffer, 'application/pdf');
-      
-      if (!uploadResponse || !uploadResponse.uri) {
-        throw new Error('Failed to upload PDF file');
-      }
-      
-      console.log(`PDF file uploaded successfully with URI: ${uploadResponse.uri}`);
-      
-      // Extract content using the file URI
       const extractionPrompt = options.prompt || "Extract and structure all text content from this document. Maintain the document's structure and organization. Format the output in markdown.";
       
-      const response = await axios.post(
-        `${this.baseUrl}/models/${this.defaultModel}:generateContent?key=${this.apiKey}`,
-        {
-          contents: [
-            { 
-              parts: [
-                { text: extractionPrompt },
-                { fileData: { 
-                    fileUri: uploadResponse.uri, 
-                    mimeType: 'application/pdf' 
-                  } 
-                }
-              ]
-            }
-          ],
-          generationConfig: {
-            temperature: this.temperature,
-            maxOutputTokens: this.maxOutputTokens,
-            topP: 0.95,
-            topK: 40
-          }
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      const model = google(this.defaultModel, {
+        apiKey: this.apiKey,
+      });
       
-      // Extract the text content from the response
-      const result = this._extractTextFromResponse(response.data);
+      const result = await generateText({
+        model,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: extractionPrompt },
+              { type: 'file', data: fileBuffer, mimeType: 'application/pdf' }
+            ],
+          },
+        ],
+        maxTokens: this.maxOutputTokens,
+        temperature: this.temperature,
+      });
+      
       return { 
         success: true, 
-        extractedContent: result
+        extractedContent: result.text
       };
     } catch (error) {
       console.error('Error processing PDF with Gemini:', error);
-      
-      // Get detailed error information if available
-      const errorDetails = error.response?.data || error.message;
-      throw new Error(`PDF processing failed: ${JSON.stringify(errorDetails)}`);
-    }
-  }
-  
-  /**
-   * Upload a file to the Gemini file API
-   * @param {Buffer} fileBuffer - The file buffer to upload
-   * @param {string} mimeType - The MIME type of the file
-   * @returns {Promise<Object>} The upload response
-   */
-  async _uploadFile(fileBuffer, mimeType) {
-    try {
-      const base64Data = fileBuffer.toString('base64');
-      
-      const response = await axios.post(
-        `${this.baseUrl}/files?key=${this.apiKey}`,
-        {
-          file: {
-            mimeType: mimeType,
-            data: base64Data
-          },
-          config: {
-            displayName: `upload-${Date.now()}.pdf`
-          }
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-      
-      return response.data;
-    } catch (error) {
-      console.error('Error uploading file to Gemini:', error);
-      throw new Error(`File upload failed: ${error.message}`);
+      throw new Error(`PDF processing failed: ${error.message}`);
     }
   }
 
-  /**
-   * Generate content using text-only prompt
-   * @param {string} prompt - The text prompt
-   * @param {Object} options - Generation options
-   * @returns {Promise<string>} Generated content
-   */
   async generateContent(prompt, options = {}) {
-    // ...existing code...
-  }
-  
-  /**
-   * Generate content using multimodal input (text + images)
-   * @param {Object} data - Request data with text and image parts
-   * @param {Object} options - Generation options
-   * @returns {Promise<string>} Generated content
-   */
-  async generateMultimodalContent(data, options = {}) {
-    // ...existing code...
-  }
-  
-  /**
-   * Extract text content from Gemini API response
-   * @param {Object} response - The API response
-   * @returns {string} Extracted text
-   */
-  _extractTextFromResponse(response) {
-    try {
-      if (response.candidates && response.candidates.length > 0) {
-        const candidate = response.candidates[0];
-        if (candidate.content && candidate.content.parts && candidate.content.parts.length > 0) {
-          return candidate.content.parts[0].text || '';
-        }
-      }
-      return '';
-    } catch (error) {
-      console.error('Error extracting text from response:', error);
-      return '';
+    if (!this.apiKey) {
+      throw new Error('API key not configured for Gemini client');
     }
+    
+    const model = google(this.defaultModel, {
+      apiKey: this.apiKey,
+    });
+    
+    const result = await generateText({
+      model,
+      prompt,
+      maxTokens: this.maxOutputTokens,
+      temperature: this.temperature,
+      ...options,
+    });
+    
+    return result.text;
+  }
+  
+  async generateMultimodalContent(data, options = {}) {
+    if (!this.apiKey) {
+      throw new Error('API key not configured for Gemini client');
+    }
+    
+    const model = google(this.defaultModel, {
+      apiKey: this.apiKey,
+    });
+    
+    const result = await generateText({
+      model,
+      messages: data.messages || [{ role: 'user', content: data.content }],
+      maxTokens: this.maxOutputTokens,
+      temperature: this.temperature,
+      ...options,
+    });
+    
+    return result.text;
   }
 }
 
