@@ -16,8 +16,8 @@ WORKDIR /app
 # Copy package files for dependency installation
 COPY package*.json ./
 
-# Install dependencies with optimizations for speed
-RUN npm ci --prefer-offline --no-audit --progress=false --silent
+# Install ALL dependencies including devDependencies for development
+RUN npm ci --include=dev --prefer-offline --no-audit --progress=false --silent
 
 # Copy the rest of the application
 COPY . .

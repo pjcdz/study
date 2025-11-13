@@ -3,7 +3,7 @@ import { generateText } from 'ai';
 import sessionManager from './sessionManager.js';
 
 // Update to use the correct model name according to Google's documentation
-const MODEL_NAME = 'gemini-1.5-flash';
+const MODEL_NAME = 'gemini-2.5-flash-lite';
 
 // Error types - used for better frontend handling
 export const ERROR_TYPES = {

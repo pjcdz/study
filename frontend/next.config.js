@@ -1,5 +1,6 @@
 const createNextIntlPlugin = require('next-intl/plugin');
 const { withSentryConfig } = require("@sentry/nextjs");
+const path = require('path');
 
 const withNextIntl = createNextIntlPlugin();
 
@@ -44,10 +45,6 @@ const nextConfig = {
     missingSuspenseWithCSRBailout: false,
     // Disable instrumentation hook in development for faster startup
     instrumentationHook: process.env.NODE_ENV === 'production',
-    // Enable SWC minify for faster builds
-    swcMinify: true,
-    // Enable new App Router optimizations
-    appDir: true,
     // Enable server components optimizations
     serverComponentsExternalPackages: ['@next/font'],
     // Enable faster refresh
@@ -76,7 +73,7 @@ const nextConfig = {
       config.cache = {
         type: 'filesystem',
         maxMemoryGenerations: 5,
-        cacheDirectory: '.next/cache/webpack',
+        cacheDirectory: path.resolve(__dirname, '.next/cache/webpack'),
       };
       
       // Optimize chunk splitting for faster HMR

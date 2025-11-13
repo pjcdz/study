@@ -72,6 +72,7 @@ services:
       - "4000:4000"
     volumes:
       - ./backend:/app
+      - /app/node_modules
       - ./backend/uploads:/app/uploads
     tmpfs:
       # Add tmpfs for temporary files
