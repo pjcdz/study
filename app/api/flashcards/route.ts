@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { generateMultimodalContent, fileToGenerativePart, ERROR_TYPES } from '@/lib/services/geminiClient';
+import { generateMultimodalContent, fileToGenerativePart, ERROR_TYPES, type Part } from '@/lib/services/geminiClient';
 import { prompts } from '@/lib/config/prompts';
 
 export async function POST(request: NextRequest) {
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Prepare parts array for multimodal content
-    const parts: any[] = [];
+    const parts: Part[] = [];
     
     // Add text prompt to parts if provided
     if (textPrompt && textPrompt.trim() !== "") {

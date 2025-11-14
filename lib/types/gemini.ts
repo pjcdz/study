@@ -1,23 +1,13 @@
 // Gemini Service Types
+import type { Part, GenerateContentResponse } from '@google/genai';
 
-export interface GeminiPart {
-  text?: string;
-  inlineData?: {
-    mimeType: string;
-    data: string; // base64
-  };
-  fileData?: {
-    mimeType: string;
-    fileUri: string;
-  };
-  type?: 'file';
-  data?: Buffer | string;
-  mimeType?: string;
-}
+// Re-export native types
+export type { Part, GenerateContentResponse };
 
+// Custom types that extend native functionality
 export interface FileProcessingResult {
   fileId?: string;
-  part: GeminiPart;
+  part: Part;
 }
 
 export interface GeminiResponse {
