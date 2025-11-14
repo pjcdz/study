@@ -4,9 +4,7 @@ Un sistema integral que transforma el contenido de documentos en notas estructur
 
 [![Nextjs](https://img.shields.io/badge/Next.js-14-black)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19-blue)](https://reactjs.org/)
-[![Express](https://img.shields.io/badge/Express-4.18-green)](https://expressjs.com/)
-[![Docker](https://img.shields.io/badge/Docker-Ready-blue)](https://www.docker.com/)
-[![Google Gemini](https://img.shields.io/badge/AI-gemini--1.5--flash-orange)](https://ai.google.dev/)
+[![Google Gemini](https://img.shields.io/badge/AI-gemini--2.5--flash--lite-orange)](https://ai.google.dev/)
 
 ## 📚 Características
 
@@ -17,38 +15,48 @@ Un sistema integral que transforma el contenido de documentos en notas estructur
 - **Copiar con Un Clic**: Copia fácilmente el contenido generado al portapapeles para su uso en Notion y Quizlet
 - **Soporte Multiidioma**: Interfaz disponible en español e inglés
 - **Diseño Adaptable**: Experiencia de usuario óptima en dispositivos móviles y de escritorio
-- **Monitoreo de Errores**: Integración con Sentry para seguimiento de errores en tiempo real
 
 ## 🏗️ Arquitectura
 
-El proyecto sigue una **Screaming Architecture** donde la estructura del código refleja el dominio de negocio, con una clara separación entre frontend y backend.
+La aplicación es una aplicación Next.js integral que incluye tanto el frontend como las API routes del backend en un solo proyecto.
 
 ### Diagrama de Arquitectura
 
 ```
-┌────────────────────┐      ┌────────────────────┐      ┌────────────────────┐
-│                    │      │                    │      │                    │
-│   Cliente (Web)    │◄────►│   Next.js Server   │◄────►│   Express Server   │
-│                    │      │                    │      │                    │
-└────────────────────┘      └────────────────────┘      └────────────────────┘
-                                      │                          │
-                                      │                          ▼
-                              ┌───────▼──────────┐      ┌────────────────────┐
-                              │                  │      │                    │
-                              │  Zustand Store   │      │   Google Gemini    │
-                              │                  │      │        API         │
-                              └──────────────────┘      │                    │
-                                                        └────────────────────┘
+┌────────────────────┐      ┌────────────────────────────────────┐
+│                    │      │                                    │
+│   Cliente (Web)    │◄────►│   Next.js Application              │
+│                    │      │   ┌──────────────────────────┐     │
+└────────────────────┘      │   │  Frontend (React)        │     │
+                            │   └──────────────────────────┘     │
+                            │   ┌──────────────────────────┐     │
+                            │   │  API Routes              │     │
+                            │   │  - /api/summary          │     │
+                            │   │  - /api/flashcards       │     │
+                            │   │  - /api/files/status     │     │
+                            │   └──────────────────────────┘     │
+                            │   ┌──────────────────────────┐     │
+                            │   │  Services (Gemini AI)    │     │
+                            │   └──────────────────────────┘     │
+                            └────────────────────────────────────┘
+                                            │
+                                            ▼
+                                  ┌────────────────────┐
+                                  │                    │
+                                  │   Google Gemini    │
+                                  │        API         │
+                                  │                    │
+                                  └────────────────────┘
 ```
 
 ### Componentes Principales
 
-| Componente             | Descripción                                                                                    |
-|------------------------|------------------------------------------------------------------------------------------------|
-| **Frontend (Next.js)** | Interfaz de usuario con App Router, i18n, estado global con Zustand y componentes de ShadCN UI |
-| **Backend (Express)**  | API REST que integra con Google Gemini para procesamiento de texto                             |
-| **Docker**             | Contenedores para desarrollo local y despliegue en producción                                  |
-| **CI/CD**              | GitHub Actions para integración y despliegue continuo                                          |
+| Componente                | Descripción                                                                                    |
+|---------------------------|------------------------------------------------------------------------------------------------|
+| **Frontend (Next.js)**    | Interfaz de usuario con App Router, i18n, estado global con Zustand y componentes de ShadCN UI |
+| **API Routes (Next.js)**  | Endpoints de API integrados en Next.js que procesan solicitudes y se comunican con Gemini AI   |
+| **Services Layer**        | Capa de servicios que maneja la integración con Google Gemini API                              |
+| **CI/CD**                 | GitHub Actions para integración y despliegue continuo                                          |
 
 ## 🖥️ Tecnologías
 
@@ -59,16 +67,14 @@ El proyecto sigue una **Screaming Architecture** donde la estructura del código
 - **Zustand** para gestión de estado
 - **Framer Motion** para animaciones
 - **Next-Intl** para internacionalización
-- **Sentry** para monitoreo de errores y performance
 
-### Backend
-- **Node.js** con Express 4.18
-- **Google Gemini AI API** para procesamiento de texto
-- **CORS** para seguridad en comunicación cross-origin
+### Backend (Next.js API Routes)
+- **Next.js API Routes** para endpoints del servidor
+- **Google Gemini AI API** (`gemini-2.5-flash-lite`) para procesamiento de texto
+- **AI SDK** de Vercel para integración con Gemini
+- **TypeScript** para type safety
 
 ### Infraestructura
-- **Docker** para contenedores de desarrollo y producción
-- **Docker Swarm** para orquestación
 - **GitHub Actions** para CI/CD
 - **Node.js v22.15.0**
 
@@ -76,9 +82,9 @@ El proyecto sigue una **Screaming Architecture** donde la estructura del código
 
 ### Requisitos Previos
 
+- Node.js v22.15.0 o superior
+- npm o yarn
 - Cuenta de Google Cloud con acceso a la API de Gemini
-- `GEMINI_API_KEY` obtenida de Google AI Studio
-- Docker y Docker Compose instalados
 
 ### Desarrollo Local
 
@@ -87,62 +93,61 @@ El proyecto sigue una **Screaming Architecture** donde la estructura del código
 git clone https://github.com/pjcdz/study.git
 cd study
 
-# Ejecutar la aplicación con Docker Compose
-docker compose up --build
-```
-
-La aplicación estará disponible en:
-- Frontend: http://localhost:3000
-- API Backend: http://localhost:4000
-
-**Configuración de la API Key**: La aplicación no requiere configuración de variables de entorno para la API key. En su lugar, al acceder por primera vez, se te solicitará ingresar tu clave de Google Gemini a través de la interfaz de usuario (página de configuración). La clave se almacena de forma segura en el navegador y se envía con cada solicitud al backend.
-
-### Configuración sin Docker
-
-#### Backend
-```bash
-cd backend
+# Instalar dependencias
 npm install
+
+# Configurar variables de entorno (opcional)
+cp .env.example .env.local
+# Editar .env.local con tus configuraciones
+
+# Ejecutar en modo desarrollo
 npm run dev
 ```
 
-#### Frontend
+La aplicación estará disponible en http://localhost:3000
+
+**Configuración de la API Key**: La aplicación no requiere configuración de variables de entorno para la API key. En su lugar, al acceder por primera vez, se te solicitará ingresar tu clave de Google Gemini a través de la interfaz de usuario (página de configuración). La clave se almacena de forma segura en el navegador y se envía con cada solicitud a las API routes.
+
+### Comandos Disponibles
+
 ```bash
-cd frontend
-npm install
-npm run dev
+# Desarrollo
+npm run dev          # Inicia el servidor de desarrollo
+
+# Producción
+npm run build        # Compila la aplicación para producción
+npm run start        # Inicia el servidor de producción
+
+# Linting
+npm run lint         # Ejecuta el linter de Next.js
 ```
 
 ## 🚀 Despliegue en Producción
 
-### Configuración de Secretos en GitHub
+### Vercel (Recomendado)
 
-1. Configura los secretos necesarios en GitHub:
-   - `VPS_HOST`: Hostname de tu servidor
-   - `VPS_USER`: Usuario SSH
-   - `DEPLOY_SSH_PRIVATE_KEY`: Clave SSH privada
-   - `SENTRY_AUTH_TOKEN`: Token de autenticación de Sentry para monitoreo de errores
+La forma más sencilla de desplegar esta aplicación Next.js es usando Vercel:
 
-2. El despliegue se activa automáticamente al hacer push a la rama principal
+1. Conecta tu repositorio de GitHub a Vercel
+2. Vercel detectará automáticamente Next.js y configurará el build
 
-**Nota**: No es necesario configurar `GEMINI_API_KEY` como secreto de GitHub ya que la aplicación permite que cada usuario ingrese su propia API key a través de la interfaz web.
+**Nota**: No es necesario configurar `GEMINI_API_KEY` como variable de entorno ya que la aplicación permite que cada usuario ingrese su propia API key a través de la interfaz web.
 
-```bash
-git push origin main
-```
+### Otros Proveedores
 
-### Gestión de Docker Swarm
+La aplicación también puede desplegarse en:
+- **Netlify**: Soporte completo para Next.js
+- **Railway**: Deployment automático desde GitHub
+- **VPS/Servidor Propio**: Usando `npm run build` y `npm run start`
 
-**Nota**: Para despliegues en producción que requieran la API key como secreto de Docker, crear el secreto necesario:
+Para deployment en servidor propio:
 
 ```bash
-echo "tu_clave_api_gemini" | docker secret create gemini_api_key -
-```
+# Compilar la aplicación
+npm run build
 
-Desplegar el stack:
-
-```bash
-docker stack deploy --with-registry-auth -c docker-stack.yml StudyApp
+# Iniciar en modo producción
+npm run start
 ```
 
 ## 📋 Flujo de Uso
@@ -156,11 +161,25 @@ Para una descripción detallada del flujo de trabajo de la aplicación, consulta
 3. **Resumen**: Visualiza y copia el resumen generado en formato markdown compatible con Notion
 4. **Flashcards**: Genera y copia tarjetas de estudio en formato TSV para importar en Quizlet
 
-## 📄 Documentación
+## 📁 Estructura del Proyecto
 
-- [Flujo de Trabajo Detallado](./frontend/docs/WORKFLOW.md) - Documentación completa del funcionamiento de la aplicación
-- [Documentación del Frontend](./frontend/README.md)
-- [Documentación del Backend](./backend/docs/README.md)
+```
+study-app/
+├── app/                    # Next.js App Router
+│   ├── api/               # API Routes (backend endpoints)
+│   │   ├── summary/       # Endpoint de generación de resúmenes
+│   │   ├── flashcards/    # Endpoint de generación de flashcards
+│   │   └── files/         # Endpoint de estado de archivos
+│   └── [locale]/          # Páginas con internacionalización
+├── components/            # Componentes React reutilizables
+├── lib/                   # Utilidades y servicios
+│   ├── services/         # Servicios de integración (Gemini AI)
+│   ├── config/           # Configuración (prompts, límites)
+│   └── types/            # Tipos TypeScript
+├── messages/             # Archivos de traducción (i18n)
+├── public/               # Archivos estáticos
+└── store/                # Estado global (Zustand)
+```
 
 ## 🤝 Contribución
 
