@@ -236,7 +236,9 @@ export async function generateMultimodalContent(
       contents: { parts: contentParts },
       config: {
         temperature: 1,
-        maxOutputTokens: 8192,
+        // Removido maxOutputTokens para usar el límite máximo del modelo
+        // El modelo gemini-2.5-flash-lite soporta hasta 8192 tokens de salida por defecto
+        // pero puede generar más si no se especifica el límite
         topP: 0.8,
         topK: 40
       }
