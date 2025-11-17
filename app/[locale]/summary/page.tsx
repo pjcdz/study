@@ -1,17 +1,18 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react"
+import { useState, useEffect, useRef, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { toast } from "sonner"
-import { Loader2, ClipboardCopy, Check, Zap, ExternalLink, ChevronLeft, ChevronRight, Minimize } from "lucide-react"
+import { Loader2, ClipboardCopy, Check, Zap, ExternalLink, ChevronLeft, ChevronRight, Minimize, X } from "lucide-react"
 import { useUploadStore } from "@/store/use-upload-store"
 import apiClient, { ApiError, ApiErrorType } from "@/lib/api-client"
 import { useTranslations } from "next-intl"
 import { useProcessingTimer } from "@/lib/hooks/useProcessingTimer"
+import { StreamingText } from "@/components/streaming/streaming-text"
 
 // Loading fallbacks for different sections
 const HeaderLoadingFallback = () => (
@@ -70,17 +71,34 @@ function NavigationAwareSummaryContent() {
     addSummary,
     getCurrentSummary,
     setFlashcards, 
-    setCurrentStep
+    setCurrentStep,
+    // Streaming state
+    isStreamingSummary,
+    isStreamingFlashcards,
+    isStreamingCondense,
+    streamingSummaryText,
+    streamingFlashcardsText,
+    currentCharDelay,
+    // Streaming actions
+    setStreamingFlashcards,
+    updateStreamingFlashcardsText,
+    completeStreamingFlashcards,
+    setStreamingCondense,
+    updateStreamingSummaryText,
+    completeStreamingCondense,
+    cancelStreaming
   } = useUploadStore();
 
   const { isLoading, displayTime, startProcessing, stopProcessing } = useProcessingTimer();
   const [isGeneratingFlashcards, setIsGeneratingFlashcards] = useState(false);
   const [isCondensing, setIsCondensing] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Only run on client side
-    if ((!summaries || summaries.length === 0) && typeof window !== 'undefined') {
+    // Allow page to show if streaming is active, even without summaries yet
+    if ((!summaries || summaries.length === 0) && !isStreamingSummary && typeof window !== 'undefined') {
       const pathParts = window.location.pathname.split('/');
       const locale = pathParts[1]; // Get locale from URL ('es' or 'en')
       router.push(`/${locale}/upload`);
@@ -89,15 +107,28 @@ function NavigationAwareSummaryContent() {
 
     // When we arrive at this page from upload, the timer should be running
     // Stop it after a brief delay for a smooth visual transition
-    const timer = setTimeout(() => {
-      stopProcessing();
-    }, 500);
+    // But don't stop if we're still streaming
+    if (!isStreamingSummary) {
+      const timer = setTimeout(() => {
+        stopProcessing();
+      }, 500);
 
-    return () => clearTimeout(timer);
-  }, [summaries, router, stopProcessing]);
+      return () => clearTimeout(timer);
+    }
+  }, [summaries, router, stopProcessing, isStreamingSummary]);
   
-  // Early return during server-side rendering or if there's no summary
-  if (typeof window === 'undefined' || !summaries || summaries.length === 0) {
+  // Auto-scroll to bottom during streaming
+  useEffect(() => {
+    if ((isStreamingSummary || isStreamingCondense) && scrollAreaRef.current) {
+      const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      }
+    }
+  }, [streamingSummaryText, isStreamingSummary, isStreamingCondense]);
+  
+  // Early return during server-side rendering or if there's no summary and not streaming
+  if (typeof window === 'undefined' || ((!summaries || summaries.length === 0) && !isStreamingSummary)) {
     return null;
   }
 
@@ -131,108 +162,102 @@ function NavigationAwareSummaryContent() {
     try {
       // Use separate loading state for flashcard generation
       setIsGeneratingFlashcards(true)
+      setStreamingFlashcards(true)
       startProcessing()
       
       // Always use the first summary (non-condensed version) to generate flashcards
-      // regardless of which summary is currently selected
       const originalSummary = summaries[0];
       
-      // Log to verify the original summary is being sent
-      console.log('Enviando resumen original para generar flashcards:', originalSummary.slice(0, 100) + '...');
+      console.log('Iniciando generación de flashcards con streaming...');
       
-      // Use the recommended method instead of the obsolete one
-      const response = await apiClient.processFlashcards(originalSummary)
-      
-      // Log to verify the complete response
-      console.log('Respuesta de la API de flashcards:', response);
-      
-      // Fix data extraction - the property is called 'flashcards' not 'flashcardsTSV'
-      let tsv = response.flashcards;
-      console.log('Flashcards recibidas:', tsv);
-      
-      if (typeof tsv === 'object' && tsv.text) {
-        tsv = tsv.text;
-        console.log('TSV convertido a texto:', tsv);
-      }
-      
-      // Clean TSV format (remove code markers)
-      if (typeof tsv === 'string' && tsv.startsWith('```tsv')) {
-        tsv = tsv.replace(/```tsv\n|\n```/g, '');
-        console.log('TSV limpiado de marcadores:', tsv);
-      }
-      
-      // Verify if the TSV is valid
-      if (!tsv) {
-        console.error('No hay datos de flashcards válidos');
-        toast.error(t('toast.error', { message: 'No se pudieron generar las flashcards' }));
-        stopProcessing();
-        setIsGeneratingFlashcards(false);
-        return;
-      }
-      
-      // Explicitly save to localStorage to persist
-      localStorage.setItem('FLASHCARDS_DATA', JSON.stringify(tsv));
-      console.log('Guardando flashcards en el store. TSV length:', tsv.length);
-      
-      setFlashcards(tsv)
-      setCurrentStep('flashcards')
-      
-      // Verify the store state after saving
-      setTimeout(() => {
-        const storeAfterSave = useUploadStore.getState();
-        console.log('Estado del store después de guardar:', {
-          flashcardsExist: !!storeAfterSave.flashcards,
-          flashcardsLength: storeAfterSave.flashcards?.length || 0,
-          currentStep: storeAfterSave.currentStep
-        });
-      }, 10);
-      
-      toast.success(t('toast.success'))
-      
-      // Build path to maintain current locale
-      if (typeof window !== 'undefined') {
-        const pathParts = window.location.pathname.split('/');
-        const locale = pathParts[1]; // Get locale from URL ('es' or 'en')
-        
-        // Navigate to flashcards page - keep timer running during navigation
-        console.log(`Navegando a /${locale}/flashcards`);
-        
-        // Add a small delay before navigating to ensure the store updates
-        setTimeout(() => {
-          router.push(`/${locale}/flashcards`);
-          console.log('Navegación iniciada');
-        }, 200);
-      }
+      // Use streaming method
+      await apiClient.processFlashcardsStream(
+        originalSummary,
+        {
+          onChunk: (text, charDelay) => {
+            updateStreamingFlashcardsText(text, charDelay);
+          },
+          onComplete: (fullText, metadata) => {
+            console.log('Streaming de flashcards completado:', {
+              textLength: fullText.length,
+              tokens: metadata.totalTokens
+            });
+            
+            // Clean TSV format (remove code markers)
+            let tsv = fullText;
+            if (tsv.startsWith('```tsv')) {
+              tsv = tsv.replace(/```tsv\n|\n```/g, '');
+            }
+            if (tsv.startsWith('```')) {
+              tsv = tsv.replace(/```\n|\n```/g, '');
+            }
+            
+            // Complete streaming and save
+            completeStreamingFlashcards(tsv, metadata);
+            setFlashcards(tsv);
+            setCurrentStep('flashcards');
+            
+            toast.success(t('toast.success'));
+            
+            // Navigate to flashcards page
+            setTimeout(() => {
+              if (typeof window !== 'undefined') {
+                const pathParts = window.location.pathname.split('/');
+                const locale = pathParts[1];
+                router.push(`/${locale}/flashcards`);
+              }
+            }, 200);
+          },
+          onError: (error) => {
+            handleStreamingError(error);
+          }
+        }
+      );
     } catch (err: unknown) {
       console.error('Error generando flashcards:', err);
-      // Check if it's an API error and handle according to type
-      if (err instanceof ApiError) {
-        switch(err.type) {
-          case ApiErrorType.QUOTA_EXCEEDED:
-            toast.error(t('toast.quotaExceeded'));
-            break;
-          case ApiErrorType.NETWORK_ERROR:
-            toast.error(t('toast.networkError'));
-            break;
-          case ApiErrorType.INVALID_API_KEY:
-            toast.error(t('toast.apiKeyError'));
-            break;
-          default:
-            toast.error(t('toast.error', { message: err.message }));
-        }
-      } else {
-        // For generic errors
-        let message = 'Unknown error';
-        if (typeof err === 'object' && err && 'message' in err) {
-          message = (err as { message: string }).message;
-        }
-        toast.error(t('toast.error', { message }));
-      }
-      
-      // Stop the timer on error
-      stopProcessing()
-      setIsGeneratingFlashcards(false)
+      handleStreamingError(err);
+    } finally {
+      stopProcessing();
+      setIsGeneratingFlashcards(false);
     }
+  }
+  
+  /**
+   * Handle streaming errors
+   */
+  const handleStreamingError = (err: unknown) => {
+    if (err instanceof ApiError) {
+      switch(err.type) {
+        case ApiErrorType.QUOTA_EXCEEDED:
+          toast.error(t('toast.quotaExceeded'));
+          break;
+        case ApiErrorType.NETWORK_ERROR:
+          toast.error(t('toast.networkError'));
+          break;
+        case ApiErrorType.INVALID_API_KEY:
+          toast.error(t('toast.apiKeyError'));
+          break;
+        default:
+          toast.error(t('toast.error', { message: err.message }));
+      }
+    } else {
+      let message = 'Unknown error';
+      if (typeof err === 'object' && err && 'message' in err) {
+        message = (err as { message: string }).message;
+      }
+      toast.error(t('toast.error', { message }));
+    }
+  }
+  
+  /**
+   * Cancel streaming
+   */
+  const handleCancelStreaming = () => {
+    cancelStreaming();
+    stopProcessing();
+    setIsGeneratingFlashcards(false);
+    setIsCondensing(false);
+    toast.info(t('toast.cancelled', { defaultValue: 'Generación cancelada' }));
   }
 
   // Handler for "Condense more" functionality
@@ -244,75 +269,44 @@ function NavigationAwareSummaryContent() {
         return
       }
       
-      console.log('Before condensing - Current state:', {
-        summariesCount: summaries.length,
-        currentIndex: currentSummaryIndex,
-        currentSummary: currentSummary ? currentSummary.slice(0, 100) + '...' : 'No current summary'
-      });
+      console.log('Iniciando condensación con streaming...');
       
       // Use separate loading state for condensing
       setIsCondensing(true)
+      setStreamingCondense(true)
       startProcessing()
       
-      // Make API call to condense the current summary
-      const response = await apiClient.condenseSummary(currentSummary)
-      console.log('API response:', response);
+      const currentSummary = getCurrentSummary();
       
-      // Check if we have a valid response with condensedSummary
-      if (!response || !response.condensedSummary) {
-        console.error('Received invalid response from API:', response);
-        stopProcessing();
-        setIsCondensing(false);
-        return;
-      }
-      
-      // Get the condensed summary from the response
-      const { condensedSummary } = response;
-      console.log('Received condensed summary with length:', condensedSummary.length);
-      
-      // Add the new condensed summary using the store method
-      addSummary(condensedSummary);
-      
-      console.log('After adding summary - Store state:', {
-        summariesCount: useUploadStore.getState().summaries.length,
-        currentIndex: useUploadStore.getState().currentSummaryIndex
-      });
-      
-      // Show success message
-      toast.success(t('toast.condensed', { defaultValue: 'Summary condensed successfully' }))
-      
-      // Stop the timer and loading states
-      stopProcessing()
-      setIsCondensing(false)
+      // Use streaming method
+      await apiClient.condenseSummaryStream(
+        currentSummary,
+        {
+          onChunk: (text, charDelay) => {
+            updateStreamingSummaryText(text, charDelay);
+          },
+          onComplete: (fullText, metadata) => {
+            console.log('Streaming de condensación completado:', {
+              textLength: fullText.length,
+              tokens: metadata.totalTokens
+            });
+            
+            // Complete streaming and add to summaries
+            completeStreamingCondense(fullText, metadata);
+            
+            toast.success(t('toast.condensed', { defaultValue: 'Summary condensed successfully' }));
+          },
+          onError: (error) => {
+            handleStreamingError(error);
+          }
+        }
+      );
     } catch (err: unknown) {
       console.error('Error condensing summary:', err);
-      // Error handling similar to generateFlashcards
-      if (err instanceof ApiError) {
-        switch(err.type) {
-          case ApiErrorType.QUOTA_EXCEEDED:
-            toast.error(t('toast.quotaExceeded'));
-            break;
-          case ApiErrorType.NETWORK_ERROR:
-            toast.error(t('toast.networkError'));
-            break;
-          case ApiErrorType.INVALID_API_KEY:
-            toast.error(t('toast.apiKeyError'));
-            break;
-          default:
-            toast.error(t('toast.error', { message: err.message }));
-        }
-      } else {
-        // Para errores genéricos
-        let message = 'Unknown error';
-        if (typeof err === 'object' && err && 'message' in err) {
-          message = (err as { message: string }).message;
-        }
-        toast.error(t('toast.error', { message }));
-      }
-      
-      // Stop the timer on error
-      stopProcessing()
-      setIsCondensing(false)
+      handleStreamingError(err);
+    } finally {
+      stopProcessing();
+      setIsCondensing(false);
     }
   }
   
@@ -320,7 +314,7 @@ function NavigationAwareSummaryContent() {
     <div className="flex flex-col min-h-screen">
       {/* Main content with padding-bottom to ensure content doesn't get hidden under fixed footer */}
       <div className="flex-grow pb-20">
-        <div className="container max-w-4xl py-6 mx-auto">
+        <div className="w-full max-w-[896px] px-4 py-6 mx-auto">
           <Card className="shadow-md">
             <Suspense fallback={<HeaderLoadingFallback />}>
               <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -367,7 +361,7 @@ function NavigationAwareSummaryContent() {
               <CardContent className="space-y-4">
                 <div>
                   {/* Summary navigation control */}
-                  {summaries.length > 1 && (
+                  {summaries.length > 1 && !isStreamingCondense && (
                     <div className="flex items-center justify-center mb-4">
                       <Button
                         variant="outline"
@@ -393,15 +387,51 @@ function NavigationAwareSummaryContent() {
                     </div>
                   )}
                   
-                  <ScrollArea className="h-[300px] rounded-md border p-4 bg-muted">
-                    <div className="flex justify-center">
-                      <pre className="font-mono text-sm whitespace-pre-wrap max-w-[90%]">
-                        {currentSummary}
-                      </pre>
+                  {/* Show streaming text or completed summary */}
+                  <div ref={scrollAreaRef}>
+                    {(isStreamingSummary || isStreamingCondense) ? (
+                      <ScrollArea className="h-[300px] rounded-md border p-4 bg-muted">
+                        <div className="flex justify-center">
+                          <div className="font-mono text-sm max-w-[90%]">
+                            <StreamingText
+                              textToType={streamingSummaryText}
+                              charDelay={currentCharDelay}
+                              isStreaming={true}
+                            />
+                          </div>
+                        </div>
+                      </ScrollArea>
+                    ) : (
+                      <ScrollArea className="h-[300px] rounded-md border p-4 bg-muted">
+                        <div className="flex justify-center">
+                          <pre className="font-mono text-sm whitespace-pre-wrap max-w-[90%]">
+                            {currentSummary}
+                          </pre>
+                        </div>
+                      </ScrollArea>
+                    )}
+                  </div>
+                  
+                  {/* Cancel button during streaming */}
+                  {(isStreamingSummary || isStreamingCondense || isStreamingFlashcards) && (
+                    <div className="mt-2 flex justify-center">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCancelStreaming}
+                        className="transition-all hover:border-destructive hover:border-2"
+                      >
+                        <X className="mr-2 h-4 w-4" />
+                        {t('actions.cancel', { defaultValue: 'Cancelar' })}
+                      </Button>
                     </div>
-                  </ScrollArea>
+                  )}
+                  
                   <p className="text-xs text-muted-foreground mt-1">
-                    {t('content.ready', { defaultValue: 'Your summary is ready to be copied' })}
+                    {(isStreamingSummary || isStreamingCondense)
+                      ? t('content.generating', { defaultValue: 'Generando resumen...' })
+                      : t('content.ready', { defaultValue: 'Your summary is ready to be copied' })
+                    }
                   </p>
                 </div>
                 
@@ -428,11 +458,11 @@ function NavigationAwareSummaryContent() {
 
       {/* Fixed footer with both buttons */}
       <footer className="fixed bottom-0 left-0 right-0 bg-background border-t border-border shadow-md py-4 z-10">
-        <div className="container max-w-4xl mx-auto flex justify-center space-x-4">
+        <div className="w-full max-w-[896px] px-4 mx-auto flex justify-center space-x-4">
           <Suspense fallback={<ButtonsLoadingFallback />}>
             <Button
               size="lg"
-              disabled={isCondensing || isGeneratingFlashcards}
+              disabled={isCondensing || isGeneratingFlashcards || isStreamingSummary || isStreamingCondense || isStreamingFlashcards}
               onClick={handleCondenseSummary}
               className="transition-all hover:bg-primary/10 hover:border-secondary hover:border-2 hover:shadow-[0_0_15px_rgba(var(--color-secondary)/0.4)]"
               variant="outline"
@@ -454,7 +484,7 @@ function NavigationAwareSummaryContent() {
           <Suspense fallback={<ButtonsLoadingFallback />}>
             <Button
               size="lg"
-              disabled={isCondensing || isGeneratingFlashcards}
+              disabled={isCondensing || isGeneratingFlashcards || isStreamingSummary || isStreamingCondense || isStreamingFlashcards}
               onClick={handleGenerateFlashcards}
               className="transition-all hover:border-primary hover:border-2 hover:shadow-[0_0_15px_rgba(var(--color-primary)/0.5)]"
             >

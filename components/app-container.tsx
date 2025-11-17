@@ -11,7 +11,7 @@ import { ThemeSwitcher } from "@/components/settings/theme-switcher";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { KeyRound } from "lucide-react";
+import { KeyRound, Layers } from "lucide-react";
 import { useApiKey } from "@/lib/hooks/useApiKey";
 
 export default function AppContainer({
@@ -27,10 +27,9 @@ export default function AppContainer({
 
   // Actualizar el paso actual basado en la URL
   useEffect(() => {
-    // If we're on the API page, don't set any active step
-    if (pathname.includes('/api')) {
-      // Optional: you could set a special value or leave it as is
-      // setCurrentStep('api');
+    // If we're on the API page or workflows page, don't set any active step
+    if (pathname.includes('/api') || pathname.includes('/workflows')) {
+      // Don't set any step for these pages
       return;
     }
     
@@ -69,6 +68,12 @@ export default function AppContainer({
     router.push(`/${locale}/api`);
   };
 
+  // Ir a la página de Workflows
+  const goToWorkflowsPage = () => {
+    const locale = pathname.split('/')[1];
+    router.push(`/${locale}/workflows`);
+  };
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="py-4">
@@ -92,6 +97,16 @@ export default function AppContainer({
             </Link>
           </div>
           <div className="flex items-center space-x-2">
+            {/* Botón de Workflows */}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={goToWorkflowsPage}
+              className="mr-2"
+            >
+              <Layers className="h-4 w-4 mr-1" />
+              Workflows
+            </Button>
             {/* Botón de API */}
             <Button 
               variant="outline" 

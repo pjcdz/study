@@ -30,13 +30,22 @@ export const prompts = {
       - Lista al final recursos o lecturas recomendadas en formato de viñetas.
    
    **NO OMITAS NINGÚN DETALLE IMPORTANTE**. El objetivo es crear un documento de estudio **completo**, **visualmente rico** y **altamente interactivo** optimizado para Notion.
+
+   **FORMATO DE SALIDA ESTRICTO (REGLA CRÍTICA):**
+   - Tu respuesta debe contener ÚNICAMENTE contenido en formato Markdown.
+   - NO incluyas ningún texto introductorio, saludo, explicación o despedida.
+   - NO escribas frases como "¡Absolutamente!", "Aquí tienes", "Claro", etc.
+   - Tu respuesta debe empezar DIRECTAMENTE con el primer encabezado del documento (por ejemplo: # 📝 Documento de Estudio:...).
+   - No uses bloques de código con delimitadores \`\`\`markdown. Escribe directamente el contenido Markdown.
    
-   💡 **Formato en Notion**:
+   **EJEMPLO DEL FORMATO REQUERIDO:**
    
-   \`\`\`markdown
-   # Por qué se llaman ciencias formales  
+   # 📚 Ciencias Formales: Fundamentos y Aplicaciones
    
-   ## Definición y Características  
+   ## 🎯 Objetivo General
+   Comprender la naturaleza, características y aplicaciones de las ciencias formales.
+   
+   ## 📖 Definición y Características  
    
    **Pregunta clave:** ¿Qué distingue a las ciencias formales de las empíricas?  
    
@@ -49,43 +58,55 @@ export const prompts = {
    - Lógica  
    - Teoría de conjuntos  
    
-   ▼ **Diferencias con las ciencias empíricas**  
-      - **Ciencias formales**: Se basan en axiomas y deducciones lógicas.  
-      - **Ciencias empíricas**: Dependen de la observación y el método científico experimental.  
+   <details>
+   <summary><strong>▼ Diferencias con las ciencias empíricas</strong></summary>
    
-   ## Fundamentos y Aplicaciones  
+   - **Ciencias formales**: Se basan en axiomas y deducciones lógicas.  
+   - **Ciencias empíricas**: Dependen de la observación y el método científico experimental.
+   
+   </details>
+   
+   ## 🔬 Fundamentos y Aplicaciones  
    
    📌 **Pregunta clave:** ¿Cómo se aplican las ciencias formales en otras disciplinas?  
    
    Las ciencias formales proporcionan herramientas para modelar fenómenos en diversas áreas del conocimiento.  
    
    💡 **Ejemplo práctico**:  
-   Las ecuaciones matemáticas se utilizan en la física para describir el movimiento de los cuerpos.  
+   _Las ecuaciones matemáticas se utilizan en la física para describir el movimiento de los cuerpos._  
    
-   💡 **Resumen final (Callout)**  
-   📢 Las ciencias formales son disciplinas que trabajan con sistemas abstractos basados en la lógica y la matemática. Son fundamentales para la estructuración del conocimiento en distintas áreas, aunque no dependen de la experimentación empírica.  
-   \`\`\`markdown`,
+   ### ❓ Preguntas de Autoevaluación
+   1. ¿Cuál es la principal diferencia entre ciencias formales y empíricas?
+   2. ¿Por qué se consideran las ciencias formales como "puras"?
    
-   flashcardPrompt: `Detecta el idioma del contenido proporcionado (ya sea texto, PDF, imagen o combinación) y genera tarjetas de estudio en ese mismo idioma.
+   ---
+   
+   ## 📚 Mini-Glosario
+   - **Ciencias Formales**: Disciplinas que estudian sistemas abstractos mediante lógica y matemática.
+   - **Axioma**: Proposición que se acepta como verdadera sin necesidad de demostración.
+   
+   ## 📖 Referencias Recomendadas
+   - Libros de fundamentos de lógica matemática
+   - Cursos de introducción a las ciencias formales
+   `,
+   
+   flashcardPrompt: `Actúa como un experto en crear material de estudio para Quizlet.
 
-   Instrucciones específicas:
-   1. Analiza cuidadosamente todo el contenido proporcionado (incluyendo texto e imágenes o documentos PDF si están presentes)
-   2. Extrae los conceptos clave, definiciones, fórmulas y datos importantes
-   3. Genera un conjunto de tarjetas de estudio en formato TSV (valores separados por tabuladores) para importar a Quizlet
-   4. Cada tarjeta debe incluir:
-      - Anverso: Una pregunta clara o concepto a recordar
-      - Reverso: La respuesta completa o explicación
-   5. Formato técnico:
-      - Separa el anverso y reverso con un tabulador (\\t)
-      - Cada tarjeta en una línea separada (no incluyas saltos de línea dentro de una tarjeta)
-      - NO incluyas "Front\\tBack" como primera línea
-      - Da formato a términos importantes con *asteriscos* para indicar énfasis
-   6. Contenido:
-      - Crea entre 15-25 tarjetas que cubran los conceptos más importantes del material
-      - Las tarjetas deben ser concisas pero completas
-      - Evita información redundante entre tarjetas
-      - Incluye todo tipo de contenido relevante: definiciones, ejemplos, aplicaciones, comparaciones
+Detecta el idioma del contenido proporcionado (ya sea texto, PDF, imagen o combinación) y genera tarjetas de estudio en ese mismo idioma.
 
-   No incluyas explicaciones adicionales, solo proporciona el formato TSV listo para importar a Quizlet.
+El formato de salida debe ser estrictamente TSV (Valores Separados por Tabuladores). Sigue estas reglas al pie de la letra:
+1. Cada línea debe contener un único par: un término, seguido de un carácter de tabulación (TAB), y luego su definición.
+2. No incluyas una línea de encabezado (como "Término	Definición").
+3. No numeres las líneas ni uses viñetas.
+4. No agregues ninguna explicación, introducción o conclusión. Solo genera el contenido TSV.
+
+Instrucciones de contenido:
+- Analiza cuidadosamente todo el contenido proporcionado (incluyendo texto e imágenes o documentos PDF si están presentes)
+- Extrae los conceptos clave, definiciones, fórmulas y datos importantes
+- Crea entre 15-25 tarjetas que cubran los conceptos más importantes del material
+- Las definiciones deben ser concisas pero completas
+- Evita información redundante entre tarjetas
+- Incluye todo tipo de contenido relevante: definiciones, ejemplos, aplicaciones, comparaciones
+- Da formato a términos importantes con *asteriscos* para indicar énfasis
    `
 } as const;

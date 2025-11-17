@@ -1,8 +1,9 @@
 import { GoogleGenAI, Part, GenerateContentResponse } from '@google/genai';
 import sessionManager from './sessionManager';
 
-// Update to use gemini-2.5-flash
-const MODEL_NAME = 'gemini-2.5-flash-lite';
+// Primary and fallback models
+const PRIMARY_MODEL = 'gemini-2.5-flash';
+const FALLBACK_MODEL = 'gemini-2.5-flash-lite';
 
 // Error types - used for better frontend handling
 export const ERROR_TYPES = {
@@ -148,7 +149,7 @@ export async function generateText(
     const ai = new GoogleGenAI({ apiKey });
     
     const generateContentPromise = ai.models.generateContent({
-      model: MODEL_NAME,
+      model: PRIMARY_MODEL,
       contents: prompt,
     });
     
@@ -182,7 +183,7 @@ export async function generateSummaryFromParts(
     const ai = new GoogleGenAI({ apiKey });
     
     const generateContentPromise = ai.models.generateContent({
-      model: MODEL_NAME,
+      model: PRIMARY_MODEL,
       contents: { parts },
     });
     
@@ -221,7 +222,6 @@ export async function generateMultimodalContent(
     
     console.log('Sending request to Gemini API using Google GenAI SDK...');
     console.log(`Using API key: ${userApiKey.substring(0, 3)}...${userApiKey.substring(userApiKey.length - 3)}`);
-    console.log(`Using model: ${MODEL_NAME}`);
     
     const startTime = Date.now();
     const ai = new GoogleGenAI({ apiKey: userApiKey });
@@ -231,23 +231,66 @@ export async function generateMultimodalContent(
       ? [{ text: systemInstructionText }, ...parts]
       : parts;
     
-    const generateContentPromise = ai.models.generateContent({
-      model: MODEL_NAME,
-      contents: { parts: contentParts },
-      config: {
-        temperature: 1,
-        // Removido maxOutputTokens para usar el límite máximo del modelo
-        // El modelo gemini-2.5-flash-lite soporta hasta 8192 tokens de salida por defecto
-        // pero puede generar más si no se especifica el límite
-        topP: 0.8,
-        topK: 40
-      }
-    });
+    let response: GenerateContentResponse;
+    let usedModel = PRIMARY_MODEL;
+    let lastError: any = null;
     
-    // Usar makeApiCall si hay signal, sino llamar directamente
-    const response = signal 
-      ? await makeApiCall(generateContentPromise, signal)
-      : await generateContentPromise;
+    // Try primary model first, then fallback
+    for (const modelName of [PRIMARY_MODEL, FALLBACK_MODEL]) {
+      try {
+        console.log(`Using model: ${modelName}`);
+        
+        const generateContentPromise = ai.models.generateContent({
+          model: modelName,
+          contents: { parts: contentParts },
+          config: {
+            temperature: 1,
+            // Removido maxOutputTokens para usar el límite máximo del modelo
+            // El modelo gemini-2.5-flash soporta hasta 8192 tokens de salida por defecto
+            // pero puede generar más si no se especifica el límite
+            topP: 0.8,
+            topK: 40
+          }
+        });
+        
+        // Usar makeApiCall si hay signal, sino llamar directamente
+        response = signal 
+          ? await makeApiCall(generateContentPromise, signal)
+          : await generateContentPromise;
+        
+        usedModel = modelName;
+        
+        if (modelName === FALLBACK_MODEL) {
+          console.log(`⚠️ Using fallback model: ${FALLBACK_MODEL}`);
+        }
+        
+        // Success - break the loop
+        break;
+        
+      } catch (error: any) {
+        lastError = error;
+        
+        // Check if we should try fallback
+        const shouldTryFallback = 
+          (error.message?.includes('overloaded') ||
+           error.message?.includes('503') ||
+           error.message?.includes('UNAVAILABLE') ||
+           error.status === 503) &&
+          modelName === PRIMARY_MODEL;
+        
+        if (!shouldTryFallback) {
+          // Don't try fallback for other errors or if we're already on fallback
+          throw error;
+        }
+        
+        console.log(`Model ${modelName} failed, trying fallback...`);
+      }
+    }
+    
+    // If response is not set, throw the last error
+    if (!response!) {
+      throw lastError;
+    }
     
     const apiResponseTime = Date.now() - startTime;
     console.log(`API response time: ${apiResponseTime}ms`);
@@ -261,7 +304,7 @@ export async function generateMultimodalContent(
       outputTokens: usageMetadata.candidatesTokenCount || 0,
       totalTokens: usageMetadata.totalTokenCount || 0,
       apiResponseTimeMs: apiResponseTime,
-      model: MODEL_NAME
+      model: usedModel
     };
     
     console.log('===== GEMINI API USAGE STATISTICS =====');

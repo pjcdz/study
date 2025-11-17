@@ -11,6 +11,19 @@ export enum ApiErrorType {
 // Import mock data for demo mode
 import { mockSummaryResponse, mockFlashcardsResponse, mockCondensedSummaryResponse } from './mock-data';
 
+// Import streaming types
+interface StreamingCallbacks {
+  onChunk: (text: string, charDelay: number) => void;
+  onComplete: (fullText: string, metadata: UsageMetadata) => void;
+  onError: (error: ApiError) => void;
+}
+
+interface UsageMetadata {
+  promptTokens: number;
+  candidatesTokens: number;
+  totalTokens: number;
+}
+
 // Error personalizado con tipo
 export class ApiError extends Error {
   type: ApiErrorType;
@@ -324,6 +337,306 @@ class ApiClient {
       
       throw new ApiError((error as Error).message || 'Error desconocido en el cliente API');
     }
+  }
+
+  /**
+   * Process summary with streaming support
+   */
+  async processSummaryStream(
+    content: string | FormData,
+    callbacks: StreamingCallbacks,
+    apiKey?: string
+  ): Promise<void> {
+    // Handle demo mode
+    if (this.useDemoContent) {
+      return this.simulateSummaryStream(callbacks);
+    }
+    
+    try {
+      const userApiKey = apiKey || this.getUserApiKey();
+      if (!userApiKey) {
+        throw new ApiError(
+          'API Key no configurada. Por favor, configura tu API Key en Ajustes.',
+          ApiErrorType.INVALID_API_KEY
+        );
+      }
+      
+      // Import streaming service dynamically
+      const { streamingSummaryService } = await import('@/lib/services/streamingSummaryService');
+      
+      // Handle different content types
+      if (typeof content === 'string') {
+        // Text content
+        await streamingSummaryService.generateSummaryStreamFromText(
+          content,
+          userApiKey,
+          {
+            onChunk: callbacks.onChunk,
+            onComplete: callbacks.onComplete,
+            onError: (error) => callbacks.onError(this.convertToApiError(error))
+          }
+        );
+      } else {
+        // FormData with file(s)
+        // Check for files with pattern file0, file1, etc.
+        let foundFile: File | null = null;
+        
+        // Try to find any file in the FormData
+        for (const [key, value] of content.entries()) {
+          if (value instanceof File) {
+            foundFile = value;
+            break;
+          }
+        }
+        
+        if (foundFile) {
+          console.log('Found file for streaming:', foundFile.name);
+          await streamingSummaryService.generateSummaryStreamFromFile(
+            foundFile,
+            userApiKey,
+            {
+              onChunk: callbacks.onChunk,
+              onComplete: callbacks.onComplete,
+              onError: (error) => callbacks.onError(this.convertToApiError(error))
+            }
+          );
+        } else {
+          // Try text prompt from FormData
+          const textPrompt = content.get('textPrompt') as string;
+          if (textPrompt && textPrompt.trim()) {
+            console.log('Using text prompt for streaming');
+            await streamingSummaryService.generateSummaryStreamFromText(
+              textPrompt,
+              userApiKey,
+              {
+                onChunk: callbacks.onChunk,
+                onComplete: callbacks.onComplete,
+                onError: (error) => callbacks.onError(this.convertToApiError(error))
+              }
+            );
+          } else {
+            throw new ApiError('No se encontró contenido para procesar', ApiErrorType.UNKNOWN_ERROR);
+          }
+        }
+      }
+    } catch (error) {
+      this.handleStreamingError(error, callbacks);
+    }
+  }
+  
+  /**
+   * Process flashcards with streaming support
+   */
+  async processFlashcardsStream(
+    summaryText: string,
+    callbacks: StreamingCallbacks,
+    apiKey?: string
+  ): Promise<void> {
+    // Handle demo mode
+    if (this.useDemoContent) {
+      return this.simulateFlashcardsStream(callbacks);
+    }
+    
+    try {
+      const userApiKey = apiKey || this.getUserApiKey();
+      if (!userApiKey) {
+        throw new ApiError(
+          'API Key no configurada. Por favor, configura tu API Key en Ajustes.',
+          ApiErrorType.INVALID_API_KEY
+        );
+      }
+      
+      // Import streaming service dynamically
+      const { streamingSummaryService } = await import('@/lib/services/streamingSummaryService');
+      
+      // Use streaming service
+      await streamingSummaryService.generateFlashcardsStream(
+        summaryText,
+        userApiKey,
+        {
+          onChunk: callbacks.onChunk,
+          onComplete: callbacks.onComplete,
+          onError: (error) => callbacks.onError(this.convertToApiError(error))
+        }
+      );
+    } catch (error) {
+      this.handleStreamingError(error, callbacks);
+    }
+  }
+  
+  /**
+   * Condense summary with streaming support
+   */
+  async condenseSummaryStream(
+    markdownContent: string,
+    callbacks: StreamingCallbacks,
+    apiKey?: string
+  ): Promise<void> {
+    // Handle demo mode
+    if (this.useDemoContent) {
+      return this.simulateCondenseStream(callbacks);
+    }
+    
+    try {
+      const userApiKey = apiKey || this.getUserApiKey();
+      if (!userApiKey) {
+        throw new ApiError(
+          'API Key no configurada. Por favor, configura tu API Key en Ajustes.',
+          ApiErrorType.INVALID_API_KEY
+        );
+      }
+      
+      // Import streaming service dynamically
+      const { streamingSummaryService } = await import('@/lib/services/streamingSummaryService');
+      
+      // Build condense prompt
+      const prompt = `Por favor, condensa el siguiente resumen manteniendo los puntos clave más importantes. Hazlo más breve pero sin perder información esencial:\n\n${markdownContent}`;
+      
+      // Use streaming service with text generation
+      await streamingSummaryService.generateSummaryStreamFromText(
+        prompt,
+        userApiKey,
+        {
+          onChunk: callbacks.onChunk,
+          onComplete: callbacks.onComplete,
+          onError: (error) => callbacks.onError(this.convertToApiError(error))
+        }
+      );
+    } catch (error) {
+      this.handleStreamingError(error, callbacks);
+    }
+  }
+  
+  /**
+   * Helper: Convert Error to ApiError
+   */
+  private convertToApiError(error: Error): ApiError {
+    if (error instanceof ApiError) {
+      return error;
+    }
+    
+    // Map common error messages to ApiErrorType
+    if (error.message.includes('API Key inválida') || error.message.includes('API key')) {
+      return new ApiError(error.message, ApiErrorType.INVALID_API_KEY);
+    }
+    if (error.message.includes('Cuota excedida') || error.message.includes('quota')) {
+      return new ApiError(error.message, ApiErrorType.QUOTA_EXCEEDED);
+    }
+    if (error.message.includes('Error de red') || error.message.includes('network')) {
+      return new ApiError(error.message, ApiErrorType.NETWORK_ERROR);
+    }
+    
+    return new ApiError(error.message, ApiErrorType.UNKNOWN_ERROR);
+  }
+  
+  /**
+   * Helper: Handle streaming errors
+   */
+  private handleStreamingError(error: any, callbacks: StreamingCallbacks): void {
+    console.error('Streaming error:', error);
+    
+    if (error instanceof ApiError) {
+      callbacks.onError(error);
+    } else if (error instanceof TypeError && error.message.includes('fetch')) {
+      callbacks.onError(
+        new ApiError('Error de red. Verifica tu conexión.', ApiErrorType.NETWORK_ERROR)
+      );
+    } else {
+      callbacks.onError(
+        new ApiError(error.message || 'Error desconocido', ApiErrorType.UNKNOWN_ERROR)
+      );
+    }
+  }
+  
+  /**
+   * Demo mode: Simulate summary streaming
+   */
+  private async simulateSummaryStream(callbacks: StreamingCallbacks): Promise<void> {
+    console.log('🧪 Demo mode: Simulating summary stream');
+    
+    const mockText = mockSummaryResponse.notionMarkdown;
+    const chunkSize = 50;
+    const delayBetweenChunks = 100;
+    
+    let accumulatedText = '';
+    
+    for (let i = 0; i < mockText.length; i += chunkSize) {
+      const chunk = mockText.substring(i, i + chunkSize);
+      accumulatedText += chunk;
+      
+      // Calculate adaptive char delay
+      const charDelay = (delayBetweenChunks / chunkSize);
+      
+      callbacks.onChunk(accumulatedText, charDelay);
+      
+      await this.delay(delayBetweenChunks);
+    }
+    
+    callbacks.onComplete(mockText, {
+      promptTokens: 1500,
+      candidatesTokens: 800,
+      totalTokens: 2300
+    });
+  }
+  
+  /**
+   * Demo mode: Simulate flashcards streaming
+   */
+  private async simulateFlashcardsStream(callbacks: StreamingCallbacks): Promise<void> {
+    console.log('🧪 Demo mode: Simulating flashcards stream');
+    
+    const mockText = mockFlashcardsResponse.flashcards;
+    const chunkSize = 40;
+    const delayBetweenChunks = 80;
+    
+    let accumulatedText = '';
+    
+    for (let i = 0; i < mockText.length; i += chunkSize) {
+      const chunk = mockText.substring(i, i + chunkSize);
+      accumulatedText += chunk;
+      
+      const charDelay = (delayBetweenChunks / chunkSize);
+      
+      callbacks.onChunk(accumulatedText, charDelay);
+      
+      await this.delay(delayBetweenChunks);
+    }
+    
+    callbacks.onComplete(mockText, {
+      promptTokens: 1200,
+      candidatesTokens: 600,
+      totalTokens: 1800
+    });
+  }
+  
+  /**
+   * Demo mode: Simulate condense streaming
+   */
+  private async simulateCondenseStream(callbacks: StreamingCallbacks): Promise<void> {
+    console.log('🧪 Demo mode: Simulating condense stream');
+    
+    const mockText = mockCondensedSummaryResponse.condensedSummary;
+    const chunkSize = 45;
+    const delayBetweenChunks = 90;
+    
+    let accumulatedText = '';
+    
+    for (let i = 0; i < mockText.length; i += chunkSize) {
+      const chunk = mockText.substring(i, i + chunkSize);
+      accumulatedText += chunk;
+      
+      const charDelay = (delayBetweenChunks / chunkSize);
+      
+      callbacks.onChunk(accumulatedText, charDelay);
+      
+      await this.delay(delayBetweenChunks);
+    }
+    
+    callbacks.onComplete(mockText, {
+      promptTokens: 1000,
+      candidatesTokens: 500,
+      totalTokens: 1500
+    });
   }
 
   // Get the status of files being processed by the Files API
