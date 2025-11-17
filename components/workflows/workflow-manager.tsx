@@ -261,10 +261,10 @@ export function WorkflowManager() {
             {t('addFiles')}
           </Button>
 
-          {/* Start All Button */}
+          {/* Start All Button - Disabled */}
           <Button
             onClick={handleStartAll}
-            disabled={!hasPendingWorkflows || isProcessing}
+            disabled={true}
           >
             <Play className="w-4 h-4 mr-2" />
             {t('startAll')}
