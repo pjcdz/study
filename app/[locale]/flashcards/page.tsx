@@ -1,14 +1,15 @@
 "use client"
 
-import { useState, useEffect, Suspense } from "react"
+import { useState, useEffect, useRef, Suspense } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { Textarea } from "@/components/ui/textarea"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { toast } from "sonner"
 import { ClipboardCopy, Check, ExternalLink, RefreshCw, Info } from "lucide-react"
 import { useUploadStore } from "@/store/use-upload-store"
+import { StreamingText } from "@/components/streaming/streaming-text"
 import { useTranslations } from "next-intl"
 import { demoFlashcardsTSV } from "@/lib/mock-data"
 import { useIsMobile } from "@/lib/hooks/useIsMobile"
@@ -36,11 +37,20 @@ function FlashcardsContent() {
   const t = useTranslations('flashcards');
   const tNav = useTranslations('navigation');
   const tCommon = useTranslations('common');
-  const { flashcards, setFlashcards, reset } = useUploadStore()
+  const { 
+    flashcards, 
+    setFlashcards, 
+    reset,
+    // Streaming state
+    isStreamingFlashcards,
+    streamingFlashcardsText,
+    currentCharDelay
+  } = useUploadStore()
   const [isCopied, setIsCopied] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
   const isMobile = useIsMobile();
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   
   // Check if we're in demo mode
   const [isDemoMode, setIsDemoMode] = useState(false)
@@ -65,22 +75,34 @@ function FlashcardsContent() {
       setFlashcards(demoFlashcardsTSV);
     }
     
-    // For normal mode, redirect if no flashcards
-    if (!demoMode && !flashcards) {
+    // For normal mode, redirect if no flashcards and not streaming
+    if (!demoMode && !flashcards && !isStreamingFlashcards) {
       console.log('No existen flashcards en el store, redirigiendo a summary');
       const pathParts = window.location.pathname.split('/');
       const locale = pathParts[1]; // Get the locale from the URL ('es' or 'en')
       router.push(`/${locale}/summary`);
     }
-  }, [flashcards, router, setFlashcards]);
+  }, [flashcards, router, setFlashcards, isStreamingFlashcards]);
   
-  // Early return during server-side rendering or if there are no flashcards (and not in demo mode)
-  if (typeof window === 'undefined' || (!flashcards && !isDemoMode)) {
+  // Auto-scroll to bottom during streaming
+  useEffect(() => {
+    if (isStreamingFlashcards && scrollAreaRef.current) {
+      const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      }
+    }
+  }, [streamingFlashcardsText, isStreamingFlashcards]);
+  
+  // Early return during server-side rendering or if there are no flashcards (and not in demo mode and not streaming)
+  if (typeof window === 'undefined' || (!flashcards && !isDemoMode && !isStreamingFlashcards)) {
     return null;
   }
   
-  // Use flashcards from store or demo flashcards if in demo mode and no store value
-  const displayFlashcards = flashcards || (isDemoMode ? demoFlashcardsTSV : '');
+  // Use flashcards from store or streaming text or demo flashcards
+  const displayFlashcards = isStreamingFlashcards 
+    ? streamingFlashcardsText 
+    : (flashcards || (isDemoMode ? demoFlashcardsTSV : ''));
   
   // Process TSV to clean markdown tags and code blocks if they exist
   const cleanTSV = (() => {
@@ -134,7 +156,7 @@ function FlashcardsContent() {
   
   return (
     <div className="flex justify-center w-full">
-      <div className="container max-w-4xl py-6">
+      <div className="w-full max-w-[896px] px-4 py-6">
         <Card>
           <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
@@ -179,14 +201,30 @@ function FlashcardsContent() {
               <label htmlFor="tsvContent" className="text-sm font-medium block mb-1">
                 {t('content.label')}
               </label>
-              <Textarea
-                id="tsvContent"
-                value={cleanTSV}
-                readOnly
-                className="min-h-[80px] max-h-[170px] overflow-y-auto font-mono text-sm"
-              />
+              <div ref={scrollAreaRef}>
+                <ScrollArea className="h-[170px] rounded-md border p-4 bg-muted">
+                  <div className="flex justify-center">
+                    {isStreamingFlashcards ? (
+                      <div className="font-mono text-sm max-w-[90%]">
+                        <StreamingText
+                          textToType={cleanTSV}
+                          charDelay={currentCharDelay}
+                          isStreaming={true}
+                        />
+                      </div>
+                    ) : (
+                      <pre className="font-mono text-sm whitespace-pre-wrap max-w-[90%]">
+                        {cleanTSV}
+                      </pre>
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {t('content.ready')}
+                {isStreamingFlashcards 
+                  ? t('content.generating', { defaultValue: 'Generando flashcards...' })
+                  : t('content.ready')
+                }
               </p>
             </div>
             

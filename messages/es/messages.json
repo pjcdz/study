@@ -88,10 +88,12 @@
       "generateFlashcards": "Generar Flashcards",
       "generating": "Generando...",
       "condense": "Resumir más",
-      "condensing": "Resumiendo..."
+      "condensing": "Resumiendo...",
+      "cancel": "Cancelar"
     },
     "content": {
-      "ready": "✓ Tu resumen está listo para ser copiado"
+      "ready": "✓ Tu resumen está listo para ser copiado",
+      "generating": "Generando resumen condensado..."
     },
     "instructions": {
       "title": "Cómo usar con Notion",
@@ -112,7 +114,9 @@
       "quotaExceeded": "Se ha excedido el límite de uso de la API. Por favor, intente más tarde.",
       "networkError": "Error de conexión. Por favor, verifique su internet e intente de nuevo.",
       "apiKeyError": "Error de autenticación de la API. Por favor, verifique su API Key en Configuración.",
-      "condensed": "Resumen condensado exitosamente"
+      "condensed": "Resumen condensado exitosamente",
+      "cancelled": "Generación cancelada",
+      "maxVersionsReached": "Número máximo de versiones de resumen alcanzado (3)"
     },
     "tabs": {
       "editor": "Editor",
@@ -130,7 +134,8 @@
     },
     "content": {
       "label": "Contenido TSV",
-      "ready": "✓ Listo para importar en Quizlet y otras plataformas"
+      "ready": "✓ Listo para importar en Quizlet y otras plataformas",
+      "generating": "Generando flashcards..."
     },
     "toast": {
       "copied": "Contenido TSV copiado al portapapeles",
@@ -256,6 +261,71 @@
       "step3": "Ve a 'API Keys' en el menú izquierdo",
       "step4": "Haz clic en 'Create API Key' y copia tu nueva clave",
       "getApiKeyButton": "Ir a Google AI Studio"
+    }
+  },
+  "workflows": {
+    "title": "Flujo de Trabajo: Documentos a Flashcards",
+    "description": "Transforma múltiples documentos en tarjetas de estudio",
+    "addFiles": "Añadir Archivos",
+    "addSingle": "Nuevo workflow (archivo único)",
+    "addMultiple": "Nuevo workflow (múltiples archivos)",
+    "startAll": "Iniciar Todo",
+    "pause": "Pausar",
+    "resume": "Reanudar",
+    "emptyState": "No hay workflows. Añade archivos para comenzar.",
+    "note": "Usa \"Iniciar Todo\" para procesar todos los workflows simultáneamente, o el botón \"▶\" en cada tarjeta para procesar workflows individuales.",
+    "summary": {
+      "total": "Total",
+      "completed": "Completados",
+      "processing": "Procesando",
+      "errors": "Errores",
+      "pending": "Pendientes"
+    },
+    "status": {
+      "pending": "Pendiente",
+      "processing": "Procesando...",
+      "completed": "Completado",
+      "error": "Error",
+      "paused": "Pausado"
+    },
+    "stages": {
+      "content": "Contenido",
+      "summary": "Resumen",
+      "flashcards": "Flashcards"
+    },
+    "actions": {
+      "start": "Iniciar workflow",
+      "remove": "Eliminar workflow",
+      "retry": "Reintentar",
+      "cancel": "Cancelar",
+      "viewDetails": "Ver Detalles",
+      "viewSummary": "Ver Resumen",
+      "viewFlashcards": "Ver Flashcards",
+      "viewError": "Ver Error",
+      "copy": "Copiar",
+      "export": "Exportar",
+      "openNotion": "Abrir en Notion",
+      "openQuizlet": "Abrir Quizlet",
+      "close": "Cerrar",
+      "waiting": "Esperando..."
+    },
+    "toast": {
+      "filesAdded": "{count} archivos añadidos",
+      "fileAdded": "Archivo añadido",
+      "startingAll": "Iniciando procesamiento simultáneo de todos los workflows",
+      "startingWorkflow": "Iniciando workflow",
+      "paused": "Procesamiento pausado",
+      "resumed": "Procesamiento reanudado",
+      "removed": "Workflow eliminado",
+      "retrying": "Reintentando etapa",
+      "cancelled": "Generación cancelada",
+      "copied": "Copiado al portapapeles",
+      "copyError": "Error al copiar",
+      "exported": "Archivo exportado",
+      "condensed": "Resumen condensado exitosamente",
+      "fileTooLarge": "{name} excede el límite de 20MB",
+      "noFilesAvailable": "No hay workflows con archivos disponibles. Por favor, sube nuevos archivos.",
+      "fileNotAvailable": "Archivo no disponible - Vuelve a subirlo"
     }
   },
   "toast": {

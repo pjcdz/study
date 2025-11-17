@@ -85,10 +85,12 @@
       "generateFlashcards": "Generate Flashcards",
       "generating": "Generating...",
       "condense": "Condense More",
-      "condensing": "Condensing..."
+      "condensing": "Condensing...",
+      "cancel": "Cancel"
     },
     "content": {
-      "ready": "✓ Your summary is ready to be copied"
+      "ready": "✓ Your summary is ready to be copied",
+      "generating": "Generating condensed summary..."
     },
     "instructions": {
       "title": "How to use with Notion",
@@ -109,7 +111,9 @@
       "error": "Could not generate flashcards: {message}",
       "quotaExceeded": "API usage limit exceeded. Please try again later.",
       "networkError": "Connection error. Please check your internet and try again.",
-      "apiKeyError": "API authentication error. Please check your API key in Settings."
+      "apiKeyError": "API authentication error. Please check your API key in Settings.",
+      "cancelled": "Generation cancelled",
+      "maxVersionsReached": "Maximum number of summary versions reached (3)"
     },
     "button": {
       "generate": "Generate Flashcards",
@@ -131,7 +135,8 @@
     },
     "content": {
       "label": "TSV Content",
-      "ready": "✓ Ready to import into Quizlet and other platforms"
+      "ready": "✓ Ready to import into Quizlet and other platforms",
+      "generating": "Generating flashcards..."
     },
     "toast": {
       "copied": "TSV content copied to clipboard",
@@ -257,6 +262,71 @@
       "step3": "Go to 'API Keys' in the left menu",
       "step4": "Click 'Create API Key' and copy your new key",
       "getApiKeyButton": "Go to Google AI Studio"
+    }
+  },
+  "workflows": {
+    "title": "Workflow: Documents to Flashcards",
+    "description": "Transform multiple documents into study cards",
+    "addFiles": "Add Files",
+    "addSingle": "New workflow (single file)",
+    "addMultiple": "New workflow (multiple files)",
+    "startAll": "Start All",
+    "pause": "Pause",
+    "resume": "Resume",
+    "emptyState": "No workflows. Add files to get started.",
+    "note": "Use \"Start All\" to process all workflows simultaneously, or the \"▶\" button on each card to process individual workflows.",
+    "summary": {
+      "total": "Total",
+      "completed": "Completed",
+      "processing": "Processing",
+      "errors": "Errors",
+      "pending": "Pending"
+    },
+    "status": {
+      "pending": "Pending",
+      "processing": "Processing...",
+      "completed": "Completed",
+      "error": "Error",
+      "paused": "Paused"
+    },
+    "stages": {
+      "content": "Content",
+      "summary": "Summary",
+      "flashcards": "Flashcards"
+    },
+    "actions": {
+      "start": "Start workflow",
+      "remove": "Remove workflow",
+      "retry": "Retry",
+      "cancel": "Cancel",
+      "viewDetails": "View Details",
+      "viewSummary": "View Summary",
+      "viewFlashcards": "View Flashcards",
+      "viewError": "View Error",
+      "copy": "Copy",
+      "export": "Export",
+      "openNotion": "Open in Notion",
+      "openQuizlet": "Open Quizlet",
+      "close": "Close",
+      "waiting": "Waiting..."
+    },
+    "toast": {
+      "filesAdded": "{count} files added",
+      "fileAdded": "File added",
+      "startingAll": "Starting simultaneous processing of all workflows",
+      "startingWorkflow": "Starting workflow",
+      "paused": "Processing paused",
+      "resumed": "Processing resumed",
+      "removed": "Workflow removed",
+      "retrying": "Retrying stage",
+      "cancelled": "Generation cancelled",
+      "copied": "Copied to clipboard",
+      "copyError": "Error copying",
+      "exported": "File exported",
+      "condensed": "Summary condensed successfully",
+      "fileTooLarge": "{name} exceeds the 20MB limit",
+      "noFilesAvailable": "No workflows with files available. Please upload new files.",
+      "fileNotAvailable": "File not available - Please re-upload"
     }
   },
   "toast": {

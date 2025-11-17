@@ -22,6 +22,12 @@ export interface CustomFile {
   thumbnailUrl: string
 }
 
+interface UsageMetadata {
+  promptTokens: number
+  candidatesTokens: number
+  totalTokens: number
+}
+
 interface UploadState {
   files: CustomFile[]
   originalFiles: File[]
@@ -35,6 +41,19 @@ interface UploadState {
   // Timer state
   processingStartTime: number | null
   elapsedTimeMs: number
+  // NEW: Streaming state for simple flow
+  isStreamingSummary: boolean
+  isStreamingFlashcards: boolean
+  isStreamingCondense: boolean
+  // NEW: Temporary streaming text
+  streamingSummaryText: string
+  streamingFlashcardsText: string
+  // NEW: Current char delay for typewriter effect
+  currentCharDelay: number
+  // NEW: Streaming control
+  abortStreamingController: AbortController | null
+  // NEW: Usage metadata
+  lastUsageMetadata: UsageMetadata | null
   // Actions
   addFiles: (newFiles: File[]) => void
   removeFile: (index: number) => void
@@ -50,6 +69,21 @@ interface UploadState {
   stopProcessing: () => void
   updateElapsedTime: () => void
   reset: () => void
+  // NEW: Streaming control actions
+  setStreamingSummary: (isStreaming: boolean) => void
+  setStreamingFlashcards: (isStreaming: boolean) => void
+  setStreamingCondense: (isStreaming: boolean) => void
+  // NEW: Update streaming text
+  updateStreamingSummaryText: (text: string, charDelay: number) => void
+  updateStreamingFlashcardsText: (text: string, charDelay: number) => void
+  // NEW: Complete streaming
+  completeStreamingSummary: (finalText: string, metadata: UsageMetadata) => void
+  completeStreamingFlashcards: (finalText: string, metadata: UsageMetadata) => void
+  completeStreamingCondense: (finalText: string, metadata: UsageMetadata) => void
+  // NEW: Cancel streaming
+  cancelStreaming: () => void
+  // NEW: Clear streaming state
+  clearStreamingState: () => void
 }
 
 export const useUploadStore = create<UploadState>()(
@@ -68,6 +102,15 @@ export const useUploadStore = create<UploadState>()(
       // Timer state
       processingStartTime: null,
       elapsedTimeMs: 0,
+      // NEW: Streaming state
+      isStreamingSummary: false,
+      isStreamingFlashcards: false,
+      isStreamingCondense: false,
+      streamingSummaryText: '',
+      streamingFlashcardsText: '',
+      currentCharDelay: 20,
+      abortStreamingController: null,
+      lastUsageMetadata: null,
       // Actions
       addFiles: (newFiles: File[]) => {
         // Track file uploads
@@ -230,6 +273,12 @@ export const useUploadStore = create<UploadState>()(
       reset: () => {
         trackEvent('app_reset');
         
+        // Cancel any ongoing streaming
+        const controller = get().abortStreamingController;
+        if (controller) {
+          controller.abort();
+        }
+        
         // Reset state
         set({
           files: [],
@@ -242,6 +291,15 @@ export const useUploadStore = create<UploadState>()(
           isLoading: false,
           processingStartTime: null,
           elapsedTimeMs: 0,
+          // Reset streaming state
+          isStreamingSummary: false,
+          isStreamingFlashcards: false,
+          isStreamingCondense: false,
+          streamingSummaryText: '',
+          streamingFlashcardsText: '',
+          currentCharDelay: 20,
+          abortStreamingController: null,
+          lastUsageMetadata: null,
         });
         
         // Clear localStorage keys
@@ -261,6 +319,113 @@ export const useUploadStore = create<UploadState>()(
           console.log('Estado completamente reiniciado: todas las claves eliminadas');
         }
       },
+      
+      // NEW: Streaming control actions
+      setStreamingSummary: (isStreaming: boolean) => set({ isStreamingSummary: isStreaming }),
+      setStreamingFlashcards: (isStreaming: boolean) => set({ isStreamingFlashcards: isStreaming }),
+      setStreamingCondense: (isStreaming: boolean) => set({ isStreamingCondense: isStreaming }),
+      
+      // NEW: Update streaming text
+      updateStreamingSummaryText: (text: string, charDelay: number) => 
+        set({ 
+          streamingSummaryText: text, 
+          currentCharDelay: charDelay 
+        }),
+      
+      updateStreamingFlashcardsText: (text: string, charDelay: number) => 
+        set({ 
+          streamingFlashcardsText: text, 
+          currentCharDelay: charDelay 
+        }),
+      
+      // NEW: Complete streaming
+      completeStreamingSummary: (finalText: string, metadata: UsageMetadata) => {
+        trackEvent('streaming_summary_completed', {
+          char_count: finalText.length,
+          total_tokens: metadata.totalTokens,
+          prompt_tokens: metadata.promptTokens,
+          candidates_tokens: metadata.candidatesTokens
+        });
+        
+        set((state) => ({
+          summaries: [finalText],
+          currentSummaryIndex: 0,
+          isStreamingSummary: false,
+          streamingSummaryText: '',
+          lastUsageMetadata: metadata,
+          abortStreamingController: null
+        }));
+      },
+      
+      completeStreamingFlashcards: (finalText: string, metadata: UsageMetadata) => {
+        const cardCount = finalText.split('\n').filter(line => line.trim().length > 0).length;
+        trackEvent('streaming_flashcards_completed', {
+          card_count: cardCount,
+          total_tokens: metadata.totalTokens,
+          prompt_tokens: metadata.promptTokens,
+          candidates_tokens: metadata.candidatesTokens
+        });
+        
+        set({
+          flashcards: finalText,
+          isStreamingFlashcards: false,
+          streamingFlashcardsText: '',
+          lastUsageMetadata: metadata,
+          abortStreamingController: null
+        });
+      },
+      
+      completeStreamingCondense: (finalText: string, metadata: UsageMetadata) => {
+        trackEvent('streaming_condense_completed', {
+          char_count: finalText.length,
+          total_tokens: metadata.totalTokens,
+          prompt_tokens: metadata.promptTokens,
+          candidates_tokens: metadata.candidatesTokens
+        });
+        
+        set((state) => {
+          const updatedSummaries = [...state.summaries, finalText];
+          return {
+            summaries: updatedSummaries,
+            currentSummaryIndex: updatedSummaries.length - 1,
+            isStreamingCondense: false,
+            streamingSummaryText: '',
+            lastUsageMetadata: metadata,
+            abortStreamingController: null
+          };
+        });
+      },
+      
+      // NEW: Cancel streaming
+      cancelStreaming: () => {
+        const controller = get().abortStreamingController;
+        if (controller) {
+          controller.abort();
+        }
+        
+        trackEvent('streaming_cancelled');
+        
+        set({
+          isStreamingSummary: false,
+          isStreamingFlashcards: false,
+          isStreamingCondense: false,
+          streamingSummaryText: '',
+          streamingFlashcardsText: '',
+          abortStreamingController: null
+        });
+      },
+      
+      // NEW: Clear streaming state
+      clearStreamingState: () => 
+        set({
+          isStreamingSummary: false,
+          isStreamingFlashcards: false,
+          isStreamingCondense: false,
+          streamingSummaryText: '',
+          streamingFlashcardsText: '',
+          currentCharDelay: 20,
+          abortStreamingController: null
+        }),
     }),
     {
       name: 'upload-store',
@@ -274,6 +439,14 @@ export const useUploadStore = create<UploadState>()(
         currentStep: state.currentStep,
         // Don't persist timer state to prevent issues with stale timers
         isLoading: false,
+        // Don't persist streaming state - it should be ephemeral
+        isStreamingSummary: false,
+        isStreamingFlashcards: false,
+        isStreamingCondense: false,
+        streamingSummaryText: '',
+        streamingFlashcardsText: '',
+        // Persist last usage metadata for display
+        lastUsageMetadata: state.lastUsageMetadata,
       }),
       // Version to ensure backward compatibility
       version: 2, // Increment version due to breaking changes

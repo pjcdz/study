@@ -1,9 +1,13 @@
 'use client';
 
-import { Clock, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { memo, useRef, useEffect } from 'react';
+import { Clock, CheckCircle2, AlertCircle, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useTranslations } from 'next-intl';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { StageState, StageType } from '@/lib/types/workflow';
 import { cn } from '@/lib/utils';
+import { StreamingText } from '@/components/streaming/streaming-text';
 
 interface StageCardProps {
   stage: StageState;
@@ -13,16 +17,10 @@ interface StageCardProps {
   onRetry?: () => void;
   onViewResult?: () => void;
   onCopyResult?: () => void;
-  onExportResult?: () => void;
+  onCancelStreaming?: () => void;
 }
 
-const stageLabels: Record<StageType, string> = {
-  content: 'Contenido',
-  summary: 'Resumen',
-  flashcards: 'Flashcards',
-};
-
-export function StageCard({
+function StageCardComponent({
   stage,
   stageType,
   stageNumber,
@@ -30,9 +28,21 @@ export function StageCard({
   onRetry,
   onViewResult,
   onCopyResult,
-  onExportResult,
+  onCancelStreaming,
 }: StageCardProps) {
-  const { status, progress, error } = stage;
+  const t = useTranslations('workflows');
+  const { status, progress, error, isStreaming, streamingText, charDelay, stats } = stage;
+  const streamingContentRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to show streaming content
+  useEffect(() => {
+    if (isStreaming && streamingContentRef.current) {
+      streamingContentRef.current.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'nearest' 
+      });
+    }
+  }, [isStreaming, streamingText]);
 
   // Determine border and background colors based on status
   const statusStyles = {
@@ -45,9 +55,11 @@ export function StageCard({
   return (
     <div
       className={cn(
-        'rounded-lg border-2 p-4 transition-all',
+        'rounded-lg border-2 p-4 transition-all duration-300 hover:shadow-md min-h-[116px]',
         statusStyles[status]
       )}
+      role="region"
+      aria-label={`${t(`stages.${stageType}`)} stage - ${t(`status.${status}`)}`}
     >
       {/* Stage Header */}
       <div className="flex items-center gap-2 mb-3">
@@ -62,48 +74,72 @@ export function StageCard({
         >
           {stageNumber}
         </div>
-        <h3 className="font-semibold text-sm">{stageLabels[stageType]}</h3>
+        <h3 className="font-semibold text-sm">{t(`stages.${stageType}`)}</h3>
       </div>
 
       {/* Status Icon and Message */}
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center gap-2 mb-3" aria-live="polite" aria-atomic="true">
         {status === 'pending' && (
           <>
-            <Clock className="w-4 h-4 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">Pendiente</span>
+            <Clock className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
+            <span className="text-xs text-muted-foreground">{t('status.pending')}</span>
           </>
         )}
         {status === 'processing' && (
           <>
-            <Loader2 className="w-4 h-4 text-primary animate-spin" />
-            <span className="text-xs text-primary">Procesando...</span>
+            <Loader2 className="w-4 h-4 text-primary animate-spin" aria-hidden="true" />
+            <span className="text-xs text-primary">{t('status.processing')}</span>
           </>
         )}
         {status === 'completed' && (
           <>
-            <CheckCircle2 className="w-4 h-4 text-green-500" />
+            <CheckCircle2 className="w-4 h-4 text-green-500" aria-hidden="true" />
             <span className="text-xs text-green-600 dark:text-green-400">
-              Completado
+              {t('status.completed')}
             </span>
           </>
         )}
         {status === 'error' && (
           <>
-            <AlertCircle className="w-4 h-4 text-destructive" />
-            <span className="text-xs text-destructive">Error</span>
+            <AlertCircle className="w-4 h-4 text-destructive" aria-hidden="true" />
+            <span className="text-xs text-destructive">{t('status.error')}</span>
           </>
         )}
       </div>
 
       {/* Progress Bar (only for processing) */}
-      {status === 'processing' && progress !== undefined && (
-        <div className="mb-3">
-          <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
-            <div
-              className="bg-primary h-full transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
+      <AnimatePresence>
+        {status === 'processing' && progress !== undefined && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-3"
+          >
+            <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+              <motion.div
+                className="bg-primary h-full"
+                initial={{ width: 0 }}
+                animate={{ width: `${progress}%` }}
+                transition={{ duration: 0.3, ease: 'easeOut' }}
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Streaming Content Preview */}
+      {isStreaming && streamingText && (
+        <div 
+          ref={streamingContentRef}
+          className="mb-3 p-3 bg-muted/30 rounded-md max-h-32 overflow-y-auto"
+        >
+          <StreamingText
+            textToType={streamingText}
+            charDelay={charDelay || 20}
+            isStreaming={true}
+            className="text-xs text-foreground/80"
+          />
         </div>
       )}
 
@@ -113,9 +149,28 @@ export function StageCard({
           {error}
         </div>
       )}
+      
+      {/* Usage Stats */}
+      {status === 'completed' && stats && (
+        <div className="mb-3 text-xs text-muted-foreground">
+          <span>Tokens: {stats.totalTokens}</span>
+        </div>
+      )}
 
       {/* Action Buttons */}
       <div className="flex flex-wrap gap-2">
+        {isStreaming && (
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={onCancelStreaming}
+            className="text-xs"
+          >
+            <X className="w-3 h-3 mr-1" />
+            {t('actions.cancel')}
+          </Button>
+        )}
+        
         {status === 'completed' && (
           <>
             {stageType === 'content' && (
@@ -125,7 +180,7 @@ export function StageCard({
                 onClick={onViewResult}
                 className="text-xs"
               >
-                Ver Detalles
+                {t('actions.viewDetails')}
               </Button>
             )}
             {stageType === 'summary' && (
@@ -136,7 +191,7 @@ export function StageCard({
                   onClick={onViewResult}
                   className="text-xs"
                 >
-                  Ver Resumen
+                  {t('actions.viewSummary')}
                 </Button>
                 <Button
                   size="sm"
@@ -144,7 +199,15 @@ export function StageCard({
                   onClick={onCopyResult}
                   className="text-xs"
                 >
-                  Copiar
+                  {t('actions.copy')}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => window.open('https://www.notion.so/new', '_blank')}
+                  className="text-xs"
+                >
+                  {t('actions.openNotion')}
                 </Button>
               </>
             )}
@@ -156,15 +219,23 @@ export function StageCard({
                   onClick={onViewResult}
                   className="text-xs"
                 >
-                  Ver Flashcards
+                  {t('actions.viewFlashcards')}
                 </Button>
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={onExportResult}
+                  onClick={onCopyResult}
                   className="text-xs"
                 >
-                  Exportar
+                  {t('actions.copy')}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => window.open('https://quizlet.com/create-set', '_blank')}
+                  className="text-xs"
+                >
+                  {t('actions.openQuizlet')}
                 </Button>
               </>
             )}
@@ -179,7 +250,7 @@ export function StageCard({
               onClick={onViewResult}
               className="text-xs"
             >
-              Ver Error
+              {t('actions.viewError')}
             </Button>
             <Button
               size="sm"
@@ -187,15 +258,18 @@ export function StageCard({
               onClick={onRetry}
               className="text-xs"
             >
-              Reintentar
+              {t('actions.retry')}
             </Button>
           </>
         )}
 
         {status === 'pending' && (
-          <span className="text-xs text-muted-foreground">Esperando...</span>
+          <span className="text-xs text-muted-foreground">{t('actions.waiting')}</span>
         )}
       </div>
     </div>
   );
 }
+
+// Memoize the component to prevent unnecessary re-renders
+export const StageCard = memo(StageCardComponent);

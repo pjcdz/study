@@ -1,6 +1,6 @@
 'use client';
 
-import { Copy, Download } from 'lucide-react';
+import { Copy, Download, Minimize, Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { MarkdownPreview } from '@/components/markdown/markdown-preview';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 interface ResultModalProps {
@@ -18,6 +19,9 @@ interface ResultModalProps {
   title: string;
   content: string;
   contentType: 'markdown' | 'tsv' | 'text';
+  stageType?: 'summary' | 'flashcards' | 'content';
+  onCondense?: () => void;
+  isCondensing?: boolean;
 }
 
 export function ResultModal({
@@ -26,13 +30,19 @@ export function ResultModal({
   title,
   content,
   contentType,
+  stageType,
+  onCondense,
+  isCondensing = false,
 }: ResultModalProps) {
+  const t = useTranslations('workflows');
+  const tSummary = useTranslations('summary');
+  
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(content);
-      toast.success('Copiado al portapapeles');
+      toast.success(t('toast.copied'));
     } catch (error) {
-      toast.error('Error al copiar');
+      toast.error(t('toast.copyError'));
     }
   };
 
@@ -48,7 +58,7 @@ export function ResultModal({
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    toast.success('Archivo exportado');
+    toast.success(t('toast.exported'));
   };
 
   const renderContent = () => {
@@ -111,16 +121,36 @@ export function ResultModal({
 
         <div className="my-4">{renderContent()}</div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          {stageType === 'summary' && onCondense && (
+            <Button 
+              variant="outline" 
+              onClick={onCondense}
+              disabled={isCondensing}
+              className="w-full sm:w-auto"
+            >
+              {isCondensing ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  {tSummary('actions.condensing', { defaultValue: 'Resumiendo...' })}
+                </>
+              ) : (
+                <>
+                  <Minimize className="w-4 h-4 mr-2" />
+                  {tSummary('actions.condense', { defaultValue: 'Resumir más' })}
+                </>
+              )}
+            </Button>
+          )}
           <Button variant="outline" onClick={handleCopy}>
             <Copy className="w-4 h-4 mr-2" />
-            Copiar
+            {t('actions.copy')}
           </Button>
           <Button variant="outline" onClick={handleExport}>
             <Download className="w-4 h-4 mr-2" />
-            Exportar
+            {t('actions.export')}
           </Button>
-          <Button onClick={onClose}>Cerrar</Button>
+          <Button onClick={onClose}>{t('actions.close')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

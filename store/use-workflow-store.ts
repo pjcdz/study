@@ -34,6 +34,7 @@ interface WorkflowStore {
   addMultipleWorkflows: (files: File[]) => string[];
   removeWorkflow: (id: string) => void;
   clearCompletedWorkflows: () => void;
+  reset: () => void;
   
   // Processing Control Actions
   startAll: () => void;
@@ -47,6 +48,11 @@ interface WorkflowStore {
   updateStageProgress: (workflowId: string, stage: StageType, progress: number) => void;
   setStageResult: (workflowId: string, stage: StageType, result: string, stats?: GenerationStats) => void;
   setStageError: (workflowId: string, stage: StageType, error: string) => void;
+  
+  // Streaming Actions
+  setStageStreaming: (workflowId: string, stage: StageType, isStreaming: boolean) => void;
+  updateStageStreamingText: (workflowId: string, stage: StageType, text: string, charDelay: number) => void;
+  cancelStageStreaming: (workflowId: string, stage: StageType) => void;
   
   // Selectors
   getWorkflow: (id: string) => WorkflowState | undefined;
@@ -66,15 +72,22 @@ export const useWorkflowStore = create<WorkflowStore>()(
       activeWorkflowId: null,
       isPaused: false,
       
+      // Note: Store automatically cleans up on hydration via onRehydrateStorage
+      
       // Workflow Management Actions
       addWorkflow: (file: File) => {
         const id = generateId();
+        const fileInfo = {
+          id: generateId(),
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          file,
+        };
         const workflow: WorkflowState = {
           id,
           fileName: file.name,
-          fileType: file.type,
-          fileSize: file.size,
-          file,
+          files: [fileInfo],
           createdAt: Date.now(),
           stages: {
             content: createInitialStage(),
@@ -92,31 +105,34 @@ export const useWorkflowStore = create<WorkflowStore>()(
       },
       
       addMultipleWorkflows: (files: File[]) => {
-        const ids: string[] = [];
-        const newWorkflows: WorkflowState[] = files.map((file) => {
-          const id = generateId();
-          ids.push(id);
-          return {
-            id,
-            fileName: file.name,
-            fileType: file.type,
-            fileSize: file.size,
-            file,
-            createdAt: Date.now(),
-            stages: {
-              content: createInitialStage(),
-              summary: createInitialStage(),
-              flashcards: createInitialStage(),
-            },
-            overallStatus: 'pending',
-          };
-        });
-        
-        set((state) => ({
-          workflows: [...state.workflows, ...newWorkflows],
+        // Create a single workflow with all files
+        const id = generateId();
+        const fileInfos = files.map(file => ({
+          id: generateId(),
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          file,
         }));
         
-        return ids;
+        const workflow: WorkflowState = {
+          id,
+          fileName: files.length === 1 ? files[0].name : `${files.length} archivos`,
+          files: fileInfos,
+          createdAt: Date.now(),
+          stages: {
+            content: createInitialStage(),
+            summary: createInitialStage(),
+            flashcards: createInitialStage(),
+          },
+          overallStatus: 'pending',
+        };
+        
+        set((state) => ({
+          workflows: [...state.workflows, workflow],
+        }));
+        
+        return [id];
       },
 
       removeWorkflow: (id: string) => {
@@ -130,6 +146,18 @@ export const useWorkflowStore = create<WorkflowStore>()(
         set((state) => ({
           workflows: state.workflows.filter((w) => w.overallStatus !== 'completed'),
         }));
+      },
+      
+      reset: () => {
+        set({
+          workflows: [],
+          activeWorkflowId: null,
+          isPaused: false,
+        });
+        // Force persistence to localStorage
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('workflow-store');
+        }
       },
       
       // Processing Control Actions
@@ -178,7 +206,6 @@ export const useWorkflowStore = create<WorkflowStore>()(
             if (status === 'processing') {
               overallStatus = 'processing';
             } else if (
-              updatedStages.content.status === 'completed' &&
               updatedStages.summary.status === 'completed' &&
               updatedStages.flashcards.status === 'completed'
             ) {
@@ -250,9 +277,72 @@ export const useWorkflowStore = create<WorkflowStore>()(
                   ...w.stages[stage],
                   error,
                   status: 'error',
+                  isStreaming: false,
                 },
               },
               overallStatus: 'error',
+            };
+          }),
+        }));
+      },
+      
+      // Streaming Actions
+      setStageStreaming: (workflowId: string, stage: StageType, isStreaming: boolean) => {
+        set((state) => ({
+          workflows: state.workflows.map((w) => {
+            if (w.id !== workflowId) return w;
+            
+            return {
+              ...w,
+              stages: {
+                ...w.stages,
+                [stage]: {
+                  ...w.stages[stage],
+                  isStreaming,
+                  ...(isStreaming && { streamingText: '', charDelay: 20 }),
+                },
+              },
+            };
+          }),
+        }));
+      },
+      
+      updateStageStreamingText: (workflowId: string, stage: StageType, text: string, charDelay: number) => {
+        set((state) => ({
+          workflows: state.workflows.map((w) => {
+            if (w.id !== workflowId) return w;
+            
+            return {
+              ...w,
+              stages: {
+                ...w.stages,
+                [stage]: {
+                  ...w.stages[stage],
+                  streamingText: text,
+                  charDelay,
+                },
+              },
+            };
+          }),
+        }));
+      },
+      
+      cancelStageStreaming: (workflowId: string, stage: StageType) => {
+        set((state) => ({
+          workflows: state.workflows.map((w) => {
+            if (w.id !== workflowId) return w;
+            
+            return {
+              ...w,
+              stages: {
+                ...w.stages,
+                [stage]: {
+                  ...w.stages[stage],
+                  isStreaming: false,
+                  status: 'error',
+                  error: 'Cancelado por el usuario',
+                },
+              },
             };
           }),
         }));
@@ -381,32 +471,59 @@ export const useWorkflowStore = create<WorkflowStore>()(
     {
       name: 'workflow-store',
       storage: createJSONStorage(() => localStorage),
-      // Don't persist File objects
+      // Only persist completed workflows, not pending/processing ones with files
       partialize: (state) => ({
-        workflows: state.workflows.map((w) => ({
-          ...w,
-          file: undefined, // Don't persist File objects
-          // Mark interrupted workflows as pending
-          overallStatus: w.overallStatus === 'processing' ? 'pending' : w.overallStatus,
-          stages: {
-            content: {
-              ...w.stages.content,
-              status: w.stages.content.status === 'processing' ? 'pending' : w.stages.content.status,
-            },
-            summary: {
-              ...w.stages.summary,
-              status: w.stages.summary.status === 'processing' ? 'pending' : w.stages.summary.status,
-            },
-            flashcards: {
-              ...w.stages.flashcards,
-              status: w.stages.flashcards.status === 'processing' ? 'pending' : w.stages.flashcards.status,
-            },
-          },
-        })),
+        workflows: state.workflows
+          // Filter: only persist completed workflows
+          .filter((w) => w.overallStatus === 'completed')
+          .map((w) => ({
+            ...w,
+            files: (w.files || []).map(f => ({ ...f, file: undefined })), // Don't persist File objects
+          })),
         activeWorkflowId: null, // Don't persist active workflow
         isPaused: false, // Don't persist paused state
       }),
-      version: 1,
+      version: 3,
+      migrate: (persistedState: any, version: number) => {
+        // Clear old workflows when migrating to version 3
+        // Version 3 only persists completed workflows
+        if (version < 3) {
+          return {
+            workflows: [],
+            activeWorkflowId: null,
+            isPaused: false,
+          };
+        }
+        return persistedState;
+      },
+      onRehydrateStorage: () => {
+        return (state, error) => {
+          if (error) {
+            console.error('Error rehydrating workflow store:', error);
+            return;
+          }
+          
+          if (state) {
+            // Clean up any pending workflows without File objects after page reload
+            const validWorkflows = state.workflows.filter((w) => {
+              // Keep completed workflows (they don't need File objects)
+              if (w.overallStatus === 'completed') return true;
+              
+              // Keep pending/processing workflows only if they have valid File objects
+              if (w.files && w.files.length > 0 && w.files.every(f => f.file)) return true;
+              
+              // Remove workflows without files or without File objects
+              return false;
+            });
+            
+            // Only update if we filtered out any workflows
+            if (validWorkflows.length !== state.workflows.length) {
+              state.workflows = validWorkflows;
+              console.log(`Cleaned up ${state.workflows.length - validWorkflows.length} workflows without files`);
+            }
+          }
+        };
+      },
     }
   )
 );

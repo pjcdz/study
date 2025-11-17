@@ -15,18 +15,29 @@ export interface StageState {
   startedAt?: number;            // Timestamp when stage started
   completedAt?: number;          // Timestamp when stage completed
   stats?: GenerationStats;       // API usage statistics
+  // Streaming fields
+  isStreaming?: boolean;         // Whether content is currently streaming
+  streamingText?: string;        // Text being streamed in real-time
+  charDelay?: number;            // Adaptive delay between characters for typewriter effect
 }
 
 // Overall workflow status
 export type WorkflowStatus = 'pending' | 'processing' | 'completed' | 'error' | 'paused';
 
+// File info for multiple files in a workflow
+export interface FileInfo {
+  id: string;                    // Unique file ID
+  name: string;                  // File name
+  type: string;                  // MIME type
+  size: number;                  // Size in bytes
+  file: File;                    // Original File object
+}
+
 // Complete workflow state
 export interface WorkflowState {
   id: string;                    // Unique UUID
-  fileName: string;              // Original file name
-  fileType: string;              // MIME type
-  fileSize: number;              // Size in bytes
-  file: File;                    // Original File object
+  fileName: string;              // Workflow name (first file name or custom)
+  files: FileInfo[];             // Array of files in this workflow
   createdAt: number;             // Creation timestamp
   stages: {
     content: StageState;

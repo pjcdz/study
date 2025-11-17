@@ -148,7 +148,11 @@ export default function UploadPage() {
     setInputText,
     addSummary,
     setCurrentStep,
-    reset
+    reset,
+    // Streaming state and actions
+    setStreamingSummary,
+    updateStreamingSummaryText,
+    completeStreamingSummary
   } = useUploadStore()
 
   const handleSubmit = async () => {
@@ -232,23 +236,82 @@ export default function UploadPage() {
         console.log(`- ${pair[0]}: ${pair[1] instanceof File ? pair[1].name : 'text content'}`);
       }
       
+      // Get current locale for navigation
+      const pathParts = window.location.pathname.split('/');
+      const locale = pathParts[1];
+      
+      // Start streaming immediately (before navigation)
+      setStreamingSummary(true);
+      
+      // Store FormData in a way that can be accessed after navigation
+      // We'll use a ref or store the formData temporarily
+      const formDataToProcess = formData;
+      
       try {
-        // Send the request
-        const response = await apiClient.processSummary(formData);
+        // Start streaming in background
+        const streamingPromise = apiClient.processSummaryStream(
+          formDataToProcess,
+          {
+            onChunk: (text, charDelay) => {
+              updateStreamingSummaryText(text, charDelay);
+            },
+            onComplete: (fullText, metadata) => {
+              console.log('Streaming de resumen completado:', {
+                textLength: fullText.length,
+                tokens: metadata.totalTokens
+              });
+              
+              // Complete streaming and save
+              completeStreamingSummary(fullText, metadata);
+              
+              // Stop processing timer
+              stopProcessing();
+              setLargeFileProcessing(false);
+              
+              // Show success message
+              toast.success(t('upload.toast.success'));
+            },
+            onError: (error) => {
+              // Handle streaming error
+              stopProcessing();
+              setLargeFileProcessing(false);
+              
+              // Navigate back to upload on error
+              router.push(`/${locale}/upload`);
+              
+              // Show error toast
+              switch (error.type) {
+                case ApiErrorType.QUOTA_EXCEEDED:
+                  toast.error(t('upload.toast.quotaExceeded'));
+                  break;
+                case ApiErrorType.INVALID_API_KEY:
+                  toast.error(t('upload.toast.invalidApiKey') || 'Invalid API key. Please configure your API key.');
+                  setTimeout(() => router.push(`/${locale}/api`), 1500);
+                  break;
+                case ApiErrorType.FILE_TOO_LARGE:
+                  toast.error(t('upload.toast.fileTooLarge') || 'El archivo es demasiado grande para procesar.');
+                  break;
+                case ApiErrorType.FILE_PROCESSING_FAILED:
+                  toast.error(t('upload.toast.fileProcessingFailed') || 'El procesamiento del archivo ha fallado.');
+                  break;
+                case ApiErrorType.NETWORK_ERROR:
+                  toast.error(t('upload.toast.networkError'));
+                  break;
+                default:
+                  toast.error(t('upload.toast.error', { message: error.message }));
+                  break;
+              }
+            }
+          }
+        );
         
-        // Stop processing timer
-        stopProcessing();
-        setLargeFileProcessing(false);
+        // Navigate to summary page after starting the stream
+        // Add a small delay to ensure streaming has started
+        setTimeout(() => {
+          router.push(`/${locale}/summary`);
+        }, 100);
         
-        // Add the summary to our state
-        addSummary(response.notionMarkdown);
-        setCurrentStep('summary');
-        
-        // Show success message
-        toast.success(t('upload.toast.success'));
-        
-        // Navigate to the next step
-        router.push('./summary');
+        // Don't await the streaming promise here, let it run in background
       } catch (error) {
         stopProcessing();
         setLargeFileProcessing(false);

@@ -88,12 +88,12 @@ export default function ApiPage() {
   }
   
   return (
-    <div className="container mx-auto py-8 px-4">
+    <div className="w-full max-w-[896px] mx-auto py-8 px-4">
       <motion.div
         initial="hidden"
         animate="show"
         variants={containerVariants}
-        className="max-w-3xl mx-auto space-y-8"
+        className="space-y-8"
       >
         <motion.div variants={itemVariants}>
           <h1 className="text-2xl font-bold mb-2 text-center">{t('title')}</h1>

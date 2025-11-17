@@ -27,10 +27,9 @@ export default function AppContainer({
 
   // Actualizar el paso actual basado en la URL
   useEffect(() => {
-    // If we're on the API page, don't set any active step
-    if (pathname.includes('/api')) {
-      // Optional: you could set a special value or leave it as is
-      // setCurrentStep('api');
+    // If we're on the API page or workflows page, don't set any active step
+    if (pathname.includes('/api') || pathname.includes('/workflows')) {
+      // Don't set any step for these pages
       return;
     }
     

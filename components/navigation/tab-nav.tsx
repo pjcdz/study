@@ -25,11 +25,12 @@ export function WorkflowTabs() {
   const t = useTranslations('navigation')
   const tCommon = useTranslations('common')
   
-  // Check if we're on the API page
+  // Check if we're on the API page or workflows page
   const isApiPage = pathname.includes('/api')
+  const isWorkflowsPage = pathname.includes('/workflows')
   
-  // Set activeTab to either the current step or null if on API page
-  const activeTab = isApiPage ? null : currentStep
+  // Set activeTab to either the current step or null if on API/workflows page
+  const activeTab = (isApiPage || isWorkflowsPage) ? null : currentStep
   
   const handleTabChange = (value: string) => {
     // Validaciones para evitar navegación a pasos no completados
@@ -94,8 +95,21 @@ export function WorkflowTabs() {
               <AlertDialogFooter>
                 <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
                 <AlertDialogAction onClick={() => {
-                  // Use our enhanced reset function that now handles all localStorage cleanup
+                  // Reset upload store
                   reset()
+                  
+                  // Also reset workflows store
+                  if (typeof window !== 'undefined') {
+                    // Import and reset workflow store
+                    import('@/store/use-workflow-store').then(({ useWorkflowStore }) => {
+                      const store = useWorkflowStore.getState();
+                      if (typeof store.reset === 'function') {
+                        store.reset();
+                      }
+                    }).catch(err => {
+                      console.error('Error resetting workflow store:', err);
+                    });
+                  }
                   
                   // Obtain the language prefix from the current path
                   const localePrefix = pathname.split('/')[1];
